@@ -1,0 +1,11 @@
+# AI dependencies for analysis and prototyping
+numpy
+pandas
+scikit-learn
+tensorflow
+torch
+opencv-python
+matplotlib
+jupyter
+shap
+opencv-python-headless
