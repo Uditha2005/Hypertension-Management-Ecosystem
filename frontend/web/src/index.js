@@ -1,12 +1,8 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
+import PatientMonitoring from "./components/PatientMonitoring";
 
-const App = () => (
-  <div style={{ fontFamily: "Arial, sans-serif", padding: "24px" }}>
-    <h1>Hypertension Management Ecosystem</h1>
-    <p>Web frontend scaffold is ready.</p>
-  </div>
-);
+const App = () => <PatientMonitoring />;
 
 const root = ReactDOM.createRoot(document.getElementById("root"));
 root.render(<App />);
