@@ -6,9 +6,24 @@ class MedicineVerificationScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final rows = [
-      {'field': 'Medicine', 'prescribed': 'Amlodipine', 'scanned': 'Amlodipine', 'status': 'Match'},
-      {'field': 'Strength', 'prescribed': '5 mg', 'scanned': '10 mg', 'status': 'Risk'},
-      {'field': 'Schedule', 'prescribed': 'Once daily', 'scanned': 'Twice daily', 'status': 'Mismatch'},
+      {
+        'field': 'Medicine',
+        'prescribed': 'Amlodipine',
+        'scanned': 'Amlodipine',
+        'status': 'Match'
+      },
+      {
+        'field': 'Strength',
+        'prescribed': '5 mg',
+        'scanned': '10 mg',
+        'status': 'Risk'
+      },
+      {
+        'field': 'Schedule',
+        'prescribed': 'Once daily',
+        'scanned': 'Twice daily',
+        'status': 'Mismatch'
+      },
     ];
 
     return Scaffold(
@@ -31,8 +46,8 @@ class MedicineVerificationScreen extends StatelessWidget {
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
-                children: const [
-                  Text(
+                children: [
+                  const Text(
                     'Scan medication',
                     style: TextStyle(
                       color: Colors.white,
@@ -40,33 +55,35 @@ class MedicineVerificationScreen extends StatelessWidget {
                       fontWeight: FontWeight.w800,
                     ),
                   ),
-                  SizedBox(height: 8),
-                  Text(
+                  const SizedBox(height: 8),
+                  const Text(
                     'Quickly detect mismatches and dosage drift before treatment continues.',
                     style: TextStyle(
                       color: Colors.white70,
                       fontSize: 14,
                     ),
                   ),
-                  SizedBox(height: 18),
+                  const SizedBox(height: 18),
                   Row(
                     children: [
                       Expanded(
                         child: ElevatedButton.icon(
-                          onPressed: null,
-                          icon: Icon(Icons.camera_alt_rounded),
-                          label: Text('Camera'),
+                          onPressed: () {},
+                          icon: const Icon(Icons.camera_alt_rounded),
+                          label: const Text('Camera'),
                         ),
                       ),
-                      SizedBox(width: 12),
+                      const SizedBox(width: 12),
                       Expanded(
                         child: OutlinedButton.icon(
-                          onPressed: null,
-                          icon: Icon(Icons.upload_file_rounded),
-                          label: Text('Upload'),
+                          onPressed: () {},
+                          icon: const Icon(Icons.upload_file_rounded),
+                          label: const Text('Upload'),
                           style: ButtonStyle(
-                            foregroundColor: MaterialStatePropertyAll(Colors.white),
-                            side: MaterialStatePropertyAll(BorderSide(color: Colors.white54)),
+                            foregroundColor:
+                                WidgetStatePropertyAll(Colors.white),
+                            side: WidgetStatePropertyAll(
+                                const BorderSide(color: Colors.white54)),
                           ),
                         ),
                       ),
@@ -125,9 +142,10 @@ class MedicineVerificationScreen extends StatelessWidget {
                         ),
                         Expanded(
                           child: Container(
-                            padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 8),
+                            padding: const EdgeInsets.symmetric(
+                                vertical: 6, horizontal: 8),
                             decoration: BoxDecoration(
-                              color: color.withOpacity(0.13),
+                              color: color.withValues(alpha: 0.13),
                               borderRadius: BorderRadius.circular(10),
                             ),
                             child: Text(
@@ -176,7 +194,7 @@ class MedicineVerificationScreen extends StatelessWidget {
                       width: 26,
                       height: 26,
                       decoration: BoxDecoration(
-                        color: const Color(0xFFEB9C48).withOpacity(0.16),
+                        color: const Color(0xFFEB9C48).withValues(alpha: 0.16),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: const Icon(

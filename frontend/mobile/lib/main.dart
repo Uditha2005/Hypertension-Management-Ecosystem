@@ -25,7 +25,7 @@ class HypertensionEcosystemApp extends StatelessWidget {
           foregroundColor: Color(0xFF19362F),
           elevation: 0,
         ),
-        cardTheme: CardTheme(
+        cardTheme: CardThemeData(
           elevation: 0,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(18),

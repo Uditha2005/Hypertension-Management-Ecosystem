@@ -85,16 +85,16 @@ class HomeScreen extends StatelessWidget {
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
-                        children: const [
-                          Text(
+                        children: [
+                          const Text(
                             'Care score',
                             style: TextStyle(
                               color: Colors.white70,
                               fontSize: 13,
                             ),
                           ),
-                          SizedBox(height: 8),
-                          Text(
+                          const SizedBox(height: 8),
+                          const Text(
                             '84%',
                             style: TextStyle(
                               color: Colors.white,
@@ -108,10 +108,10 @@ class HomeScreen extends StatelessWidget {
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.14),
+                        color: Colors.white.withValues(alpha: 0.14),
                         borderRadius: BorderRadius.circular(14),
                       ),
-                      const Icon(
+                      child: const Icon(
                         Icons.favorite_rounded,
                         color: Colors.white,
                         size: 32,
@@ -128,7 +128,7 @@ class HomeScreen extends StatelessWidget {
                     crossAxisCount: 2,
                     crossAxisSpacing: 16,
                     mainAxisSpacing: 16,
-                    childAspectRatio: 0.95,
+                    childAspectRatio: 0.8,
                   ),
                   itemBuilder: (context, index) {
                     final item = items[index];
@@ -148,7 +148,7 @@ class HomeScreen extends StatelessWidget {
                           borderRadius: BorderRadius.circular(22),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withOpacity(0.05),
+                              color: Colors.black.withValues(alpha: 0.05),
                               blurRadius: 12,
                               offset: const Offset(0, 6),
                             ),
@@ -161,7 +161,8 @@ class HomeScreen extends StatelessWidget {
                               width: 52,
                               height: 52,
                               decoration: BoxDecoration(
-                                color: (item['accent'] as Color).withOpacity(0.12),
+                                color: (item['accent'] as Color)
+                                    .withValues(alpha: 0.12),
                                 borderRadius: BorderRadius.circular(16),
                               ),
                               child: Icon(
@@ -182,6 +183,8 @@ class HomeScreen extends StatelessWidget {
                             const SizedBox(height: 10),
                             Text(
                               item['subtitle'] as String,
+                              maxLines: 3,
+                              overflow: TextOverflow.ellipsis,
                               style: const TextStyle(
                                 fontSize: 12.5,
                                 height: 1.5,
