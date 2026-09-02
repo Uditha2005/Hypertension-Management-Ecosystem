@@ -1,0 +1,18 @@
+{
+  "name": "hypertension-management-ecosystem",
+  "version": "0.1.0",
+  "private": true,
+  "description": "AI-powered predictive hypertension management ecosystem",
+  "scripts": {
+    "install:all": "npm install && npm --prefix backend install && npm --prefix frontend/web install",
+    "dev:backend": "npm --prefix backend run dev",
+    "start:backend": "npm --prefix backend start",
+    "dev:web": "npm --prefix frontend/web start",
+    "build:web": "npm --prefix frontend/web run build",
+    "test:web": "npm --prefix frontend/web test",
+    "mobile:get": "flutter pub get --directory frontend/mobile"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

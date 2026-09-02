@@ -9,6 +9,20 @@ pnpm-debug.log*
 .env.local
 .env.*.local
 
+# Build output
+build/
+dist/
+coverage/
+
+# Flutter / Dart
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+**/ios/Pods/
+**/android/.gradle/
+**/android/local.properties
+
 # Python
 __pycache__/
 *.py[cod]
@@ -18,6 +32,17 @@ __pycache__/
 *.venv
 venv/
 ENV/
+
+# Local data and model artifacts
+data/raw/
+data/processed/
+data/external/
+*.h5
+*.hdf5
+*.pt
+*.pth
+*.pkl
+*.joblib
 
 # Visual Studio Code
 .vscode/
