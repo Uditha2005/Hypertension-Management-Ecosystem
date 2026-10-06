@@ -25,6 +25,10 @@ coverage/
 
 # Python
 __pycache__/
+.venv/
+.ipynb_checkpoints/
+*.xpt
+*.XPT
 *.py[cod]
 *.pyo
 *.pyd
@@ -35,8 +39,11 @@ ENV/
 
 # Local data and model artifacts
 data/raw/
+ai/**/data/raw/
 data/processed/
 data/external/
+ai/**/data/processed/
+ai/**/data/external/
 *.h5
 *.hdf5
 *.pt
