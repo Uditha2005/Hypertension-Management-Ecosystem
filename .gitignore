@@ -57,3 +57,6 @@ data/external/
 logs/
 *.log
 npm-debug.log*
+
+# Component 2 local datasets
+ai/component2-behavioral/data/
