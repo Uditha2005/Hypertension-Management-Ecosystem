@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { jsPDF } from "jspdf";
 
 const initialMetrics = {
   heartRate: 72,
@@ -64,23 +65,130 @@ const wellnessTrend = [
 function MentalWellness() {
   const [metrics, setMetrics] = useState(initialMetrics);
   const [lastUpdated, setLastUpdated] = useState(new Date());
+  const [history, setHistory] = useState([{ recordedAt: new Date().toISOString(), ...initialMetrics }]);
   const [cameraActive, setCameraActive] = useState(false);
   const [emotionOverlayVisible, setEmotionOverlayVisible] = useState(true);
   const [headMovementEnabled, setHeadMovementEnabled] = useState(false);
 
   useEffect(() => {
     const interval = window.setInterval(() => {
-      setMetrics((current) => ({
-        ...current,
-        heartRate: Math.max(64, Math.min(84, current.heartRate + (Math.random() > 0.5 ? 1 : -1))),
-        bodyTemperature: Number((current.bodyTemperature + (Math.random() > 0.5 ? 0.1 : -0.1)).toFixed(1)),
-        stressLevel: ["Low", "Medium", "High"][Math.floor(Date.now() / 5000) % 3],
-      }));
+      setMetrics((current) => {
+        const nextMetrics = {
+          ...current,
+          heartRate: Math.max(64, Math.min(84, current.heartRate + (Math.random() > 0.5 ? 1 : -1))),
+          bodyTemperature: Number((current.bodyTemperature + (Math.random() > 0.5 ? 0.1 : -0.1)).toFixed(1)),
+          stressLevel: ["Low", "Medium", "High"][Math.floor(Date.now() / 5000) % 3],
+        };
+
+        setHistory((currentHistory) => [
+          ...currentHistory,
+          { recordedAt: new Date().toISOString(), ...nextMetrics },
+        ]);
+        return nextMetrics;
+      });
       setLastUpdated(new Date());
     }, 5000);
 
     return () => window.clearInterval(interval);
   }, []);
+
+  const downloadHistory = () => {
+    const firstReading = history[0];
+    const latestReading = history[history.length - 1];
+    const report = {
+      reportTitle: "Mental and Physiological Wellness History",
+      exportedAt: new Date().toISOString(),
+      source: "AI-Powered Multimodal Mental and Physiological Wellness Intelligence System",
+      sessionSummary: {
+        readings: history.length,
+        startedAt: firstReading.recordedAt,
+        lastRecordedAt: latestReading.recordedAt,
+        currentStatus: metrics,
+      },
+      mentalWellness: history.map(({ recordedAt, stressLevel, emotion }) => ({
+        recordedAt,
+        stressLevel,
+        detectedEmotion: emotion,
+      })),
+      physiologicalWellness: history.map(({ recordedAt, heartRate, bodyTemperature }) => ({
+        recordedAt,
+        heartRateBpm: heartRate,
+        bodyTemperatureCelsius: bodyTemperature,
+      })),
+      changes: {
+        heartRateBpm: latestReading.heartRate - firstReading.heartRate,
+        bodyTemperatureCelsius: Number((latestReading.bodyTemperature - firstReading.bodyTemperature).toFixed(1)),
+        stress: { from: firstReading.stressLevel, to: latestReading.stressLevel },
+        emotion: { from: firstReading.emotion, to: latestReading.emotion },
+        trend: wellnessTrend,
+      },
+      facialEmotionRecognition: {
+        cameraStatus: cameraActive ? "active" : "standby",
+        overlayVisible: emotionOverlayVisible,
+        latestInference: "Stress Detected: 82%",
+      },
+      therapeuticSession: {
+        adaptiveDifficulty: adaptiveDifficulty[metrics.stressLevel],
+        headMovementTracking: headMovementEnabled,
+      },
+    };
+    const pdf = new jsPDF();
+    const pageHeight = pdf.internal.pageSize.getHeight();
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    let cursorY = 18;
+
+    const addText = (text, options = {}) => {
+      const { size = 10, color = [48, 65, 63], bold = false, gap = 5 } = options;
+      pdf.setFont("helvetica", bold ? "bold" : "normal");
+      pdf.setFontSize(size);
+      pdf.setTextColor(...color);
+      const lines = pdf.splitTextToSize(String(text), pageWidth - 28);
+      if (cursorY + lines.length * 5 + gap > pageHeight - 14) {
+        pdf.addPage();
+        cursorY = 18;
+      }
+      pdf.text(lines, 14, cursorY);
+      cursorY += lines.length * 5 + gap;
+    };
+
+    const addSection = (title) => {
+      cursorY += 3;
+      addText(title, { size: 13, color: [22, 125, 114], bold: true, gap: 6 });
+    };
+
+    addText(report.reportTitle, { size: 19, color: [21, 42, 48], bold: true, gap: 7 });
+    addText(`Exported: ${new Date(report.exportedAt).toLocaleString()}`, { size: 9, color: [107, 126, 128], gap: 3 });
+    addText(`Readings captured: ${report.sessionSummary.readings}`, { size: 9, color: [107, 126, 128], gap: 8 });
+
+    addSection("Current Summary");
+    addText(`Heart rate: ${report.sessionSummary.currentStatus.heartRate} BPM | Body temperature: ${report.sessionSummary.currentStatus.bodyTemperature} C`);
+    addText(`Stress level: ${report.sessionSummary.currentStatus.stressLevel} | Detected emotion: ${report.sessionSummary.currentStatus.emotion}`);
+
+    addSection("Mental Wellness History");
+    report.mentalWellness.forEach((reading) => {
+      addText(`${new Date(reading.recordedAt).toLocaleString()} - Stress: ${reading.stressLevel}; Emotion: ${reading.detectedEmotion}`, { size: 9, gap: 3 });
+    });
+
+    addSection("Physiological Wellness History");
+    report.physiologicalWellness.forEach((reading) => {
+      addText(`${new Date(reading.recordedAt).toLocaleString()} - Heart rate: ${reading.heartRateBpm} BPM; Temperature: ${reading.bodyTemperatureCelsius} C`, { size: 9, gap: 3 });
+    });
+
+    addSection("Changes and Trends");
+    addText(`Heart rate change: ${report.changes.heartRateBpm} BPM | Temperature change: ${report.changes.bodyTemperatureCelsius} C`);
+    addText(`Stress changed from ${report.changes.stress.from} to ${report.changes.stress.to} | Emotion changed from ${report.changes.emotion.from} to ${report.changes.emotion.to}`);
+    report.changes.trend.forEach((point) => {
+      addText(`${point.time} - Stress: ${point.stress}% | Emotion: ${point.emotion}`, { size: 9, gap: 3 });
+    });
+
+    addSection("Recognition and Therapeutic Session");
+    addText(`Camera: ${report.facialEmotionRecognition.cameraStatus} | Emotion overlay: ${report.facialEmotionRecognition.overlayVisible ? "visible" : "hidden"}`);
+    addText(`Latest inference: ${report.facialEmotionRecognition.latestInference}`);
+    addText(`Adaptive mode: ${report.therapeuticSession.adaptiveDifficulty.level} (${report.therapeuticSession.adaptiveDifficulty.adjustment})`);
+    addText(`Head movement tracking: ${report.therapeuticSession.headMovementTracking ? "enabled" : "disabled"}`);
+
+    pdf.save(`wellness-history-${new Date().toISOString().slice(0, 10)}.pdf`);
+  };
 
   return (
     <main className="mental-wellness-dashboard">
@@ -125,6 +233,25 @@ function MentalWellness() {
           color: var(--muted);
           font: 400 1rem/1.6 Arial, sans-serif;
         }
+        .wellness-actions {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          flex-wrap: wrap;
+          justify-content: flex-end;
+        }
+        .download-history-button {
+          min-height: 42px;
+          padding: 0 15px;
+          border: 1px solid #166b63;
+          border-radius: 4px;
+          color: #fff;
+          background: #167d72;
+          cursor: pointer;
+          font: 700 0.74rem Arial, sans-serif;
+        }
+        .download-history-button:hover { background: #0f5e57; }
+        .download-history-button:focus-visible { outline: 3px solid #f0bd68; outline-offset: 2px; }
         .live-indicator {
           display: inline-flex;
           align-items: center;
@@ -436,6 +563,7 @@ function MentalWellness() {
         .trend-summary { margin: 18px 0 0 68px; color: #6b7e80; font: 0.75rem/1.5 Arial, sans-serif; }
         @media (max-width: 800px) {
           .wellness-header { align-items: start; flex-direction: column; }
+          .wellness-actions { justify-content: flex-start; }
           .metric-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
           .recognition-card { grid-template-columns: 1fr; }
           .game-card { grid-template-columns: 1fr; }
@@ -460,8 +588,13 @@ function MentalWellness() {
             A quiet read on the signals shaping your day, updated as your body and mind shift.
           </p>
         </div>
-        <div className="live-indicator" aria-label="Live metrics active">
-          <span className="live-dot" aria-hidden="true" /> LIVE MONITORING
+        <div className="wellness-actions">
+          <button className="download-history-button" type="button" onClick={downloadHistory}>
+            Download total history
+          </button>
+          <div className="live-indicator" aria-label="Live metrics active">
+            <span className="live-dot" aria-hidden="true" /> LIVE MONITORING
+          </div>
         </div>
       </header>
 
