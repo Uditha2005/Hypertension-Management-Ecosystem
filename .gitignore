@@ -57,3 +57,11 @@ data/external/
 logs/
 *.log
 npm-debug.log*
+
+# Component 4 local environments and generated files
+.venv/
+.venv-ocr/
+.pytest_cache/
+ai/component4-medicine/models/
+ai/component4-medicine/outputs/
+ai/component4-medicine/test_images/
