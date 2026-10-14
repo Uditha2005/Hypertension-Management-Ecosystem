@@ -147,6 +147,24 @@ def test_supported_energy_and_saturated_fat_conversions(monkeypatch):
     assert record.nutrients.sat_fat_g == pytest.approx(2.5)
 
 
+def test_duplicate_energy_records_in_kcal_and_kj_are_handled_safely(monkeypatch):
+    payload = per_100g_payload()
+    payload["foodNutrients"].append(
+        {
+            "nutrientId": 1062,
+            "nutrientName": "Energy",
+            "unitName": "kJ",
+            "value": 418.4,
+        }
+    )
+
+    api = client(FakeSession(FakeResponse(payload)), monkeypatch)
+
+    # Current behavior is expected to reject ambiguous duplicate energy records.
+    with pytest.raises(USDAResponseError, match="duplicate energy_kcal"):
+        api.get_food(123)
+
+
 def test_missing_individual_nutrients_remain_none(monkeypatch):
     payload = per_100g_payload(foodNutrients=[{"nutrientId": 1093, "unitName": "mg", "value": 10}])
     record = client(FakeSession(FakeResponse(payload)), monkeypatch).get_food(123)
