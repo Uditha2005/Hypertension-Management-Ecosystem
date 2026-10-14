@@ -66,4 +66,21 @@ python -m pip install -r ai/requirements.txt
 Select the `ai/venv` interpreter as the Jupyter kernel, then run the notebooks in numeric order.
 
 ## Status
-Setup complete; data merge notebook is being revised to match the proposal. Model training and the meal-plan module have not started yet.
+
+### Implemented
+- NHANES-based BP category modelling workflow and model-comparison results.
+- Saved XGBoost model and feature metadata for the selected demographic + multi-day diet feature set.
+- BP-associated category prediction module with input validation and class probabilities.
+- Meal-plan nutrient aggregation with daily summaries and complete-plan totals.
+- USDA FoodData Central integration, including nutrient normalization, reference-quantity handling, and supported unit conversions.
+- Automated tests covering nutrient calculation, meal-plan resolution, model prediction, saved-model loading, and USDA integration.
+
+### Verification
+- Component 3 automated test suite: 99 tests passed in the latest run.
+- Classifier performance is experimental. The model classifies BP-associated categories from the features used during training; it is not a clinical diagnosis or a validated predictor of future blood pressure.
+- Planned meal summaries are not equivalent to observed NHANES dietary recalls. Directly passing planned-meal values to the classifier requires further validation.
+
+### Remaining work
+- Verify the end-to-end workflow and define safe boundaries between planned-meal summaries and classifier inputs.
+- Develop and test the caregiver-facing interface and application integration, if required by the project plan.
+- Document setup, configuration, and demonstration steps.
