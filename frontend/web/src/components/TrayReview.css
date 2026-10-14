@@ -1,0 +1,44 @@
+/* Component 4 review controls; loaded after the existing tray stylesheet. */
+.tray-app .review-form { margin-top: 28px; padding-top: 26px; border-top: 1px solid #e1eeec; color: #173d42; }
+.tray-app .review-heading { display: flex; justify-content: space-between; align-items: center; gap: 14px; }
+.tray-app .review-kicker { font-size: 10px; font-weight: 800; letter-spacing: 1.6px; color: #188679; }
+.tray-app .review-heading h3 { font-size: 23px; line-height: 1.25; margin: 7px 0 0; letter-spacing: -.5px; }
+.tray-app .review-count { background: #e8f4f0; color: #127064; padding: 8px 12px; border-radius: 100px; font-size: 12px; font-weight: 700; white-space: nowrap; }
+.tray-app .review-overview { display: flex; flex-wrap: wrap; gap: 12px 24px; padding: 14px 16px; margin: 18px 0; background: #f4f8f7; border-radius: 12px; color: #617879; font-size: 12px; }
+.tray-app .review-overview b { color: #176f63; font-size: 16px; margin-right: 5px; }
+.tray-app .review-form label { display: block; margin: 17px 0 7px; font-size: 12px; font-weight: 700; color: #36595b; }
+.tray-app .review-form input:not([type="checkbox"]),
+.tray-app .review-form select { width: 100%; min-width: 0; box-sizing: border-box; min-height: 46px; border: 1px solid #d5e4e1; border-radius: 10px; background: #fafdFC; padding: 11px 13px; color: #183f43; font: inherit; font-size: 14px; transition: border-color .15s, box-shadow .15s; }
+.tray-app .review-form input:focus-visible, .tray-app .review-form select:focus-visible { outline: 0; border-color: #219b87; box-shadow: 0 0 0 3px #209e871c; background: white; }
+.tray-app .review-form input:disabled, .tray-app .review-form select:disabled { opacity: .6; cursor: not-allowed; }
+.tray-app .review-medicine { padding: 20px; margin-top: 18px; border: 1px solid #dce9e6; border-radius: 16px; background: white; box-shadow: 0 4px 18px #13474006; }
+.tray-app .review-row-heading { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.tray-app .review-row-heading strong { display: flex; align-items: center; gap: 10px; font-size: 14px; }
+.tray-app .review-number { width: 29px; height: 29px; display: inline-flex; align-items: center; justify-content: center; border-radius: 9px; background: #e9f5f1; color: #137461; font-size: 12px; }
+.tray-app .review-badge { font-size: 10px; font-weight: 700; border-radius: 100px; padding: 6px 9px; white-space: nowrap; }
+.tray-app .review-badge.pending { color: #916322; background: #fff4df; }
+.tray-app .review-badge.mapped { color: #14715f; background: #e9f6ed; }
+.tray-app .review-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.tray-app .review-source { margin-top: 12px; font-size: 11px; color: #748b8c; }
+.tray-app .review-source summary { cursor: pointer; }
+.tray-app .review-source p { padding: 10px; background: #f4f8f7; border-radius: 8px; overflow-wrap: anywhere; }
+.tray-app .review-hint { margin: 9px 0 0; color: #817046; font-size: 11px; line-height: 1.6; }
+.tray-app .review-suggestions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.tray-app .review-suggestions > span { width: 100%; font-size: 11px; line-height: 1.5; color: #718483; }
+.tray-app button.review-suggestion { max-width: 100%; background: #eef6f3; color: #216d62; border: 1px solid #d2e7df; border-radius: 9px; padding: 8px 11px; font-size: 11px; cursor: pointer; text-align: left; overflow-wrap: anywhere; }
+.tray-app button.review-secondary { width: 100%; padding: 13px; margin-top: 18px; background: #f6faf8; color: #157a68; border: 1px dashed #acd2c7; border-radius: 11px; font: inherit; font-size: 13px; font-weight: 700; cursor: pointer; }
+.tray-app button.review-danger { display: block; margin: 16px 0 0 auto; border: 0; background: transparent; color: #a26c63; padding: 5px 0; font-size: 11px; cursor: pointer; }
+.tray-app button.review-secondary:hover { background: #eaf6f0; }
+.tray-app button.review-suggestion:hover { border-color: #218974; }
+.tray-app button.review-danger:hover { color: #ae3326; }
+.tray-app button.review-secondary:disabled, .tray-app button.review-danger:disabled, .tray-app button.review-suggestion:disabled { opacity: .5; cursor: not-allowed; }
+.tray-app .review-form .review-confirm { display: flex; align-items: flex-start; gap: 11px; padding: 15px; margin: 21px 0 16px; border-radius: 12px; background: #f3f8f6; color: #48686a; font-size: 12px; line-height: 1.65; font-weight: 400; }
+.tray-app .review-confirm input[type="checkbox"] { width: 17px; height: 17px; flex-shrink: 0; margin: 3px 0 0; accent-color: #14806e; }
+.tray-app .review-saved { background: #eaf7f0; border: 1px solid #c4e5d7; border-radius: 10px; padding: 13px; color: #236e56; font-size: 12px; line-height: 1.6; overflow-wrap: anywhere; }
+.tray-app .review-footnote { font-size: 11px; color: #879899; line-height: 1.65; margin-top: 13px; }
+@media (max-width: 600px) {
+  .tray-app .review-medicine { padding: 15px; }
+  .tray-app .review-heading h3 { font-size: 20px; }
+  .tray-app .review-pair { grid-template-columns: 1fr; gap: 0; }
+  .tray-app .review-row-heading { flex-wrap: wrap; }
+}

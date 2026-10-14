@@ -14,19 +14,28 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from PIL import Image, UnidentifiedImageError
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, StrictBool, StrictInt
 
 from detect import detect_pills, load_model
+from prescription_draft import build_draft
+from comparison_service import (
+    save_prescription, get_prescription as get_reviewed_prescription,
+    build_comparison, save_comparison, list_history,
+)
 
 
 COMPONENT_DIR = Path(__file__).resolve().parent.parent
 METADATA_PATH = COMPONENT_DIR / "data" / "medicine_metadata.csv"
+COMPARISON_DATABASE = COMPONENT_DIR / "data" / "component4_comparison.sqlite3"
 
 OCR_PYTHON = COMPONENT_DIR / ".venv-ocr" / "Scripts" / "python.exe"
 OCR_WORKER = COMPONENT_DIR / "src" / "paddle_worker.py"
 OCR_LOCK = Lock()
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("uvicorn.error")
+
+# Finish before the frontend's 120-second timeout.
+OCR_TIMEOUT_SECONDS = 90
 
 app = FastAPI(title="Component 4 - Medicine Recognition")
 
@@ -45,6 +54,24 @@ class PhotoRequest(BaseModel):
     imageData: str = Field(min_length=1, max_length=7_000_000)
 
 
+class ReviewedMedicine(BaseModel):
+    medicineName: str = Field(min_length=1, max_length=200)
+    strength: str = Field(default="", max_length=80)
+    productId: str = Field(default="", max_length=200)
+    quantity: StrictInt = Field(ge=1, le=100)
+
+
+class ReviewedPrescriptionRequest(BaseModel):
+    reference: str = Field(default="", max_length=200)
+    doseLabel: str = Field(min_length=1, max_length=200)
+    reviewed: StrictBool
+    items: list[ReviewedMedicine] = Field(min_length=1, max_length=50)
+
+
+class ReviewedVerifyRequest(PhotoRequest):
+    prescriptionId: str = Field(min_length=1, max_length=100)
+
+
 @app.exception_handler(HTTPException)
 async def handle_http_error(request, error):
     return JSONResponse(
@@ -57,7 +84,7 @@ async def handle_http_error(request, error):
 async def handle_validation_error(request, error):
     return JSONResponse(
         status_code=422,
-        content={"error": "Invalid request. Check the uploaded photo."},
+        content={"error": "Invalid request. Check the photo or prescription fields and whole-number tray quantities."},
     )
 
 
@@ -205,6 +232,7 @@ def home():
         "scope": "MEDISEG Hong Kong products",
         "prescriptionReady": False,
         "ocrConfigured": ocr_files_ready(),
+        "reviewedComparisonReady": True,
     }
 
 
@@ -221,6 +249,7 @@ def bootstrap():
         "metadataReady": True,
         "prescriptionReady": False,
         "ocrConfigured": ocr_files_ready(),
+        "reviewedComparisonReady": True,
         "scope": "MEDISEG Hong Kong products",
     }
 
@@ -326,17 +355,18 @@ def prescription_ocr(payload: PhotoRequest):
                 exif=image.getexif(),
             )
 
+            logger.info("Prescription OCR: starting worker (timeout: %ss)", OCR_TIMEOUT_SECONDS)
             process = subprocess.run(
                 [
                     str(OCR_PYTHON),
+                    "-u",
                     str(OCR_WORKER),
                     str(image_path),
                     str(output_path),
                 ],
                 cwd=str(COMPONENT_DIR),
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-                timeout=180,
+                # Inherit the API terminal so startup errors are visible.
+                timeout=OCR_TIMEOUT_SECONDS,
                 check=False,
             )
 
@@ -370,6 +400,7 @@ def prescription_ocr(payload: PhotoRequest):
             ):
                 raise ValueError("Invalid OCR result")
 
+            logger.info("Prescription OCR: result received")
             result["requiresManualReview"] = True
             result["confirmed"] = False
             result["comparisonPerformed"] = False
@@ -377,9 +408,14 @@ def prescription_ocr(payload: PhotoRequest):
             return result
 
     except subprocess.TimeoutExpired as error:
+        # subprocess.run kills and waits for its child before raising.
+        logger.warning("Prescription OCR: worker timed out after %ss; worker stopped", OCR_TIMEOUT_SECONDS)
         raise HTTPException(
             status_code=504,
-            detail="OCR took too long. Try a smaller, clearer photo.",
+            detail=(
+                "OCR exceeded 90 seconds and the worker was stopped. "
+                "Check the Python terminal for the last OCR stage."
+            ),
         ) from error
 
     except (OSError, ValueError) as error:
@@ -393,6 +429,7 @@ def prescription_ocr(payload: PhotoRequest):
 
         if lock_acquired:
             OCR_LOCK.release()
+            logger.info("Prescription OCR: request finished; busy lock released")
 
 
 @app.get("/api/medicine/patients/{patient_id}/prescription")
@@ -405,7 +442,7 @@ def get_prescription(patient_id: str):
 
 @app.get("/api/medicine/history")
 def history():
-    return []
+    return list_history(COMPARISON_DATABASE)
 
 
 @app.post("/api/medicine/verify")
@@ -417,3 +454,54 @@ def verify_medicine():
             "Use /api/medicine/detect for model predictions."
         ),
     )
+
+
+@app.post("/api/medicine/prescription/review")
+def review_prescription(payload: ReviewedPrescriptionRequest):
+    products = read_products(get_model())
+    try:
+        return save_prescription(
+            COMPARISON_DATABASE, payload.model_dump(), products
+        )
+    except ValueError as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+
+
+@app.post("/api/medicine/verify-reviewed")
+def verify_reviewed(payload: ReviewedVerifyRequest):
+    prescription = get_reviewed_prescription(
+        COMPARISON_DATABASE, payload.prescriptionId
+    )
+    if prescription is None:
+        raise HTTPException(status_code=404, detail="Reviewed prescription not found.")
+    products = read_products(get_model())
+    try:
+        # Check product support before running model inference.
+        build_comparison(prescription, [], products)
+    except ValueError as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+
+    recognition = detect_photo(PhotoRequest(imageData=payload.imageData))
+    try:
+        result = build_comparison(prescription, recognition["detections"], products)
+    except ValueError as error:
+        logger.exception("Invalid recognition data during comparison")
+        raise HTTPException(status_code=500, detail="Invalid model comparison result.") from error
+    result["recognition"] = recognition
+    # Store the comparison without the large tray image.
+    stored = {key: value for key, value in result.items() if key != "recognition"}
+    save_comparison(COMPARISON_DATABASE, stored)
+    return result
+
+
+class PrescriptionDraftRequest(BaseModel):
+    text: str = Field(max_length=12000)
+
+
+@app.post("/api/medicine/prescription/draft")
+def draft_prescription(payload: PrescriptionDraftRequest):
+    products = read_products(get_model())
+    try:
+        return build_draft(payload.text, products)
+    except ValueError as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
