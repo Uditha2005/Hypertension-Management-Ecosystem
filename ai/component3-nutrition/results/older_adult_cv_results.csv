@@ -1,0 +1,10 @@
+feature_set,model,cv_macro_f1,cv_std
+Demographic only,Logistic Regression,0.2661,0.0228
+Demographic only,Random Forest,0.269,0.013
+Demographic only,XGBoost,0.2647,0.0143
+Demographic + day 1 diet,Logistic Regression,0.2935,0.0176
+Demographic + day 1 diet,Random Forest,0.2787,0.0228
+Demographic + day 1 diet,XGBoost,0.2766,0.0085
+Demographic + multi-day diet,Logistic Regression,0.2841,0.0161
+Demographic + multi-day diet,Random Forest,0.2612,0.0144
+Demographic + multi-day diet,XGBoost,0.268,0.0043
