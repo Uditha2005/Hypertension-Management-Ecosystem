@@ -6,6 +6,12 @@ const API = (
   process.env.REACT_APP_API_URL || "http://localhost:8000"
 ).replace(/\/$/, "");
 
+function resultTone(status) {
+  if (status === "Counts match — review required") return "match";
+  if (status === "Count differences — review required") return "difference";
+  return "uncertain";
+}
+
 async function request(path, options = {}) {
   const response = await fetch(`${API}/api/medicine${path}`, options);
   let data;
@@ -477,7 +483,7 @@ export default function TrayVerification() {
                       <tr key={record.id}>
                         <td>{record.reference || record.prescription?.doseLabel || "Prepared tray"}</td>
                         <td>{new Date(record.createdAt).toLocaleString()}</td>
-                        <td>{record.status}</td>
+                        <td><span className={`tray-status ${resultTone(record.status)}`}>{record.status}</span></td>
                       </tr>
                     ))}
                   </tbody>
@@ -630,7 +636,7 @@ export default function TrayVerification() {
                     {operation === "saving-prescription" ? "Saving reviewed list…" : "Confirm and save reviewed list"}
                   </button>
                   {!comparisonReady && <p className="muted">Restart the API with the updated comparison files to save the reviewed list.</p>}
-                  {prescription && <p role="status" className="review-saved">
+                  {prescription && <p role="status" className={`review-saved ${prescription.comparisonReady ? "ready" : "blocked"}`}>
                     Reviewed list saved: {prescription.id}. {prescription.comparisonReady
                       ? "Ready for model label and quantity comparison."
                       : "Comparison blocked: one or more medicines are unsupported."}
@@ -800,10 +806,15 @@ export default function TrayVerification() {
             </section>
 
             {result && (
-              <section className="card result" aria-live="polite">
+              <section className={`card result comparison-result ${resultTone(result.status)}`} aria-live="polite">
                 <div className="step">04 · PRESCRIPTION COMPARISON</div>
-                <h2>{result.status}</h2>
-                <p>{result.notes}</p>
+                <h2 className="comparison-title"><span className={`tray-status ${resultTone(result.status)}`}>{result.status}</span></h2>
+                <p className="comparison-note">{result.notes}</p>
+                <div className="comparison-summary">
+                  <span><strong>{result.rows.reduce((total, row) => total + row.expected, 0)}</strong>Expected pills</span>
+                  <span><strong>{result.rows.reduce((total, row) => total + row.found, 0)}</strong>Counted model detections</span>
+                  <span><strong>{result.rows.filter((row) => row.expected !== row.found).length}</strong>Rows with differences</span>
+                </div>
 
                 {result.uncertain.length > 0 && (
                   <p className="caution">
@@ -835,16 +846,18 @@ export default function TrayVerification() {
                     </thead>
                     <tbody>
                       {result.rows.map((row) => (
-                        <tr key={row.productId}>
+                        <tr key={row.productId} className={`comparison-row ${row.expected !== row.found ? "difference" : result.uncertain.length > 0 ? "uncertain" : "match"}`}>
                           <td>{row.medicineName || productName(row.productId)}<p className="muted">{productName(row.productId)}{row.strength ? ` · Recorded strength: ${row.strength} (not verified)` : ""}</p></td>
                           <td>{row.expected}</td>
                           <td>{row.found}</td>
                           <td>
+                            <span className={`tray-status ${row.expected !== row.found ? "difference" : result.uncertain.length > 0 ? "uncertain" : "match"}`}>
                             {row.found === row.expected
-                              ? "Matches"
+                              ? (result.uncertain.length > 0 ? "Counts equal · review" : "Counts match")
                               : row.found < row.expected
                               ? `${row.expected - row.found} missing`
                               : `${row.found - row.expected} extra`}
+                            </span>
                           </td>
                         </tr>
                       ))}
