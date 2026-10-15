@@ -16,6 +16,7 @@ from datetime import date
 from typing import Any
 
 from fastapi import Depends, FastAPI, HTTPException, Query, Request
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field, StrictFloat, StrictInt, StrictStr
 
@@ -53,6 +54,17 @@ app = FastAPI(
         "Research prototype for planned-meal nutrient summaries and experimental "
         "BP-associated classification. Not a medical diagnostic service."
     ),
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+    ],
+    allow_credentials=False,
+    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_headers=["Content-Type", "Authorization"],
 )
 
 
