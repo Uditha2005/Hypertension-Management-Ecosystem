@@ -9,3 +9,8 @@ matplotlib
 jupyter
 shap
 opencv-python-headless
+xgboost
+requests
+fastapi
+uvicorn
+pytest

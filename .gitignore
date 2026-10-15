@@ -4,10 +4,12 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
-.DS_Store
+
+# Environment variables
 .env
 .env.local
 .env.*.local
+*.env
 
 # Build output
 build/
@@ -25,18 +27,27 @@ coverage/
 
 # Python
 __pycache__/
+.venv/
+.ipynb_checkpoints/
+*.xpt
+*.XPT
 *.py[cod]
 *.pyo
 *.pyd
-*.env
 *.venv
+.venv/
+.venv-ocr/
 venv/
 ENV/
+.pytest_cache/
 
 # Local data and model artifacts
 data/raw/
+ai/**/data/raw/
 data/processed/
 data/external/
+ai/**/data/processed/
+ai/**/data/external/
 *.h5
 *.hdf5
 *.pt
@@ -44,19 +55,24 @@ data/external/
 *.pkl
 *.joblib
 
+# Component 4 local models and generated files
+ai/component4-medicine/models/
+ai/component4-medicine/outputs/
+ai/component4-medicine/test_images/
+
+# Component 2 local datasets
+ai/component2-behavioral/data/
+
 # Visual Studio Code
 .vscode/
 
 # Firebase
 .firebase/
 
-# Mac
+# macOS
 .DS_Store
 
 # Logs
 logs/
 *.log
-npm-debug.log*
-
-# Component 2 local datasets
-ai/component2-behavioral/data/
+/ai/component4-medicine/data/component4_comparison.sqlite3*

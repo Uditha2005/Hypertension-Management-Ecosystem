@@ -1,0 +1,37 @@
+{
+  "feature_set_name": "Demographic + multi-day diet",
+  "feature_columns": [
+    "age",
+    "sex_female",
+    "bmi",
+    "sodium_mg_mean",
+    "potassium_mg_mean",
+    "energy_kcal_mean",
+    "sat_fat_g_mean",
+    "na_k_ratio_mean"
+  ],
+  "label_mapping": {
+    "Normal": 0,
+    "Elevated": 1,
+    "Stage 1": 2,
+    "Stage 2": 3
+  },
+  "algorithm": {
+    "name": "XGBoost",
+    "parameters": {
+      "n_estimators": 300,
+      "max_depth": 4,
+      "learning_rate": 0.1,
+      "eval_metric": "mlogloss",
+      "random_state": 42
+    },
+    "sample_weight": "compute_sample_weight('balanced', y_train)"
+  },
+  "training": {
+    "data_path": "/Users/savindi/Desktop/research/Wellness Platform /project/Hypertension-Management-Ecosystem/ai/component3-nutrition/data/processed/nhanes_bp_diet.csv",
+    "test_size": 0.2,
+    "random_state": 42,
+    "fit_partition": "train split only; held-out test split was not fitted",
+    "training_rows": 5978
+  }
+}
