@@ -1,44 +1,732 @@
-/* Component 4 review controls; loaded after the existing tray stylesheet. */
-.tray-app .review-form { margin-top: 28px; padding-top: 26px; border-top: 1px solid #e1eeec; color: #173d42; }
-.tray-app .review-heading { display: flex; justify-content: space-between; align-items: center; gap: 14px; }
-.tray-app .review-kicker { font-size: 10px; font-weight: 800; letter-spacing: 1.6px; color: #188679; }
-.tray-app .review-heading h3 { font-size: 23px; line-height: 1.25; margin: 7px 0 0; letter-spacing: -.5px; }
-.tray-app .review-count { background: #e8f4f0; color: #127064; padding: 8px 12px; border-radius: 100px; font-size: 12px; font-weight: 700; white-space: nowrap; }
-.tray-app .review-overview { display: flex; flex-wrap: wrap; gap: 12px 24px; padding: 14px 16px; margin: 18px 0; background: #f4f8f7; border-radius: 12px; color: #617879; font-size: 12px; }
-.tray-app .review-overview b { color: #176f63; font-size: 16px; margin-right: 5px; }
-.tray-app .review-form label { display: block; margin: 17px 0 7px; font-size: 12px; font-weight: 700; color: #36595b; }
+/* =========================================================
+   PRESCRIPTION REVIEW CONTROLS
+   Load after TrayVerification.css.
+   ========================================================= */
+
+.tray-app .review-form {
+  margin-top: 28px;
+  padding-top: 26px;
+
+  border-top: 1px solid var(--border, #dce5ee);
+
+  color: var(--text, #172d45);
+}
+
+/* =========================================================
+   REVIEW HEADING
+   ========================================================= */
+
+.tray-app .review-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 14px;
+}
+
+.tray-app .review-kicker {
+  color: var(--primary, #0f766e);
+
+  font-size: 10px;
+  font-weight: 750;
+  line-height: 1.6;
+  letter-spacing: 1.6px;
+  text-transform: uppercase;
+}
+
+.tray-app .review-heading h3 {
+  margin: 7px 0 0;
+
+  color: var(--text, #172d45);
+
+  font-size: 21px;
+  font-weight: 700;
+  line-height: 1.35;
+  letter-spacing: -0.5px;
+}
+
+.tray-app .review-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+
+  padding: 7px 12px;
+
+  border: 1px solid #d1e8e1;
+  border-radius: 100px;
+
+  background: #eaf5f3;
+  color: #0f6e63;
+
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.5;
+  white-space: nowrap;
+}
+
+/* =========================================================
+   REVIEW OVERVIEW
+   ========================================================= */
+
+.tray-app .review-overview {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 24px;
+
+  margin: 18px 0;
+  padding: 14px 16px;
+
+  border: 1px solid #e4ebf2;
+  border-radius: 10px;
+
+  background: #f3f6fa;
+  color: var(--muted, #607286);
+
+  font-size: 12px;
+  line-height: 1.7;
+}
+
+.tray-app .review-overview > span {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.tray-app .review-overview b {
+  color: var(--text, #172d45);
+
+  font-size: 18px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+/* =========================================================
+   REVIEW INPUTS
+   ========================================================= */
+
+.tray-app .review-form label {
+  display: block;
+
+  margin: 17px 0 8px;
+
+  color: #3a5068;
+
+  font-size: 12px;
+  font-weight: 650;
+  line-height: 1.65;
+}
+
 .tray-app .review-form input:not([type="checkbox"]),
-.tray-app .review-form select { width: 100%; min-width: 0; box-sizing: border-box; min-height: 46px; border: 1px solid #d5e4e1; border-radius: 10px; background: #fafdFC; padding: 11px 13px; color: #183f43; font: inherit; font-size: 14px; transition: border-color .15s, box-shadow .15s; }
-.tray-app .review-form input:focus-visible, .tray-app .review-form select:focus-visible { outline: 0; border-color: #219b87; box-shadow: 0 0 0 3px #209e871c; background: white; }
-.tray-app .review-form input:disabled, .tray-app .review-form select:disabled { opacity: .6; cursor: not-allowed; }
-.tray-app .review-medicine { padding: 20px; margin-top: 18px; border: 1px solid #dce9e6; border-radius: 16px; background: white; box-shadow: 0 4px 18px #13474006; }
-.tray-app .review-row-heading { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
-.tray-app .review-row-heading strong { display: flex; align-items: center; gap: 10px; font-size: 14px; }
-.tray-app .review-number { width: 29px; height: 29px; display: inline-flex; align-items: center; justify-content: center; border-radius: 9px; background: #e9f5f1; color: #137461; font-size: 12px; }
-.tray-app .review-badge { font-size: 10px; font-weight: 700; border-radius: 100px; padding: 6px 9px; white-space: nowrap; }
-.tray-app .review-badge.pending { color: #916322; background: #fff4df; }
-.tray-app .review-badge.mapped { color: #14715f; background: #e9f6ed; }
-.tray-app .review-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
-.tray-app .review-source { margin-top: 12px; font-size: 11px; color: #748b8c; }
-.tray-app .review-source summary { cursor: pointer; }
-.tray-app .review-source p { padding: 10px; background: #f4f8f7; border-radius: 8px; overflow-wrap: anywhere; }
-.tray-app .review-hint { margin: 9px 0 0; color: #817046; font-size: 11px; line-height: 1.6; }
-.tray-app .review-suggestions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
-.tray-app .review-suggestions > span { width: 100%; font-size: 11px; line-height: 1.5; color: #718483; }
-.tray-app button.review-suggestion { max-width: 100%; background: #eef6f3; color: #216d62; border: 1px solid #d2e7df; border-radius: 9px; padding: 8px 11px; font-size: 11px; cursor: pointer; text-align: left; overflow-wrap: anywhere; }
-.tray-app button.review-secondary { width: 100%; padding: 13px; margin-top: 18px; background: #f6faf8; color: #157a68; border: 1px dashed #acd2c7; border-radius: 11px; font: inherit; font-size: 13px; font-weight: 700; cursor: pointer; }
-.tray-app button.review-danger { display: block; margin: 16px 0 0 auto; border: 0; background: transparent; color: #a26c63; padding: 5px 0; font-size: 11px; cursor: pointer; }
-.tray-app button.review-secondary:hover { background: #eaf6f0; }
-.tray-app button.review-suggestion:hover { border-color: #218974; }
-.tray-app button.review-danger:hover { color: #ae3326; }
-.tray-app button.review-secondary:disabled, .tray-app button.review-danger:disabled, .tray-app button.review-suggestion:disabled { opacity: .5; cursor: not-allowed; }
-.tray-app .review-form .review-confirm { display: flex; align-items: flex-start; gap: 11px; padding: 15px; margin: 21px 0 16px; border-radius: 12px; background: #f3f8f6; color: #48686a; font-size: 12px; line-height: 1.65; font-weight: 400; }
-.tray-app .review-confirm input[type="checkbox"] { width: 17px; height: 17px; flex-shrink: 0; margin: 3px 0 0; accent-color: #14806e; }
-.tray-app .review-saved { background: #eaf7f0; border: 1px solid #c4e5d7; border-radius: 10px; padding: 13px; color: #236e56; font-size: 12px; line-height: 1.6; overflow-wrap: anywhere; }
-.tray-app .review-footnote { font-size: 11px; color: #879899; line-height: 1.65; margin-top: 13px; }
+.tray-app .review-form select {
+  display: block;
+
+  width: 100%;
+  min-width: 0;
+  min-height: 46px;
+
+  padding: 11px 13px;
+
+  border: 1px solid #ccd9e5;
+  border-radius: 10px;
+
+  background: #fbfcfe;
+  color: var(--text, #172d45);
+
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 1.6;
+
+  transition:
+    border-color 0.18s ease,
+    background-color 0.18s ease,
+    box-shadow 0.18s ease;
+}
+
+.tray-app .review-form input:not([type="checkbox"]):hover:not(:disabled),
+.tray-app .review-form select:hover:not(:disabled) {
+  border-color: #a8bdcb;
+}
+
+.tray-app .review-form input:not([type="checkbox"]):focus-visible,
+.tray-app .review-form select:focus-visible {
+  border-color: #168d80;
+  outline: 2px solid #168d80;
+  outline-offset: 2px;
+
+  background: #ffffff;
+}
+
+.tray-app .review-form input::placeholder {
+  color: #8291a1;
+  opacity: 1;
+}
+
+.tray-app .review-form input:disabled,
+.tray-app .review-form select:disabled {
+  border-color: #dce5ee;
+  background: #f0f3f7;
+  color: #6d7e90;
+
+  cursor: not-allowed;
+  opacity: 1;
+}
+
+/* =========================================================
+   INDIVIDUAL MEDICINE CARD
+   ========================================================= */
+
+.tray-app .review-medicine {
+  margin-top: 18px;
+  padding: 20px;
+
+  border: 1px solid var(--border, #dce5ee);
+  border-radius: 12px;
+
+  background: #ffffff;
+
+  box-shadow: 0 2px 8px rgba(22, 50, 77, 0.025);
+}
+
+.tray-app .review-row-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+
+  padding-bottom: 13px;
+
+  border-bottom: 1px solid #edf1f6;
+}
+
+.tray-app .review-row-heading strong {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+
+  color: var(--text, #172d45);
+
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.5;
+}
+
+.tray-app .review-number {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+
+  width: 30px;
+  height: 30px;
+
+  border: 1px solid #d5e9e3;
+  border-radius: 9px;
+
+  background: #eaf5f3;
+  color: #0f6e63;
+
+  font-size: 12px;
+  font-weight: 750;
+  font-variant-numeric: tabular-nums;
+}
+
+.tray-app .review-badge {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+
+  padding: 5px 9px;
+
+  border: 1px solid transparent;
+  border-radius: 100px;
+
+  font-size: 10px;
+  font-weight: 650;
+  line-height: 1.5;
+  white-space: nowrap;
+}
+
+.tray-app .review-badge.pending {
+  border-color: #eeddb8;
+  background: #fff7e6;
+  color: #84570b;
+}
+
+.tray-app .review-badge.mapped {
+  border-color: #c8e5d4;
+  background: #edf8f1;
+  color: #166445;
+}
+
+.tray-app .review-pair {
+  display: grid;
+  grid-template-columns:
+    minmax(0, 1fr)
+    minmax(0, 1fr);
+
+  gap: 14px;
+}
+
+.tray-app .review-pair > div {
+  min-width: 0;
+}
+
+/* =========================================================
+   OCR SOURCE AND HELP TEXT
+   ========================================================= */
+
+.tray-app .review-source {
+  margin-top: 12px;
+
+  color: var(--muted, #607286);
+
+  font-size: 12px;
+  line-height: 1.7;
+}
+
+.tray-app .review-source summary {
+  padding: 5px 0;
+
+  color: #536d82;
+
+  font-size: 12px;
+  font-weight: 500;
+
+  cursor: pointer;
+}
+
+.tray-app .review-source summary:hover {
+  color: var(--primary, #0f766e);
+}
+
+.tray-app .review-source p {
+  margin: 8px 0 0;
+  padding: 12px;
+
+  border: 1px solid #e4ebf2;
+  border-radius: 8px;
+
+  background: #f3f6fa;
+  color: #50657c;
+
+  font-size: 12px;
+  line-height: 1.7;
+
+  overflow-wrap: anywhere;
+}
+
+.tray-app .review-hint {
+  margin: 10px 0 0;
+
+  color: #806023;
+
+  font-size: 12px;
+  line-height: 1.7;
+}
+
+.tray-app .review-footnote {
+  margin: 14px 0 0;
+
+  color: var(--muted, #607286);
+
+  font-size: 12px;
+  line-height: 1.75;
+}
+
+/* =========================================================
+   PRODUCT SUGGESTIONS
+   ========================================================= */
+
+.tray-app .review-suggestions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+
+  margin-top: 13px;
+}
+
+.tray-app .review-suggestions > span {
+  width: 100%;
+
+  color: var(--muted, #607286);
+
+  font-size: 11px;
+  line-height: 1.7;
+}
+
+.tray-app button.review-suggestion {
+  max-width: 100%;
+  min-height: 36px;
+
+  padding: 8px 11px;
+
+  border: 1px solid #cfe3df;
+  border-radius: 8px;
+
+  background: #f0f8f5;
+  color: #216d62;
+
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.6;
+  text-align: left;
+
+  overflow-wrap: anywhere;
+  cursor: pointer;
+}
+
+.tray-app button.review-suggestion:hover:not(:disabled) {
+  border-color: #4c9a8c;
+  background: #e5f3ed;
+  color: #145b50;
+}
+
+/* =========================================================
+   ADD AND REMOVE MEDICINE BUTTONS
+   ========================================================= */
+
+.tray-app button.review-secondary {
+  display: block;
+
+  width: 100%;
+  min-height: 46px;
+
+  margin-top: 18px;
+  padding: 12px 16px;
+
+  border: 1px dashed #a9c9cd;
+  border-radius: 10px;
+
+  background: #f6fafb;
+  color: var(--primary, #0f766e);
+
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 650;
+  line-height: 1.6;
+  text-align: center;
+
+  cursor: pointer;
+}
+
+.tray-app button.review-secondary:hover:not(:disabled) {
+  border-color: #258b7f;
+  background: #eaf6f3;
+}
+
+.tray-app button.review-danger {
+  display: block;
+
+  min-height: 36px;
+  margin: 14px 0 0 auto;
+  padding: 7px 10px;
+
+  border: 1px solid transparent;
+  border-radius: 7px;
+
+  background: transparent;
+  color: #a82f44;
+
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.5;
+
+  cursor: pointer;
+}
+
+.tray-app button.review-danger:hover:not(:disabled) {
+  border-color: #f0d4da;
+  background: #fff1f3;
+  color: #8e2335;
+}
+
+.tray-app button.review-secondary:disabled,
+.tray-app button.review-danger:disabled,
+.tray-app button.review-suggestion:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.tray-app button.review-secondary:focus-visible,
+.tray-app button.review-danger:focus-visible,
+.tray-app button.review-suggestion:focus-visible {
+  outline: 3px solid #36a99c;
+  outline-offset: 3px;
+}
+
+/* =========================================================
+   CONFIRMATION CHECKBOX
+   ========================================================= */
+
+.tray-app .review-form .review-confirm {
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
+
+  margin: 22px 0 16px;
+  padding: 15px;
+
+  border: 1px solid #d8e6e6;
+  border-radius: 11px;
+
+  background: #f3f8f8;
+  color: #405f69;
+
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.75;
+
+  cursor: pointer;
+}
+
+.tray-app .review-confirm input[type="checkbox"] {
+  flex-shrink: 0;
+
+  width: 18px;
+  height: 18px;
+
+  margin: 3px 0 0;
+  padding: 0;
+
+  accent-color: #0f766e;
+  cursor: pointer;
+}
+
+.tray-app .review-confirm input[type="checkbox"]:disabled {
+  cursor: not-allowed;
+}
+
+.tray-app .review-confirm input[type="checkbox"]:focus-visible {
+  outline: 3px solid #36a99c;
+  outline-offset: 3px;
+}
+
+/* =========================================================
+   SAVED REVIEW FEEDBACK
+   ========================================================= */
+
+.tray-app .review-saved {
+  margin: 16px 0;
+  padding: 13px 15px;
+
+  border: 1px solid #c8e5d4;
+  border-radius: 10px;
+
+  background: #edf8f1;
+  color: #166445;
+
+  font-size: 12px;
+  line-height: 1.75;
+
+  overflow-wrap: anywhere;
+}
+
+.tray-app .review-saved.ready {
+  border-color: var(--tray-green-border, #c8e5d4);
+  background: var(--tray-green-bg, #edf8f1);
+  color: var(--tray-green, #166445);
+}
+
+.tray-app .review-saved.blocked {
+  border-color: var(--tray-amber-border, #ebdcb4);
+  background: var(--tray-amber-bg, #fff8e9);
+  color: var(--tray-amber, #84570b);
+}
+
+/* =========================================================
+   MOBILE REVIEW LAYOUT
+   ========================================================= */
+
 @media (max-width: 600px) {
-  .tray-app .review-medicine { padding: 15px; }
-  .tray-app .review-heading h3 { font-size: 20px; }
-  .tray-app .review-pair { grid-template-columns: 1fr; gap: 0; }
-  .tray-app .review-row-heading { flex-wrap: wrap; }
+  .tray-app .review-form {
+    margin-top: 24px;
+    padding-top: 22px;
+  }
+
+  .tray-app .review-heading {
+    align-items: flex-start;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+
+  .tray-app .review-heading h3 {
+    font-size: 20px;
+  }
+
+  .tray-app .review-overview {
+    gap: 8px 18px;
+    padding: 12px;
+  }
+
+  .tray-app .review-medicine {
+    padding: 15px;
+  }
+
+  .tray-app .review-row-heading {
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .tray-app .review-pair {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+  }
+
+  .tray-app .review-form input:not([type="checkbox"]),
+  .tray-app .review-form select {
+    font-size: 16px;
+  }
+
+  .tray-app .review-form .review-confirm {
+    padding: 13px;
+  }
+
+  .tray-app .review-footnote {
+    font-size: 11px;
+  }
+}
+
+/* =========================================================
+   REDUCED MOTION
+   ========================================================= */
+
+@media (prefers-reduced-motion: reduce) {
+  .tray-app .review-form *,
+  .tray-app .review-form *::before,
+  .tray-app .review-form *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}/* GREEN THEME */
+
+.med-workspace {
+  --mv-ink: #183c30;
+  --mv-muted: #62796e;
+  --mv-line: #dce8df;
+  --mv-teal: #23804d;
+  --mv-teal-dark: #19643b;
+  --mv-canvas: #f4f8f4;
+}
+
+.med-workspace .mv-top {
+  background: #173f2d;
+}
+
+.med-workspace .mv-brand-icon {
+  border-color: #4c8261;
+  background: #285b3d;
+  color: #b6ebc7;
+}
+
+.med-workspace .mv-brand small {
+  color: #b8d2bf;
+}
+
+.med-workspace .mv-top nav {
+  border-color: #416b50;
+  background: #123522;
+}
+
+.med-workspace .mv-top nav button {
+  color: #c2d9c8;
+}
+
+.med-workspace .mv-top nav button.active {
+  background: #ffffff;
+  color: #215d38;
+}
+
+.med-workspace .mv-top nav button:hover:not(:disabled):not(.active) {
+  background: #2c593b;
+}
+
+.med-workspace .mv-connection {
+  color: #d0e4d5;
+}
+
+.med-workspace .mv-connection.online i {
+  background: #8ddd9e;
+}
+
+.med-workspace .mv-steps button.active {
+  border-color: #92c6a2;
+  background: #edf7ef;
+  color: #23613a;
+}
+
+.med-workspace .mv-steps button.active .mv-step-number {
+  background: #23804d;
+  color: #ffffff;
+}
+
+.med-workspace .mv-upload {
+  border-color: #accdb4;
+  background: #f3f9f3;
+  color: #50765b;
+}
+
+.med-workspace .mv-upload:hover {
+  border-color: #23804d;
+  background: #eaf5ec;
+}
+
+.med-workspace .mv-upload-symbol {
+  border-color: #d1e6d6;
+  color: #23804d;
+}
+
+.med-workspace .mv-upload > strong {
+  color: #315d3e;
+}
+
+.med-workspace .mv-medicine-number,
+.med-workspace .mv-mini-list b {
+  background: #eaf5ec;
+  color: #277242;
+}
+
+.med-workspace .mv-add,
+.med-workspace .mv-suggestions button {
+  border-color: #bbd7c2;
+  background: #f0f8f1;
+  color: #287444;
+}
+
+.med-workspace .mv-add:hover:not(:disabled) {
+  background: #e3f1e6;
+}
+
+.med-workspace .mv-secondary {
+  border-color: #c7dacd;
+  color: #3b6449;
+}
+
+.med-workspace .mv-secondary:hover:not(:disabled) {
+  border-color: #9fbea8;
+  background: #edf5ef;
+}
+
+.med-workspace .mv-progress {
+  border-left-color: #23804d;
+  background: #eaf5ec;
+  color: #286b3f;
+}
+
+.med-workspace .mv-metrics strong,
+.med-workspace .mv-counts strong,
+.med-workspace .mv-medicine-heading strong {
+  color: #234b32;
+}
+
+.med-workspace button:focus-visible,
+.med-workspace input:focus-visible,
+.med-workspace select:focus-visible,
+.med-workspace textarea:focus-visible,
+.med-workspace summary:focus-visible,
+.med-workspace a:focus-visible,
+.med-workspace .mv-upload:focus-within {
+  outline-color: #48a366;
 }
