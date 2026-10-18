@@ -1691,4 +1691,81 @@
     padding: 16px 18px;
     gap: 10px;
   }
+}/* Comparison status colours */
+
+/* Equal counts */
+.med-workspace .mv-result .mv-result-card.match {
+  border: 1px solid #a8d5b5;
+  border-top: 5px solid #238443;
+  background: #f0faf3;
+}
+
+.med-workspace .mv-result .mv-result-card.match h3,
+.med-workspace .mv-result .mv-result-card.match .mv-counts strong {
+  color: #185d30;
+}
+
+.med-workspace .mv-badge.match {
+  border: 1px solid #238443;
+  background: #238443;
+  color: #ffffff;
+}
+
+/* Missing or extra predicted pills */
+.med-workspace .mv-result .mv-result-card.difference {
+  border: 1px solid #efb4b4;
+  border-top: 5px solid #c33434;
+  background: #fff3f3;
+}
+
+.med-workspace .mv-result .mv-result-card.difference h3,
+.med-workspace .mv-result .mv-result-card.difference .mv-counts strong {
+  color: #972525;
+}
+
+.med-workspace .mv-badge.difference {
+  border: 1px solid #b92e2e;
+  background: #b92e2e;
+  color: #ffffff;
+}
+
+/* Uncertain predictions */
+.med-workspace .mv-result .mv-result-card.uncertain {
+  border: 1px solid #e6c778;
+  border-top: 5px dashed #a66b08;
+  background: #fff9e9;
+}
+
+.med-workspace .mv-result .mv-result-card.uncertain h3,
+.med-workspace .mv-result .mv-result-card.uncertain .mv-counts strong {
+  color: #795007;
+}
+
+.med-workspace .mv-badge.uncertain {
+  border: 1px dashed #a66b08;
+  background: #fff0c2;
+  color: #795007;
+}
+
+/* Shared result details */
+.med-workspace .mv-result .mv-result-card {
+  border-radius: 14px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.04);
+}
+
+.med-workspace .mv-result .mv-result-card .mv-counts {
+  border-top: 1px solid rgba(0, 0, 0, 0.12);
+}
+
+.med-workspace .mv-result .mv-result-card .mv-counts small {
+  color: #525252;
+}
+
+.med-workspace .mv-badge.match,
+.med-workspace .mv-badge.difference,
+.med-workspace .mv-badge.uncertain {
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-weight: 700;
+  line-height: 1.5;
 }
