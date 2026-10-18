@@ -76,3 +76,5 @@ ai/component2-behavioral/data/
 logs/
 *.log
 /ai/component4-medicine/data/component4_comparison.sqlite3*
+
+/ai/component4-medicine/.env
