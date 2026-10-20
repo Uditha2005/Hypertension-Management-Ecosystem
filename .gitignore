@@ -78,3 +78,9 @@ logs/
 /ai/component4-medicine/data/component4_comparison.sqlite3*
 
 /ai/component4-medicine/.env
+
+# Component 1: allow the selected Random Forest model
+!ai/
+!ai/component1-physiological/
+!ai/component1-physiological/models/
+!ai/component1-physiological/models/model1_random_forest.joblib
