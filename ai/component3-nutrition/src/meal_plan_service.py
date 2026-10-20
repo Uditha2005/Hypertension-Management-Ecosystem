@@ -94,30 +94,55 @@ def _normalize_unit(unit: object) -> str:
     return normalized
 
 
+
 def _convert_quantity(quantity: float, unit: str, record: USDAFoodRecord) -> float:
+    """Convert the planned quantity to the USDA nutrient reference basis."""
     if not isinstance(record.reference_unit, str) or not record.reference_unit.strip():
         raise MealPlanValidationError("USDA food record has no usable reference unit")
+
     reference_unit = record.reference_unit.casefold().strip()
     reference_quantity = record.reference_quantity
-    if isinstance(reference_quantity, bool) or not isinstance(reference_quantity, Real):
-        raise MealPlanValidationError("USDA food record has an invalid reference quantity")
-    if not math.isfinite(float(reference_quantity)) or reference_quantity <= 0:
+
+    if (
+        isinstance(reference_quantity, bool)
+        or not isinstance(reference_quantity, Real)
+        or not math.isfinite(float(reference_quantity))
+        or reference_quantity <= 0
+    ):
         raise MealPlanValidationError("USDA food record has an invalid reference quantity")
 
+    # Nutrients are expressed per reference quantity in grams.
     if reference_unit == "g":
         if unit == "g":
             return quantity
         if unit == "kg":
             return quantity * 1000
-    elif reference_unit == "serving" and unit == "serving":
-        return quantity
-    else:
-        raise MealPlanValidationError(
-            f"cannot safely convert quantity unit {unit} to USDA reference unit {reference_unit}"
-        )
+
+    # Nutrients are expressed per serving.
+    elif reference_unit == "serving":
+        if unit == "serving":
+            return quantity
+
+        # A serving-based record may specify its serving size in grams.
+        # Convert mass to servings only when USDA explicitly provides that basis.
+        serving_size = record.serving_size
+        serving_unit = (record.serving_size_unit or "").casefold().strip()
+
+        if (
+            serving_unit == "g"
+            and isinstance(serving_size, Real)
+            and not isinstance(serving_size, bool)
+            and math.isfinite(float(serving_size))
+            and serving_size > 0
+        ):
+            grams = quantity if unit == "g" else quantity * 1000 if unit == "kg" else None
+            if grams is not None:
+                return grams / float(serving_size)
+
     raise MealPlanValidationError(
         f"cannot safely convert quantity unit {unit} to USDA reference unit {reference_unit}"
     )
+
 
 
 def _profile_with_reference(record: USDAFoodRecord) -> NutrientProfile:
