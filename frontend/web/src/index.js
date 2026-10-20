@@ -1,8 +1,9 @@
 import React, { useState } from "react";
 import ReactDOM from "react-dom/client";
+
 import MentalWellness from "./components/MentalWellness";
 import NutritionalIntelligence from "./components/NutritionalIntelligence";
-import MedicineVerification from "./components/MedicineVerification";
+import TrayVerification from "./components/TrayVerification";
 import PatientMonitoring from "./components/PatientMonitoring";
 
 const tabs = [
@@ -88,12 +89,17 @@ const App = () => {
       <div className="module-shell">
         <header className="module-header">
           <div className="module-inner">
-            <nav className="module-nav" aria-label="Healthcare intelligence modules">
+            <nav
+              className="module-nav"
+              aria-label="Healthcare intelligence modules"
+            >
               {tabs.map((tab) => (
                 <button
                   key={tab.id}
                   type="button"
-                  className={`module-tab ${activeTab === tab.id ? "active" : ""}`}
+                  className={`module-tab ${
+                    activeTab === tab.id ? "active" : ""
+                  }`}
                   onClick={() => setActiveTab(tab.id)}
                 >
                   {tab.label}
@@ -105,7 +111,7 @@ const App = () => {
 
         {activeTab === "mental" && <MentalWellness />}
         {activeTab === "nutrition" && <NutritionalIntelligence />}
-        {activeTab === "medicine" && <MedicineVerification />}
+        {activeTab === "medicine" && <TrayVerification />}
         {activeTab === "monitoring" && <PatientMonitoring />}
       </div>
     </>

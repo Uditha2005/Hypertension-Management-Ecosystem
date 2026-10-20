@@ -1,35 +1,29 @@
 import React, { useEffect, useRef, useState } from "react";
-
 const scanTypes = [
   { id: "strip", label: "Medicine strip", hint: "Blister packs and tablets" },
   { id: "bottle", label: "Pill bottle", hint: "Labels and dosage details" },
   { id: "prescription", label: "Prescription", hint: "Handwritten instructions" },
 ];
-
 const comparisonRows = [
   { field: "Medicine name", prescribed: "Amlodipine", scanned: "Amlodipine", status: "Match" },
   { field: "Strength", prescribed: "5 mg", scanned: "10 mg", status: "Incorrect Dosage Risk" },
   { field: "Instructions", prescribed: "Once daily", scanned: "Twice daily", status: "Mismatch" },
 ];
-
 const xaiSignals = [
   { label: "Strength differs from prescription", detail: "Detected 10 mg; prescribed strength is 5 mg.", tone: "risk" },
   { label: "Instructions differ", detail: "The provided label says twice daily; the prescription says once daily.", tone: "risk" },
   { label: "Medicine name is consistent", detail: "The detected name matches the prescribed medicine.", tone: "clear" },
 ];
-
 const interactionRisks = [
   { medicine: "Simvastatin", risk: "Moderate interaction risk", tone: "moderate" },
   { medicine: "Grapefruit products", risk: "Use caution", tone: "caution" },
   { medicine: "Lisinopril", risk: "No known interaction", tone: "clear" },
 ];
-
 const specialistDoctors = [
   { name: "Dr. Maya Patel", specialty: "Cardiologist", availability: "Today, 3:30 PM" },
   { name: "Dr. Daniel Okafor", specialty: "Clinical Pharmacist", availability: "Today, 4:15 PM" },
   { name: "Dr. Elena Rossi", specialty: "Internal Medicine", availability: "Tomorrow, 9:00 AM" },
 ];
-
 function MedicineVerification() {
   const [selectedType, setSelectedType] = useState("strip");
   const [previewUrl, setPreviewUrl] = useState("");
@@ -43,30 +37,22 @@ function MedicineVerification() {
   const videoRef = useRef(null);
   const streamRef = useRef(null);
   const fileInputRef = useRef(null);
-
   useEffect(() => {
-    return () => {
-      if (streamRef.current) {
-        streamRef.current.getTracks().forEach((track) => track.stop());
-      }
-      if (previewUrl) {
-        URL.revokeObjectURL(previewUrl);
-      }
-    };
+    return () => streamRef.current?.getTracks().forEach((track) => track.stop());
+  }, []);
+  useEffect(() => {
+    return () => { if (previewUrl) URL.revokeObjectURL(previewUrl); };
   }, [previewUrl]);
-
   useEffect(() => {
     if (cameraActive && videoRef.current && streamRef.current) {
       videoRef.current.srcObject = streamRef.current;
     }
   }, [cameraActive]);
-
   const useImage = (file) => {
-    if (!file || !file.type.startsWith("image/")) {
-      setScanStatus("Please choose an image file");
+    if (!file || !["image/jpeg", "image/png", "image/webp"].includes(file.type) || file.size > 5 * 1024 * 1024) {
+      setScanStatus("Choose a JPG, PNG or WebP image under 5 MB");
       return;
     }
-
     if (previewUrl) {
       URL.revokeObjectURL(previewUrl);
     }
@@ -74,12 +60,10 @@ function MedicineVerification() {
     setFileName(file.name);
     setScanStatus("Image ready to verify");
   };
-
   const handleFileChange = (event) => {
     useImage(event.target.files[0]);
     event.target.value = "";
   };
-
   const toggleCamera = async () => {
     if (cameraActive) {
       streamRef.current?.getTracks().forEach((track) => track.stop());
@@ -88,12 +72,10 @@ function MedicineVerification() {
       setScanStatus("Camera paused");
       return;
     }
-
     if (!navigator.mediaDevices?.getUserMedia) {
       setScanStatus("Camera is not available in this browser");
       return;
     }
-
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: { ideal: "environment" } },
@@ -106,10 +88,8 @@ function MedicineVerification() {
       setScanStatus("Camera access was not granted");
     }
   };
-
   const capturePhoto = () => {
-    if (!videoRef.current || !cameraActive) return;
-
+    if (!videoRef.current || !cameraActive || !videoRef.current.videoWidth) return;
     const canvas = document.createElement("canvas");
     canvas.width = videoRef.current.videoWidth;
     canvas.height = videoRef.current.videoHeight;
@@ -121,13 +101,11 @@ function MedicineVerification() {
       }
     }, "image/jpeg", 0.92);
   };
-
   const handleDrop = (event) => {
     event.preventDefault();
     setIsDragging(false);
     useImage(event.dataTransfer.files[0]);
   };
-
   return (
     <main className="medicine-verification">
       <style>{`
@@ -249,15 +227,48 @@ function MedicineVerification() {
         .doctor-book { width: 100%; min-height: 36px; border: 1px solid #28758a; border-radius: 5px; color: #28758a; background: #fff; font: 700 0.74rem Arial, sans-serif; cursor: pointer; }
         .doctor-book:hover { color: #fff; background: #28758a; }
         @media (max-width: 760px) { .medicine-content { grid-template-columns: 1fr; } .drop-zone, .scan-preview, .camera-view { min-height: 300px; } .scan-toolbar { align-items: flex-start; flex-direction: column; } .status { text-align: left; } .comparison-heading, .xai-heading, .symptom-heading { align-items: flex-start; flex-direction: column; } .comparison-heading p, .xai-heading p, .symptom-heading p { text-align: left; } .comparison-table { min-width: 620px; } .comparison-panel { overflow-x: auto; } .xai-grid { grid-template-columns: 1fr; gap: 22px; } .xai-column + .xai-column { padding-top: 22px; padding-left: 0; border-top: 1px solid #eadbd1; border-left: 0; } .symptom-form { grid-template-columns: 1fr; } .symptom-submit { width: 100%; } .doctor-list { grid-template-columns: 1fr; } }
+
+        /* Refined visual theme, scoped to this component. */
+        .medicine-verification { --ink:#183c43; --muted:#6a8085; --line:#e2ecec; --teal:#087f83; background:radial-gradient(ellipse at 95% 3%,#d2f0eb 0,transparent 35%),#f4f8f9; font-family:Inter,"Segoe UI",Arial,sans-serif; padding:34px clamp(18px,5vw,72px) 60px; }
+        .medicine-header,.medicine-content,.comparison-panel,.xai-panel,.symptom-panel,.medicine-steps { max-width:1180px; }
+        .medicine-header { padding:30px 36px 36px; border-radius:28px; background:linear-gradient(115deg,#103d48,#075f65); color:white; position:relative; overflow:hidden; box-shadow:0 20px 50px #123e4818; margin-bottom:24px; }
+        .medicine-header:after { content:"+"; position:absolute; right:40px; bottom:-70px; font:300 330px/1 Arial; color:#ffffff08; pointer-events:none; }
+        .medicine-topline { display:flex; justify-content:space-between; gap:16px; align-items:center; margin-bottom:38px; position:relative; z-index:1; }
+        .medicine-brand { display:flex; align-items:center; gap:10px; font-size:11px; letter-spacing:2px; font-weight:700; }
+        .medicine-brand-mark { display:grid; place-items:center; width:32px; height:32px; border-radius:10px; background:#a1f1dc; color:#164a50; font-size:25px; }
+        .medicine-demo-badge { padding:8px 12px; border:1px solid #ffffff25; background:#ffffff0a; border-radius:30px; font-size:11px; color:#d1eeee; }
+        .medicine-kicker { color:#8adfca; font:700 10px/1.4 "Segoe UI",sans-serif; letter-spacing:2px; }
+        .medicine-title { font-size:clamp(34px,4.6vw,58px); font-weight:650; letter-spacing:-2px; line-height:1.08; position:relative; z-index:1; }
+        .medicine-title span { color:#a0ebd9; }
+        .medicine-subtitle { color:#c1d8dc; max-width:550px; font-size:13px; line-height:1.8; }
+        .medicine-steps { margin:0 auto 24px; display:flex; gap:36px; align-items:center; padding:0 10px; }
+        .medicine-steps span { color:#748a90; display:flex; align-items:center; gap:9px; font-size:12px; }
+        .medicine-steps b { width:26px; height:26px; display:grid; place-items:center; border:1px solid #d8e6e6; border-radius:50%; font-size:10px; background:white; }
+        .medicine-steps .current { color:var(--teal); font-weight:700; }.medicine-steps .current b { color:white;background:var(--teal);border-color:var(--teal); }
+        .medicine-content { grid-template-columns:minmax(0,1.65fr) minmax(280px,.8fr); gap:22px; }
+        .scan-panel,.type-panel,.comparison-panel,.xai-panel,.symptom-panel { border-radius:22px; border:1px solid var(--line); box-shadow:0 8px 30px #163d4505; }
+        .scan-panel { padding:26px; }.scan-toolbar { margin-bottom:20px; }.panel-label { letter-spacing:1.4px;color:#21464b; }.status { padding:7px 11px;border-radius:30px;background:#edf7f4;font-size:11px; }
+        .drop-zone { min-height:340px;border:1.5px dashed #bdd7d5;border-radius:16px;background:linear-gradient(140deg,#f6fbfa,#edf7f6); }
+        .drop-zone.dragging { border-color:#008b83;box-shadow:inset 0 0 0 4px #008b8310; }.drop-icon { width:66px;height:66px;border-radius:20px;background:white;box-shadow:0 6px 20px #087f8310;color:var(--teal);font-size:32px; }
+        .drop-prompt h2 { font:650 21px "Segoe UI",sans-serif;letter-spacing:-.5px; }.drop-prompt p { max-width:320px;font-size:12px;margin:12px auto 22px;line-height:1.8; }
+        .action-button { border-radius:10px;min-height:44px;padding:0 20px;font-size:12px;box-shadow:0 5px 12px #087f8315; }.action-button.secondary { border-color:#d2e3e1;box-shadow:none; }
+        .action-button,.type-option,.doctor-book,.symptom-submit { transition:transform .18s,background .18s,box-shadow .18s; }.action-button:hover,.symptom-submit:hover { transform:translateY(-2px); }
+        .image-followup { display:flex;justify-content:center;gap:10px;margin-top:14px; }.file-name { font-size:11px; }
+        .type-panel { padding:26px; }.type-panel h2 { font:650 21px "Segoe UI",sans-serif;letter-spacing:-.6px; }.type-panel>p { font-size:12px;line-height:1.8; }.type-option { padding:18px;border-radius:12px;position:relative; }.type-option.selected { border-color:#0a9184;background:#f0faf7;box-shadow:inset 4px 0 #0a9184; }.type-option.selected:after { content:"✓";position:absolute;right:14px;top:17px;color:#087f83; }.type-option strong { font-size:12px; }.type-option span { font-size:11px; }.privacy-note { font-size:11px!important; }
+        .comparison-panel,.xai-panel,.symptom-panel { margin-top:22px;padding:28px; }.comparison-heading h2,.xai-heading h2,.symptom-heading h2 { font:650 23px "Segoe UI",sans-serif;letter-spacing:-.7px; }.comparison-heading p,.xai-heading p,.symptom-heading p { font-size:11px;line-height:1.8; }
+        .comparison-table th { padding:13px 14px;background:#f5f9fa;font-size:10px; }.comparison-table th:first-child { padding-left:14px;border-radius:9px 0 0 9px; }.comparison-table th:last-child { padding-right:14px;border-radius:0 9px 9px 0; }.comparison-table td { padding-top:19px;padding-bottom:19px;font-size:12px; }.comparison-table td:first-child { padding-left:14px;font-size:11px; }.comparison-badge { padding:7px 10px;font-size:10px; }.comparison-badge.incorrect-dosage-risk { background:#fff0d8;color:#946211; }
+        .xai-panel { background:#fffdfa;border-color:#eee4d8; }.xai-grid { gap:24px; }.xai-column h3 { font-size:10px;letter-spacing:1px;color:#8d7563; }.reason-item strong { font-size:12px; }.reason-item span { font-size:11px;line-height:1.7; }.authenticity-option { border-radius:10px;font-size:11px; }.xai-badge { font-size:9px;white-space:normal; }.interaction-item { font-size:11px;align-items:flex-start; }
+        .symptom-panel { background:#fff; }.symptom-field label { font-size:10px;color:#617a82; }.symptom-field textarea,.symptom-field select { border-radius:10px;font-size:12px;line-height:1.6; }.symptom-submit { border-radius:10px;font-size:12px;background:#163f50; }.urgency-indicator { flex-wrap:wrap;font-size:11px; }.doctor-card { border-radius:14px;padding:20px;background:#f8fbfc; }.doctor-card h3 { font-size:13px; }.doctor-specialty,.doctor-availability { font-size:11px; }.doctor-book { border-radius:9px;font-size:10px; }.doctor-book:disabled { opacity:.55;cursor:not-allowed; }.doctor-book:disabled:hover { color:#28758a;background:#fff; }
+        @media(max-width:980px) { .xai-grid { grid-template-columns:1fr; }.xai-column+.xai-column { padding-left:0;padding-top:20px;border-left:0;border-top:1px solid #eadbd1; }.symptom-form { grid-template-columns:1fr 180px; }.symptom-submit { grid-column:1/-1; } }
+        @media(max-width:760px) { .medicine-header { padding:24px;border-radius:20px; }.medicine-topline { align-items:flex-start;flex-direction:column;margin-bottom:28px; }.medicine-title { letter-spacing:-1px; }.medicine-steps { gap:12px;flex-wrap:wrap; }.medicine-steps span { font-size:10px; }.medicine-content { grid-template-columns:1fr; }.comparison-panel,.xai-panel,.symptom-panel,.scan-panel,.type-panel { padding:20px; }.doctor-list,.symptom-form { grid-template-columns:1fr; }.symptom-submit { grid-column:auto; }.comparison-table { min-width:590px; } }
+        @media(prefers-reduced-motion:reduce) { .medicine-verification * { transition:none!important; } }
       `}</style>
-
       <header className="medicine-header">
-        <p className="medicine-kicker">Medicine verification</p>
-        <h1 className="medicine-title">Read it before you take it.</h1>
-        <p className="medicine-subtitle">Scan a medicine strip, pill bottle, or handwritten prescription to check its details before adding it to your care plan.</p>
+        <div className="medicine-topline"><span className="medicine-brand"><span className="medicine-brand-mark">+</span> HYPERTENSION CARE</span><span className="medicine-demo-badge">UI preview · Example data</span></div><p className="medicine-kicker">YOUR MEDICINE REVIEW WORKSPACE</p>
+        <h1 className="medicine-title">A clearer view of<br /><span>your medicines.</span></h1>
+        <p className="medicine-subtitle">Bring your medicine details into focus. Start with a clear image, then review every detail against the original prescription.</p>
       </header>
-
-      <section className="medicine-content" aria-label="Medicine image scanner">
+      <div className="medicine-steps"><span className="current"><b>01</b> Add an image</span><span><b>02</b> Review details</span><span><b>03</b> Confirm with care team</span></div><section className="medicine-content" aria-label="Medicine image scanner">
         <div className="scan-panel">
           <div className="scan-toolbar">
             <p className="panel-label">Add an image</p>
@@ -268,23 +279,22 @@ function MedicineVerification() {
             {cameraActive && <div className="actions" style={{ position: "absolute", bottom: 18 }}><button className="action-button" type="button" onClick={capturePhoto}>Capture photo</button><button className="action-button secondary" type="button" onClick={toggleCamera}>Close camera</button></div>}
           </div>
           {fileName && <p className="file-name">{fileName}</p>}
-          <input ref={fileInputRef} type="file" accept="image/*" capture="environment" onChange={handleFileChange} hidden />
+          {previewUrl && !cameraActive && <div className="image-followup"><button type="button" className="action-button secondary" onClick={() => fileInputRef.current?.click()}>Replace image</button><button type="button" className="action-button secondary" onClick={toggleCamera}>Use camera</button></div>}
+          <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp" capture="environment" onChange={handleFileChange} hidden />
         </div>
-
         <aside className="type-panel">
           <h2>What are you scanning?</h2>
           <p>Select the closest match to help verification focus on the right details.</p>
           <div className="type-list" role="group" aria-label="Medicine type">
             {scanTypes.map((type) => <button key={type.id} className={`type-option${selectedType === type.id ? " selected" : ""}`} type="button" aria-pressed={selectedType === type.id} onClick={() => setSelectedType(type.id)}><strong>{type.label}</strong><span>{type.hint}</span></button>)}
           </div>
-          <p className="privacy-note">Images stay on this device until you choose to submit them for verification.</p>
+          <p className="privacy-note">Image preview stays in this browser. This screen does not submit images or run verification.</p>
         </aside>
       </section>
-
       <section className="comparison-panel" aria-labelledby="comparison-title">
         <div className="comparison-heading">
-          <h2 id="comparison-title">Verification comparison</h2>
-          <p>Review the prescribed details beside what was detected in the provided medicine.</p>
+          <h2 id="comparison-title">Example comparison</h2>
+          <p>Example values below demonstrate the review layout. Live comparison is not connected.</p>
         </div>
         <table className="comparison-table">
           <thead>
@@ -307,11 +317,10 @@ function MedicineVerification() {
           </tbody>
         </table>
       </section>
-
       <section className="xai-panel" aria-labelledby="xai-title">
         <div className="xai-heading">
-          <h2 id="xai-title">Why this warning was flagged</h2>
-          <p>These signals explain the verification result and should be reviewed by a pharmacist before use.</p>
+          <h2 id="xai-title">Example review signals</h2>
+          <p>Illustrative signals only. They are not derived from your uploaded image.</p>
         </div>
         <div className="xai-grid">
           <div className="xai-column">
@@ -326,14 +335,14 @@ function MedicineVerification() {
             </ul>
           </div>
           <div className="xai-column">
-            <h3>Brand authenticity</h3>
+            <h3>Example packaging indicators</h3>
             <div className="authenticity-options" aria-label="Brand authenticity indicators">
               <div className="authenticity-option"><span>Original packaging</span><span className="xai-badge original">Original</span></div>
               <div className="authenticity-option selected"><span>Suspicious packaging</span><span className="xai-badge suspicious">Suspicious</span></div>
             </div>
           </div>
           <div className="xai-column">
-            <h3>Drug interaction risk</h3>
+            <h3>Example interaction display</h3>
             <ul className="interaction-list">
               {interactionRisks.map((interaction) => (
                 <li className="interaction-item" key={interaction.medicine}><span>{interaction.medicine}</span><span className={`xai-badge ${interaction.tone}`}>{interaction.risk}</span></li>
@@ -342,13 +351,12 @@ function MedicineVerification() {
           </div>
         </div>
       </section>
-
       <section className="symptom-panel" aria-labelledby="symptom-title">
         <div className="symptom-heading">
-          <h2 id="symptom-title">Symptom checker</h2>
-          <p>Share what you are feeling so the care team can prepare for a focused telemedicine visit.</p>
+          <h2 id="symptom-title">Prepare a consultation</h2>
+          <p>Write a symptom draft for a future consultation. This form does not assess symptoms or send a message.</p>
         </div>
-        <form className="symptom-form" onSubmit={(event) => { event.preventDefault(); setSymptomStatus(symptoms.trim() ? "Symptoms saved for your care team." : "Add at least one symptom to continue."); }}>
+        <form className="symptom-form" onSubmit={(event) => { event.preventDefault(); setSymptomStatus(symptoms.trim() ? "Draft prepared in this screen. It has not been sent to a care team." : "Add at least one symptom to continue."); }}>
           <div className="symptom-field">
             <label htmlFor="current-symptoms">Current symptoms</label>
             <textarea id="current-symptoms" value={symptoms} onChange={(event) => setSymptoms(event.target.value)} placeholder="For example: dizziness, headache, or swelling" />
@@ -361,16 +369,15 @@ function MedicineVerification() {
               <option value="Now">Now</option>
             </select>
           </div>
-          <button className="symptom-submit" type="submit">Check symptoms</button>
+          <button className="symptom-submit" type="submit">Prepare draft</button>
         </form>
-        <div className="urgency-indicator" aria-live="polite"><span className={`urgency-dot ${urgency.toLowerCase()}`} aria-hidden="true" /><strong>{urgency} attention</strong><span>{urgency === "Now" ? "Seek urgent medical guidance." : urgency === "Soon" ? "Consider a same-day consultation." : "Monitor and discuss at your next visit."}</span></div>
+        <div className="urgency-indicator" aria-live="polite"><span className={`urgency-dot ${urgency.toLowerCase()}`} aria-hidden="true" /><strong>{urgency} attention</strong><span>{urgency === "Now" ? "Selected by you; no automated triage performed." : urgency === "Soon" ? "Selected by you; no automated triage performed." : "Selected by you; no automated triage performed."}</span></div>
         {symptomStatus && <p className="symptom-status" aria-live="polite">{symptomStatus}</p>}
-        <div className="doctor-list" aria-label="Recommended specialist doctors">
-          {specialistDoctors.map((doctor) => <article className="doctor-card" key={doctor.name}><h3>{doctor.name}</h3><p className="doctor-specialty">{doctor.specialty}</p><p className="doctor-availability">Next opening: {doctor.availability}</p><button className="doctor-book" type="button">Book telemedicine visit</button></article>)}
+        <div className="doctor-list" aria-label="Example specialist profiles">
+          {specialistDoctors.map((doctor) => <article className="doctor-card" key={doctor.name}><h3>{doctor.name}</h3><p className="doctor-specialty">{doctor.specialty}</p><p className="doctor-availability">Example opening: {doctor.availability}</p><button className="doctor-book" type="button" disabled>Booking not connected</button></article>)}
         </div>
       </section>
     </main>
   );
 }
-
 export default MedicineVerification;
