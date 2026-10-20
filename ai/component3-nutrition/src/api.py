@@ -106,9 +106,9 @@ class NutrientSummaryResponse(BaseModel):
 
 
 class PredictionResponse(BaseModel):
-    predicted_class_id: int
-    predicted_category: str
-    probabilities: dict[str, float]
+    predicted_class_id: int | None = None
+    predicted_category: str | None = None
+    probabilities: dict[str, float] = Field(default_factory=dict)
     experimental_result: str
 
 
@@ -116,9 +116,10 @@ class MealPlanAnalysisResponse(BaseModel):
     selected_days: list[str]
     daily_nutrients: dict[str, NutrientSummaryResponse]
     complete_plan_total: NutrientSummaryResponse
-    classifier_features: dict[str, float]
-    prediction: PredictionResponse
+    classifier_features: dict[str, float] | None = None
+    prediction: PredictionResponse | None = None
     limitation: str
+    classifier_unavailable_reason: str | None = None
 
 
 LIMITATION_TEXT = (
@@ -251,6 +252,9 @@ def analyze_meal_plan(
     except USDAFoodDataError as error:
         logger.warning("USDA food record could not be processed: %s", error)
         raise HTTPException(status_code=502, detail="USDA returned an unusable food record") from error
+    features = None
+    prediction = None
+    classifier_unavailable_reason = None
 
     try:
         features = build_classifier_features(
@@ -260,28 +264,39 @@ def analyze_meal_plan(
             bmi=request.bmi,
             selected_days=selected_days,
         )
+        prediction = predict_bp_category(features)
     except (TypeError, ValueError, ZeroDivisionError) as error:
-        raise HTTPException(status_code=422, detail=str(error)) from error
-
-    try:
-        prediction: BPCategoryPrediction = predict_bp_category(features)
-    except FileNotFoundError as error:
-        logger.error("Classifier model artifact is unavailable")
-        raise HTTPException(status_code=503, detail="Classifier model is unavailable") from error
-    except (TypeError, ValueError) as error:
-        logger.exception("Classifier prediction failed validation")
-        raise HTTPException(status_code=500, detail="Classifier could not produce a valid result") from error
+        classifier_unavailable_reason = str(error)
+        features = None
+        prediction = None
+    except FileNotFoundError:
+        logger.warning("Classifier model artifact is unavailable")
+        classifier_unavailable_reason = "Classifier model is unavailable"
+        features = None
+        prediction = None
+    except Exception:
+        logger.exception("Classifier prediction failed")
+        classifier_unavailable_reason = "Classifier could not produce a valid result"
+        features = None
+        prediction = None
 
     return MealPlanAnalysisResponse(
         selected_days=selected_days,
-        daily_nutrients={day: _summary_dict(value) for day, value in summary.daily.items()},
+        daily_nutrients={
+            day: _summary_dict(value) for day, value in summary.daily.items()
+        },
         complete_plan_total=_summary_dict(summary.total),
         classifier_features=features,
-        prediction=PredictionResponse(
-            predicted_class_id=prediction.predicted_class_id,
-            predicted_category=prediction.predicted_category,
-            probabilities=prediction.probabilities,
-            experimental_result=prediction.experimental_result,
+        prediction=(
+            PredictionResponse(
+                predicted_class_id=prediction.predicted_class_id,
+                predicted_category=prediction.predicted_category,
+                probabilities=prediction.probabilities,
+                experimental_result=prediction.experimental_result,
+            )
+            if prediction is not None
+            else None
         ),
         limitation=LIMITATION_TEXT,
+        classifier_unavailable_reason=classifier_unavailable_reason,
     )

@@ -40,6 +40,8 @@ def record(
     potassium_mg=200,
     energy_kcal=300,
     sat_fat_g=4,
+    serving_size=None,
+    serving_size_unit=None,
 ):
     return USDAFoodRecord(
         fdc_id=fdc_id,
@@ -53,6 +55,8 @@ def record(
         ),
         reference_quantity=reference_quantity,
         reference_unit=reference_unit,
+        serving_size=serving_size,
+        serving_size_unit=serving_size_unit,
     )
 
 
@@ -106,6 +110,31 @@ def test_serving_unit_matches_explicit_serving_reference():
     result = resolve_meal_plan([selection(quantity=2, unit="servings")], client)
 
     assert result.total.sodium_mg == 1000
+
+
+def test_grams_convert_to_servings_when_usda_provides_gram_serving_size():
+    client = FakeUSDAClient({
+        123: record(
+            reference_quantity=1,
+            reference_unit="serving",
+            serving_size=40,
+            serving_size_unit="g",
+            sodium_mg=500,
+            potassium_mg=200,
+            energy_kcal=150,
+            sat_fat_g=2,
+        )
+    })
+
+    result = resolve_meal_plan(
+        [selection(quantity=80, unit="g")],
+        client,
+    )
+
+    assert result.total.sodium_mg == 1000
+    assert result.total.potassium_mg == 400
+    assert result.total.energy_kcal == 300
+    assert result.total.sat_fat_g == 4
 
 
 def test_repeated_food_id_is_fetched_once_per_operation():

@@ -178,7 +178,8 @@ def test_analysis_uses_only_selected_days_not_period_total(client):
     assert body["complete_plan_total"]["sodium_mg"] == pytest.approx(700)
 
 
-def test_analysis_rejects_unknown_selected_day_nutrient_without_prediction(client, monkeypatch):
+
+def test_analysis_returns_nutrients_when_classifier_nutrient_is_unknown(client, monkeypatch):
     test_client, fake = client
     record = fake.records[101]
     fake.records[101] = USDAFoodRecord(
@@ -195,17 +196,20 @@ def test_analysis_rejects_unknown_selected_day_nutrient_without_prediction(clien
         reference_quantity=100,
         reference_unit="g",
     )
-    called = {"prediction": False}
 
     def forbidden_prediction(features):
-        called["prediction"] = True
         raise AssertionError("prediction must not run with unknown nutrients")
 
     monkeypatch.setattr(api, "predict_bp_category", forbidden_prediction)
     response = test_client.post("/meal-plans/analyze", json=valid_payload())
-    assert response.status_code == 422
-    assert "unknown nutrient" in response.json()["detail"]
-    assert called["prediction"] is False
+
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["complete_plan_total"]["potassium_mg"] is None
+    assert body["complete_plan_total"]["na_k_ratio"] is None
+    assert body["prediction"] is None
+    assert body["classifier_features"] is None
+    assert "unknown nutrient: potassium_mg" in body["classifier_unavailable_reason"]
 
 
 @pytest.mark.parametrize(
