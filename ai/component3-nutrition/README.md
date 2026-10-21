@@ -150,3 +150,45 @@ API tests use fake USDA records and a stubbed prediction function; they do not m
 - Verify the end-to-end workflow and define safe boundaries between planned-meal summaries and classifier inputs.
 - Develop and test the caregiver-facing interface and application integration, if required by the project plan.
 - Document setup, configuration, and demonstration steps.
+
+## Model research workflow (Python 3.12)
+
+The training implementation is split into dedicated Python files under `src/`.
+The notebooks are retained for their appropriate roles: `01_nhanes_merge_and_labels.ipynb`
+documents data preparation/label construction, while `02_model_comparison.ipynb`
+reads saved results and provides tables/plots. The latter no longer duplicates
+the training code.
+
+From the repository root, activate the existing virtual environment and install
+the component dependencies:
+
+```bash
+source ai/venv/bin/activate
+python -m pip install -r ai/component3-nutrition/requirements.txt
+```
+
+Run each model independently:
+
+```bash
+python ai/component3-nutrition/src/train_logistic_regression.py
+python ai/component3-nutrition/src/train_random_forest.py
+python ai/component3-nutrition/src/train_svm.py
+python ai/component3-nutrition/src/train_xgboost.py
+python ai/component3-nutrition/src/compare_models.py
+python ai/component3-nutrition/src/tune_best_model.py
+```
+
+The four training scripts each evaluate all three feature sets. They share one
+stratified 80/20 split (`random_state=42`) and stratified 5-fold CV on the
+training partition. The model and feature-set selection is based on mean CV
+macro-F1, not held-out test scores. New candidate artifacts and results are
+saved under `models/research_candidates/`, `models/final/`, and
+`results/model_research/`; the existing application model is not overwritten.
+
+Run tests with:
+
+```bash
+python -m pytest ai/component3-nutrition/tests -q
+```
+
+See `MODEL_RESEARCH_README.md` for full methodology, outputs, and limitations.

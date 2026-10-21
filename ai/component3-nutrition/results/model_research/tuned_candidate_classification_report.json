@@ -1,0 +1,49 @@
+{
+  "model": "xgboost",
+  "feature_set": "demographic_multiday",
+  "labels": [
+    "Normal",
+    "Elevated",
+    "Stage 1",
+    "Stage 2"
+  ],
+  "report": {
+    "Normal": {
+      "precision": 0.7101769911504425,
+      "recall": 0.4893292682926829,
+      "f1-score": 0.5794223826714802,
+      "support": 656.0
+    },
+    "Elevated": {
+      "precision": 0.24242424242424243,
+      "recall": 0.3033175355450237,
+      "f1-score": 0.2694736842105263,
+      "support": 211.0
+    },
+    "Stage 1": {
+      "precision": 0.29896907216494845,
+      "recall": 0.2797427652733119,
+      "f1-score": 0.28903654485049834,
+      "support": 311.0
+    },
+    "Stage 2": {
+      "precision": 0.3790983606557377,
+      "recall": 0.583596214511041,
+      "f1-score": 0.45962732919254656,
+      "support": 317.0
+    },
+    "accuracy": 0.4394648829431438,
+    "macro avg": {
+      "precision": 0.4076671665988428,
+      "recall": 0.4139964459055149,
+      "f1-score": 0.39938998523126285,
+      "support": 1495.0
+    },
+    "weighted avg": {
+      "precision": 0.48841550710192194,
+      "recall": 0.4394648829431438,
+      "f1-score": 0.44986773190866514,
+      "support": 1495.0
+    }
+  }
+}
