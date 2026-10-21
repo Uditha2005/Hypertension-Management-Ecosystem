@@ -1,1771 +1,1218 @@
 /* =====================================================
-   MEDICINE WORKSPACE
-   Green / neutral grey / white
+   MEDICINE INTELLIGENCE & VERIFICATION
+   Clean clinical dashboard · white surfaces · green accent
    ===================================================== */
 
-.med-workspace {
-  --mv-ink: #292929;
-  --mv-muted: #666666;
-  --mv-line: #dddddd;
-  --mv-teal: #287a43;
-  --mv-teal-dark: #1d6033;
-  --mv-canvas: #f5f5f5;
-  --mv-top-clearance: 88px;
+.av-medicine {
+  --brand: #15803d;
+  --brand-dark: #166534;
+  --brand-soft: #ecf7ef;
+  --brand-line: #cfe6d6;
 
-  --mv-green-soft: #edf6ee;
-  --mv-green-border: #c6ddca;
-  --mv-green-text: #245f34;
-  --mv-grey-soft: #f2f2f2;
-  --mv-grey-dark: #454545;
+  --ink: #111c16;
+  --text: #2b3a32;
+  --muted: #66766c;
+  --line: #e3e9e5;
+  --surface: #ffffff;
+  --canvas: #f5f7f6;
+
+  --amber: #92580a;
+  --amber-bg: #fff7e6;
+  --amber-line: #f0d9a6;
+
+  --red: #b42318;
+  --red-bg: #fef1f0;
+  --red-line: #f5c6c2;
+
+  --radius: 16px;
+  --shadow-sm: 0 1px 2px rgba(17, 28, 22, 0.05);
+  --shadow: 0 1px 3px rgba(17, 28, 22, 0.05), 0 8px 24px rgba(17, 28, 22, 0.05);
 
   width: 100%;
-  min-width: 0;
   min-height: 100vh;
-
-  background: var(--mv-canvas);
-  color: var(--mv-ink);
-
-  font-family:
-    "Segoe UI",
-    -apple-system,
-    BlinkMacSystemFont,
-    Arial,
-    sans-serif;
-
+  padding: 28px clamp(16px, 4vw, 48px) 48px;
+  background: var(--canvas);
+  color: var(--text);
+  font-family: "Inter", "Segoe UI", -apple-system, BlinkMacSystemFont, Arial, sans-serif;
   font-size: 14px;
-  line-height: 1.65;
-  text-align: left;
+  line-height: 1.6;
   color-scheme: light;
+  accent-color: var(--brand);
+  -webkit-font-smoothing: antialiased;
 }
 
-.med-workspace,
-.med-workspace *,
-.med-workspace *::before,
-.med-workspace *::after {
+.av-medicine,
+.av-medicine *,
+.av-medicine *::before,
+.av-medicine *::after {
   box-sizing: border-box;
 }
 
-.med-workspace button,
-.med-workspace input,
-.med-workspace select,
-.med-workspace textarea {
+.av-medicine button,
+.av-medicine input,
+.av-medicine select,
+.av-medicine textarea {
   font: inherit;
 }
 
-.med-workspace button {
+.av-medicine button {
   cursor: pointer;
-  transition:
-    background-color 160ms ease,
-    border-color 160ms ease,
-    color 160ms ease,
-    box-shadow 160ms ease;
+  transition: background-color 0.15s ease, border-color 0.15s ease,
+    color 0.15s ease, box-shadow 0.15s ease;
 }
 
-.med-workspace button:disabled {
+.av-medicine button:disabled {
   cursor: not-allowed;
   opacity: 0.5;
 }
 
-.med-workspace button:focus-visible,
-.med-workspace input:focus-visible,
-.med-workspace select:focus-visible,
-.med-workspace textarea:focus-visible,
-.med-workspace summary:focus-visible,
-.med-workspace a:focus-visible,
-.med-workspace .mv-upload:focus-within {
-  outline: 3px solid #54a364;
-  outline-offset: 3px;
-}
-
-.med-workspace button svg {
-  flex-shrink: 0;
-}
-
-.med-workspace h1,
-.med-workspace h2,
-.med-workspace h3,
-.med-workspace p {
-  overflow-wrap: anywhere;
-}
-
-.med-workspace h1,
-.med-workspace h2,
-.med-workspace h3 {
-  color: var(--mv-ink);
-}
-
-.med-workspace h2 {
-  margin: 7px 0 14px;
-  font-size: 22px;
-  font-weight: 700;
-  letter-spacing: -0.55px;
-  line-height: 1.35;
-}
-
-.med-workspace a {
-  color: var(--mv-teal);
-}
-
-.med-workspace a:visited {
-  color: var(--mv-teal-dark);
-}
-
-.med-workspace ::selection {
-  background: #d4ead7;
-  color: #234d2b;
-}
-
-/* =====================================================
-   TOP WORKSPACE BAR
-   ===================================================== */
-
-.med-workspace .mv-top {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 18px;
-
-  padding: 20px clamp(20px, 4vw, 64px);
-
-  border-bottom: 1px solid #245535;
-  background: #193f27;
-  color: #ffffff;
-}
-
-.med-workspace .mv-brand {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.med-workspace .mv-brand-icon {
-  display: grid;
-  place-items: center;
-
-  width: 42px;
-  height: 42px;
-
-  border: 1px solid #598466;
-  border-radius: 12px;
-
-  background: #2b5838;
-  color: #ffffff;
-}
-
-.med-workspace .mv-brand strong,
-.med-workspace .mv-brand small {
-  display: block;
-}
-
-.med-workspace .mv-brand strong {
-  color: #ffffff;
-  font-size: 15px;
-  font-weight: 650;
-}
-
-.med-workspace .mv-brand small {
-  color: #c8ddcc;
-  font-size: 11px;
-}
-
-.med-workspace .mv-top nav {
-  display: flex;
-  gap: 6px;
-
-  padding: 4px;
-
-  border: 1px solid #41694b;
-  border-radius: 12px;
-
-  background: #12321d;
-}
-
-.med-workspace .mv-top nav button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-
-  min-height: 38px;
-  padding: 8px 16px;
-
-  border: 0;
-  border-radius: 8px;
-
-  background: transparent;
-  color: #d3e3d6;
-
-  font-size: 12px;
-  font-weight: 600;
-}
-
-.med-workspace .mv-top nav button.active {
-  background: #ffffff;
-  color: #245c34;
-}
-
-.med-workspace .mv-top nav button:hover:not(:disabled):not(.active) {
-  background: #315b3d;
-  color: #ffffff;
-}
-
-.med-workspace .mv-connection {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-
-  color: #d6e5d9;
-  font-size: 11px;
-}
-
-.med-workspace .mv-connection i {
-  width: 7px;
-  height: 7px;
-
-  border-radius: 50%;
-  background: #c3c3c3;
-}
-
-.med-workspace .mv-connection.online i {
-  background: #9bdea7;
-}
-
-/* =====================================================
-   MAIN HEADING
-   ===================================================== */
-
-.med-workspace .mv-main {
-  width: 100%;
-  max-width: 1440px;
-  min-width: 0;
-
-  margin: 0 auto;
-  padding: 36px clamp(18px, 4vw, 60px);
-}
-
-.med-workspace .mv-heading {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 20px;
-
-  margin-bottom: 28px;
-}
-
-.med-workspace .mv-eyebrow {
-  color: var(--mv-teal);
-
-  font-size: 10px;
-  font-weight: 750;
-  letter-spacing: 1.8px;
-  text-transform: uppercase;
-}
-
-.med-workspace h1 {
-  margin: 8px 0 10px;
-
-  font-size: clamp(27px, 2.7vw, 38px);
-  font-weight: 700;
-  line-height: 1.2;
-  letter-spacing: -1.25px;
-}
-
-.med-workspace .mv-heading p {
-  margin: 0;
-
-  color: var(--mv-muted);
-  font-size: 14px;
-}
-
-.med-workspace .mv-tag {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-
-  padding: 7px 12px;
-
-  border: 1px solid #dddddd;
-  border-radius: 30px;
-
-  background: #ffffff;
-  color: #555555;
-
-  font-size: 11px;
-  font-weight: 600;
-}
-
-/* =====================================================
-   STEP NAVIGATION
-   ===================================================== */
-
-.med-workspace .mv-steps {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
-
-  margin: 0 0 26px;
-}
-
-.med-workspace .mv-steps button {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-
-  min-width: 0;
-  min-height: 72px;
-  padding: 16px 18px;
-
-  border: 1px solid var(--mv-line);
-  border-radius: 13px;
-
-  background: #ffffff;
-  color: #666666;
-
-  text-align: left;
-  font-size: 13px;
-  font-weight: 650;
-}
-
-.med-workspace .mv-steps button:hover:not(:disabled) {
-  border-color: #9dbba3;
-}
-
-.med-workspace .mv-steps button > svg {
-  margin-left: auto;
-  color: #888888;
-}
-
-.med-workspace .mv-step-number {
-  display: grid;
-  place-items: center;
-  flex-shrink: 0;
-
-  width: 34px;
-  height: 34px;
-
-  border-radius: 10px;
-
-  background: #eeeeee;
-  color: #666666;
-
-  font-size: 12px;
-}
-
-.med-workspace .mv-steps button.active {
-  border-color: #8bbb94;
-  background: #edf6ee;
-  color: #245f34;
-
-  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.025);
-}
-
-.med-workspace .mv-steps button.active .mv-step-number {
-  background: var(--mv-teal);
-  color: #ffffff;
-}
-
-.med-workspace .mv-steps button.active > svg {
-  color: var(--mv-teal);
-}
-
-/* =====================================================
-   PANELS AND LAYOUT
-   ===================================================== */
-
-.med-workspace .mv-panel {
-  min-width: 0;
-
-  margin-bottom: 24px;
-  padding: 28px;
-
-  border: 1px solid var(--mv-line);
-  border-radius: 17px;
-
-  background: #ffffff;
-
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.035);
-}
-
-.med-workspace .mv-panel-heading,
-.med-workspace .mv-review-title {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 18px;
-}
-
-.med-workspace .mv-panel-heading {
-  margin-bottom: 14px;
-}
-
-.med-workspace .mv-source-grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: 24px;
-  align-items: start;
-}
-
-.med-workspace .mv-review-layout {
-  display: grid;
-  grid-template-columns:
-    minmax(260px, 0.72fr)
-    minmax(0, 1.4fr);
-
-  gap: 26px;
-  align-items: start;
-}
-
-.med-workspace .mv-reference {
-  position: sticky;
-  top: var(--mv-top-clearance);
-}
-
-.med-workspace .mv-reference-image {
-  display: block;
-
-  width: 100%;
-  max-height: 400px;
-
-  border: 1px solid #e2e2e2;
-  border-radius: 10px;
-
-  background: #f7f7f7;
-  object-fit: contain;
-}
-
-.med-workspace .mv-reference-note {
-  margin-top: 22px;
-  padding-top: 18px;
-
-  border-top: 1px solid var(--mv-line);
-
-  color: var(--mv-muted);
-  font-size: 12px;
-}
-
-.med-workspace .mv-reference-note strong {
-  color: var(--mv-ink);
-}
-
-.med-workspace .mv-reference-note p {
-  margin-bottom: 0;
-}
-
-.med-workspace .mv-tray-layout {
-  display: grid;
-  grid-template-columns:
-    minmax(0, 1.2fr)
-    minmax(0, 0.8fr);
-
-  gap: 24px;
-  align-items: start;
-}
-
-.med-workspace .mv-help {
-  margin: 10px 0;
-
-  color: var(--mv-muted);
-
-  font-size: 12px;
-  line-height: 1.75;
-}
-
-.med-workspace .mv-empty {
-  display: grid;
-  place-items: center;
-
-  min-height: 150px;
-  padding: 28px;
-
-  border: 1px dashed #cccccc;
-  border-radius: 12px;
-
-  background: #fafafa;
-  color: var(--mv-muted);
-
-  text-align: center;
-  font-size: 13px;
-}
-
-/* =====================================================
-   BUTTONS
-   ===================================================== */
-
-.med-workspace .mv-primary,
-.med-workspace .mv-secondary,
-.med-workspace .mv-add {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 9px;
-
-  width: 100%;
-  min-height: 46px;
-  padding: 12px 16px;
-
-  border-radius: 10px;
-
-  font-size: 13px;
-  font-weight: 650;
-  line-height: 1.5;
-}
-
-.med-workspace .mv-primary {
-  margin-top: 18px;
-
-  border: 1px solid var(--mv-teal);
-  background: var(--mv-teal);
-  color: #ffffff;
-}
-
-.med-workspace .mv-primary:hover:not(:disabled) {
-  border-color: var(--mv-teal-dark);
-  background: var(--mv-teal-dark);
-
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-}
-
-.med-workspace .mv-primary:disabled {
-  border-color: #dddddd;
-  background: #eeeeee;
-  color: #777777;
-  opacity: 1;
-}
-
-.med-workspace .mv-secondary {
-  border: 1px solid #cccccc;
-  background: #ffffff;
-  color: #454545;
-}
-
-.med-workspace .mv-secondary:hover:not(:disabled) {
-  border-color: #a8bca9;
-  background: #f0f6f0;
-  color: #285d34;
-}
-
-.med-workspace .mv-text-button {
-  display: inline-flex;
-  align-items: center;
-
-  min-height: 40px;
-  padding: 8px 0;
-
-  border: 0;
-  background: transparent;
-  color: var(--mv-teal);
-
-  font-size: 12px;
-  font-weight: 650;
-  text-align: left;
-}
-
-.med-workspace .mv-text-button:hover:not(:disabled) {
-  text-decoration: underline;
-}
-
-.med-workspace .mv-add {
-  margin-bottom: 22px;
-
-  border: 1px dashed #a1bca6;
-  background: #f0f7f1;
-  color: var(--mv-teal);
-}
-
-.med-workspace .mv-add:hover:not(:disabled) {
-  background: #e5f1e7;
-}
-
-.med-workspace .mv-actions {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-
-  margin-top: 18px;
-}
-
-.med-workspace .mv-actions .mv-primary {
-  margin-top: 0;
-}
-
-/* =====================================================
-   IMAGE UPLOAD
-   ===================================================== */
-
-.med-workspace .mv-upload {
-  position: relative;
-
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  gap: 12px;
-
-  width: 100%;
-  height: 300px;
-
-  margin-top: 20px;
-  padding: 20px;
-
-  border: 1.5px dashed #abc5ae;
-  border-radius: 13px;
-
-  background: #f4f8f4;
-  color: #5a6c5d;
-
-  text-align: center;
-  overflow: hidden;
-  cursor: pointer;
-}
-
-.med-workspace .mv-upload:hover {
-  border-color: var(--mv-teal);
-  background: #edf5ee;
-}
-
-.med-workspace .mv-upload input {
-  position: absolute;
-  inset: 0;
-  z-index: 1;
-
-  width: 100%;
-  height: 100%;
-
-  opacity: 0;
-  cursor: pointer;
-}
-
-.med-workspace .mv-upload input:disabled {
-  cursor: not-allowed;
-}
-
-.med-workspace .mv-upload > strong {
-  color: #315e39;
-  font-size: 15px;
-}
-
-.med-workspace .mv-upload > span:not(.mv-upload-symbol),
-.med-workspace .mv-upload > small {
-  font-size: 12px;
-}
-
-.med-workspace .mv-upload-symbol {
-  display: grid;
-  place-items: center;
-
-  width: 64px;
-  height: 64px;
-  margin-bottom: 5px;
-
-  border: 1px solid #d0e2d3;
-  border-radius: 18px;
-
-  background: #ffffff;
-  color: var(--mv-teal);
-}
-
-.med-workspace .mv-upload.has-image {
-  padding: 0;
-  background: #f7f7f7;
-}
-
-.med-workspace .mv-upload img {
-  display: block;
-
-  width: 100%;
-  height: 100%;
-
-  object-fit: contain;
-}
-
-.med-workspace .mv-filename {
-  overflow-wrap: anywhere;
-}
-
-/* =====================================================
-   INPUTS
-   ===================================================== */
-
-.med-workspace label:not(.mv-upload):not(.mv-checkbox) {
-  display: block;
-
-  margin: 16px 0 7px;
-
-  color: #454545;
-
-  font-size: 12px;
-  font-weight: 650;
-}
-
-.med-workspace input:not([type="file"]):not([type="checkbox"]),
-.med-workspace select,
-.med-workspace textarea {
-  display: block;
-
-  width: 100%;
-  min-width: 0;
-  min-height: 46px;
-
-  padding: 11px 13px;
-
-  border: 1px solid #cccccc;
-  border-radius: 9px;
-
-  background: #ffffff;
-  color: var(--mv-ink);
-
-  font-size: 13px;
-  line-height: 1.6;
-}
-
-.med-workspace input:not([type="file"]):not([type="checkbox"]):hover:not(:disabled),
-.med-workspace select:hover:not(:disabled),
-.med-workspace textarea:hover:not(:disabled) {
-  border-color: #9bb4a0;
-}
-
-.med-workspace input:not([type="file"]):not([type="checkbox"]):focus-visible,
-.med-workspace select:focus-visible,
-.med-workspace textarea:focus-visible {
-  border-color: var(--mv-teal);
-  background: #ffffff;
-}
-
-.med-workspace textarea {
-  min-height: 270px;
-  resize: vertical;
-}
-
-.med-workspace input::placeholder,
-.med-workspace textarea::placeholder {
-  color: #808080;
-  opacity: 1;
-}
-
-.med-workspace input:disabled,
-.med-workspace textarea:disabled,
-.med-workspace select:disabled {
-  background: #f1f1f1;
-  color: #777777;
-  cursor: not-allowed;
-}
-
-.med-workspace .mv-fields {
-  min-width: 0;
-  margin: 0;
-  padding: 0;
-  border: 0;
-}
-
-.med-workspace .mv-fields:disabled button {
-  cursor: not-allowed;
-}
-
-.med-workspace .mv-pair {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: 16px;
-}
-
-.med-workspace .mv-pair > div {
-  min-width: 0;
-}
-
-.med-workspace .mv-panel.mv-pair label {
-  margin-top: 0;
-}
-
-/* =====================================================
-   REVIEW METRICS
-   ===================================================== */
-
-.med-workspace .mv-metrics {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
-
-  margin: 18px 0 22px;
-}
-
-.med-workspace .mv-metrics > div {
-  padding: 17px;
-
-  border: 1px solid #dddddd;
-  border-radius: 12px;
-
-  background: #ffffff;
-}
-
-.med-workspace .mv-metrics strong {
-  display: block;
-
-  color: #2c5634;
-
-  font-size: 28px;
-  line-height: 1.2;
-  letter-spacing: -0.8px;
-  font-variant-numeric: tabular-nums;
-}
-
-.med-workspace .mv-metrics span {
-  display: block;
-  margin-top: 7px;
-
-  color: var(--mv-muted);
-  font-size: 11px;
-}
-
-/* =====================================================
-   MEDICINE REVIEW CARDS
-   ===================================================== */
-
-.med-workspace .mv-medicine {
-  margin-bottom: 18px;
-  padding: 24px;
-
-  border: 1px solid #dddddd;
-  border-radius: 15px;
-
-  background: #ffffff;
-
-  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.025);
-}
-
-.med-workspace .mv-medicine-heading {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-
-  padding-bottom: 16px;
-  border-bottom: 1px solid #eeeeee;
-}
-
-.med-workspace .mv-medicine-number {
-  display: grid;
-  place-items: center;
-  flex-shrink: 0;
-
-  width: 38px;
-  height: 38px;
-
-  border-radius: 11px;
-
-  background: #edf6ee;
-  color: #286d39;
-
-  font-size: 12px;
-  font-weight: 750;
-}
-
-.med-workspace .mv-medicine-heading > div {
-  flex: 1;
-  min-width: 0;
-}
-
-.med-workspace .mv-medicine-heading strong {
-  display: block;
-
-  color: #333333;
-  font-size: 14px;
-}
-
-.med-workspace .mv-medicine-heading small {
-  display: block;
-  margin-top: 3px;
-
-  color: var(--mv-muted);
-  font-size: 11px;
-}
-
-.med-workspace .mv-remove {
-  padding: 8px;
-
-  border: 1px solid transparent;
-  border-radius: 7px;
-
-  background: transparent;
-  color: #666666;
-
-  font-size: 11px;
-}
-
-.med-workspace .mv-remove:hover:not(:disabled) {
-  border-color: #d0d0d0;
-  background: #eeeeee;
-  color: #222222;
-}
-
-.med-workspace .mv-field-note {
-  margin: 8px 0 0;
-
-  color: #666666;
-
-  font-size: 11px;
-  line-height: 1.75;
-}
-
-.med-workspace .mv-source-line {
-  margin-top: 14px;
-  font-size: 12px;
-}
-
-.med-workspace summary {
-  color: #4f4f4f;
-  font-size: 12px;
-  cursor: pointer;
-}
-
-.med-workspace summary:hover {
-  color: var(--mv-teal);
-}
-
-.med-workspace .mv-source-line p {
-  padding: 11px 13px;
-
-  border-left: 3px solid #a7bca9;
-  border-radius: 5px;
-
-  background: #f3f3f3;
-  color: #555555;
-
-  font-size: 12px;
-}
-
-.med-workspace .mv-suggestions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-
-  margin-top: 14px;
-}
-
-.med-workspace .mv-suggestions small {
-  width: 100%;
-  color: var(--mv-muted);
-}
-
-.med-workspace .mv-suggestions button {
-  max-width: 100%;
-  padding: 8px 10px;
-
-  border: 1px solid #c8ddcc;
-  border-radius: 8px;
-
-  background: #f0f7f1;
-  color: #2c693a;
-
-  font-size: 11px;
-  text-align: left;
-  overflow-wrap: anywhere;
-}
-
-.med-workspace .mv-suggestions button:hover:not(:disabled) {
-  border-color: #8eb497;
-  background: #e5f1e7;
-}
-
-.med-workspace .mv-checkbox {
-  display: flex;
-  align-items: flex-start;
-  gap: 11px;
-
-  margin: 16px 0;
-  padding: 15px;
-
-  border: 1px solid #dddddd;
-  border-radius: 10px;
-
-  background: #f7f7f7;
-  color: #4f4f4f;
-
-  font-size: 12px;
-  line-height: 1.75;
-}
-
-.med-workspace .mv-checkbox input {
-  flex-shrink: 0;
-
-  width: 18px;
-  height: 18px;
-  margin: 3px 0 0;
-
-  accent-color: var(--mv-teal);
-}
-
-/* =====================================================
-   NOTICES
-   Neutral styles retain the written error/warning labels.
-   ===================================================== */
-
-.med-workspace .mv-alert {
-  margin-bottom: 18px;
-  padding: 14px 17px;
-
-  border: 1px solid #d5d5d5;
-  border-radius: 10px;
-
-  font-size: 13px;
-  line-height: 1.7;
-  overflow-wrap: anywhere;
-}
-
-.med-workspace .mv-alert p {
-  margin: 6px 0;
-}
-
-.med-workspace .mv-alert.error {
-  border-color: #b9b9b9;
-  border-left: 4px solid #4a4a4a;
-
-  background: #f2f2f2;
-  color: #333333;
-}
-
-.med-workspace .mv-alert.error::before {
-  content: "Action needed";
-  display: block;
-  margin-bottom: 4px;
-  font-weight: 750;
-}
-
-.med-workspace .mv-alert.info {
-  border-color: #d5d5d5;
-  background: #f7f7f7;
-  color: #4a4a4a;
-}
-
-.med-workspace .mv-alert.warning,
-.med-workspace .mv-inline-warning {
-  border: 1px solid #cccccc;
-  border-left: 4px solid #777777;
-
-  background: #f6f6f6;
-  color: #454545;
-}
-
-.med-workspace .mv-inline-warning {
-  padding: 13px 15px;
-  border-radius: 10px;
-
-  font-size: 12px;
-  line-height: 1.75;
-}
-
-.med-workspace .mv-progress {
-  margin-bottom: 18px;
-  padding: 12px 16px;
-
-  border-left: 3px solid var(--mv-teal);
-  border-radius: 6px;
-
-  background: #edf6ee;
-  color: #28633a;
-
-  font-size: 13px;
-}
-
-.med-workspace .mv-details {
-  margin-top: 20px;
-  padding-top: 16px;
-
-  border-top: 1px solid var(--mv-line);
-}
-
-.med-workspace .mv-details pre {
-  max-height: 250px;
-  padding: 13px;
-
-  border-radius: 8px;
-
-  background: #f3f3f3;
-  color: #555555;
-
-  font-size: 12px;
-  line-height: 1.7;
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-  overflow: auto;
-}
-
-/* =====================================================
-   SAVED MEDICINE LIST
-   ===================================================== */
-
-.med-workspace .mv-mini-list > div {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 14px;
-
-  padding: 16px 0;
-  border-bottom: 1px solid #e7e7e7;
-}
-
-.med-workspace .mv-mini-list strong,
-.med-workspace .mv-mini-list small {
-  display: block;
-}
-
-.med-workspace .mv-mini-list strong {
-  color: #333333;
-  font-size: 13px;
-}
-
-.med-workspace .mv-mini-list small {
-  margin-top: 3px;
-
-  color: var(--mv-muted);
-  font-size: 11px;
-}
-
-.med-workspace .mv-mini-list b {
-  flex-shrink: 0;
-  padding: 5px 10px;
-
-  border-radius: 7px;
-
-  background: #edf6ee;
-  color: #2a6c39;
-
-  font-size: 13px;
-}
-
-/* =====================================================
-   RESULT CARDS
-   ===================================================== */
-
-.med-workspace .mv-result-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 16px;
-
-  margin-top: 22px;
-}
-
-.med-workspace .mv-result-card {
-  min-width: 0;
-  padding: 22px;
-
-  border: 1px solid #dddddd;
-  border-top: 3px solid #888888;
-  border-radius: 12px;
-
-  background: #ffffff;
-}
-
-.med-workspace .mv-result-card.match {
-  border-top-color: #39834a;
-}
-
-.med-workspace .mv-result-card.difference {
-  border-top: 4px solid #454545;
-}
-
-.med-workspace .mv-result-card.uncertain {
-  border-top: 3px dashed #888888;
-}
-
-.med-workspace .mv-result-card h3 {
-  margin: 15px 0 6px;
-
-  color: #303030;
-
-  font-size: 15px;
-  line-height: 1.5;
-}
-
-.med-workspace .mv-badge {
-  display: inline-flex;
-  align-items: center;
-
-  padding: 6px 10px;
-
-  border: 1px solid transparent;
-  border-radius: 7px;
-
-  font-size: 11px;
-  font-weight: 650;
-  line-height: 1.5;
-}
-
-.med-workspace .mv-badge.match {
-  border-color: #c6ddca;
-  background: #edf6ee;
-  color: #28633a;
-}
-
-.med-workspace .mv-badge.difference {
-  border-color: #555555;
-  background: #555555;
-  color: #ffffff;
-}
-
-.med-workspace .mv-badge.uncertain {
-  border: 1px dashed #999999;
-  background: #f3f3f3;
-  color: #555555;
-}
-
-.med-workspace .mv-counts {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-
-  margin-top: 18px;
-  padding-top: 16px;
-
-  border-top: 1px solid #eeeeee;
-}
-
-.med-workspace .mv-counts small,
-.med-workspace .mv-counts strong {
-  display: block;
-}
-
-.med-workspace .mv-counts small {
-  color: var(--mv-muted);
-  font-size: 11px;
-}
-
-.med-workspace .mv-counts strong {
-  margin-top: 3px;
-  color: #333333;
-
-  font-size: 26px;
-  font-variant-numeric: tabular-nums;
-}
-
-/* =====================================================
-   DETECTION DETAILS
-   ===================================================== */
-
-.med-workspace .mv-detection-image {
-  display: block;
-
-  width: 100%;
-  max-height: 520px;
-  margin-top: 18px;
-
-  border: 1px solid #dddddd;
-  border-radius: 12px;
-
-  background: #f5f5f5;
-  object-fit: contain;
-}
-
-.med-workspace .mv-detections {
-  margin-top: 18px;
-}
-
-.med-workspace .mv-detections > div {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-
-  padding: 16px 0;
-  border-bottom: 1px solid #e6e6e6;
-}
-
-.med-workspace .mv-detection-number {
-  display: grid;
-  place-items: center;
-  flex-shrink: 0;
-
-  width: 30px;
-  height: 30px;
-
-  border-radius: 8px;
-
-  background: #eeeeee;
-  color: #555555;
-
-  font-size: 11px;
-}
-
-.med-workspace .mv-detections strong,
-.med-workspace .mv-detections small {
-  display: block;
-}
-
-.med-workspace .mv-detections strong {
-  color: #333333;
-  font-size: 13px;
-}
-
-.med-workspace .mv-detections small {
-  margin-top: 4px;
-  color: var(--mv-muted);
-  font-size: 11px;
-}
-
-.med-workspace .mv-detections b {
-  margin-left: auto;
-  color: #454545;
-
-  font-size: 13px;
-  white-space: nowrap;
-}
-
-/* =====================================================
-   HISTORY
-   ===================================================== */
-
-.med-workspace .mv-history-row {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-
-  padding: 20px 0;
-  border-bottom: 1px solid #e6e6e6;
-}
-
-.med-workspace .mv-history-row:last-child {
-  border-bottom: 0;
-}
-
-.med-workspace .mv-history-icon {
-  display: grid;
-  place-items: center;
-  flex-shrink: 0;
-
-  width: 42px;
-  height: 42px;
-
-  border-radius: 11px;
-
-  background: #edf6ee;
-  color: #367542;
-}
-
-.med-workspace .mv-history-row > div {
-  flex: 1;
-  min-width: 0;
-}
-
-.med-workspace .mv-history-row .mv-help {
-  margin: 3px 0 0;
-}
-
-/* =====================================================
-   FOOTER AND ACCESSIBILITY
-   ===================================================== */
-
-.med-workspace .mv-footer {
-  margin-top: 20px;
-  padding: 20px 0 0;
-
-  border-top: 1px solid var(--mv-line);
-
-  color: #777777;
-
-  font-size: 11px;
-  line-height: 1.8;
-  text-align: center;
-}
-
-.med-workspace .mv-sr-only {
-  position: absolute;
-
-  width: 1px;
-  height: 1px;
-
-  padding: 0;
-  margin: -1px;
-
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  white-space: nowrap;
-
-  border: 0;
-}
-
-/* =====================================================
-   TABLET
-   ===================================================== */
-
-@media (max-width: 1050px) {
-  .med-workspace .mv-review-layout {
-    grid-template-columns:
-      minmax(230px, 0.7fr)
-      minmax(0, 1.3fr);
-
-    gap: 18px;
-  }
-
-  .med-workspace .mv-panel,
-  .med-workspace .mv-medicine {
-    padding: 22px;
-  }
-
-  .med-workspace .mv-heading {
-    align-items: flex-start;
-  }
-
-  .med-workspace .mv-heading > .mv-tag {
-    display: none;
-  }
-}
-
-/* =====================================================
-   SMALL TABLET
-   ===================================================== */
-
-@media (max-width: 800px) {
-  .med-workspace .mv-source-grid,
-  .med-workspace .mv-review-layout,
-  .med-workspace .mv-tray-layout {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 0;
-  }
-
-  .med-workspace .mv-reference {
-    position: static;
-  }
-
-  .med-workspace .mv-reference-image {
-    max-height: 240px;
-  }
-
-  .med-workspace .mv-reference-note {
-    display: none;
-  }
-
-  .med-workspace .mv-top {
-    padding: 18px 20px;
-  }
-
-  .med-workspace .mv-top nav {
-    margin-left: auto;
-  }
-
-  .med-workspace .mv-connection {
-    width: 100%;
-  }
-
-  .med-workspace .mv-main {
-    padding: 28px 18px;
-  }
-
-  .med-workspace .mv-steps {
-    gap: 8px;
-  }
-
-  .med-workspace .mv-steps button {
-    flex-direction: column;
-    gap: 8px;
-
-    padding: 12px 8px;
-
-    text-align: center;
-    font-size: 11px;
-  }
-
-  .med-workspace .mv-steps button > svg {
-    display: none;
-  }
-}
-
-/* =====================================================
-   MOBILE
-   ===================================================== */
-
-@media (max-width: 550px) {
-  .med-workspace h1 {
-    font-size: 28px;
-    letter-spacing: -0.8px;
-  }
-
-  .med-workspace .mv-top {
-    gap: 14px;
-  }
-
-  .med-workspace .mv-top nav {
-    width: 100%;
-    margin-left: 0;
-  }
-
-  .med-workspace .mv-top nav button {
-    flex: 1;
-  }
-
-  .med-workspace .mv-panel,
-  .med-workspace .mv-medicine {
-    padding: 18px;
-    border-radius: 13px;
-  }
-
-  .med-workspace .mv-pair,
-  .med-workspace .mv-result-grid {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 10px;
-  }
-
-  .med-workspace .mv-metrics {
-    gap: 8px;
-  }
-
-  .med-workspace .mv-metrics > div {
-    padding: 12px 10px;
-  }
-
-  .med-workspace .mv-metrics strong {
-    font-size: 24px;
-  }
-
-  .med-workspace .mv-metrics span {
-    font-size: 10px;
-  }
-
-  .med-workspace .mv-upload {
-    height: 240px;
-  }
-
-  .med-workspace .mv-panel-heading {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 8px;
-  }
-
-  .med-workspace .mv-history-row {
-    flex-wrap: wrap;
-  }
-
-  .med-workspace .mv-history-row > .mv-badge {
-    margin-left: 58px;
-  }
-
-  .med-workspace input:not([type="file"]):not([type="checkbox"]),
-  .med-workspace select,
-  .med-workspace textarea {
-    font-size: 16px;
-  }
-
-  .med-workspace .mv-medicine-heading {
-    flex-wrap: wrap;
-  }
-}
-
-/* =====================================================
-   REDUCED MOTION
-   ===================================================== */
-
-@media (prefers-reduced-motion: reduce) {
-  .med-workspace *,
-  .med-workspace *::before,
-  .med-workspace *::after {
-    transition: none !important;
-    animation: none !important;
-  }
-}/* Green medicine review cards */
-
-.med-workspace .mv-medicine {
-  overflow: hidden;
-  padding: 24px;
-  border: 1px solid #bfd5c3;
-  border-left: 5px solid #35834a;
-  border-radius: 16px;
-  background: #f1f7f2;
-  box-shadow: 0 5px 18px rgba(0, 0, 0, 0.04);
-}
-
-.med-workspace .mv-medicine-heading {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  margin: -24px -24px 22px;
-  padding: 20px 24px;
-  border-bottom: 1px solid #bfd5c3;
-  background: #dcebdd;
-  color: #204e2c;
-}
-
-.med-workspace .mv-medicine-heading > div {
-  min-width: 0;
-}
-
-.med-workspace .mv-medicine-heading h3,
-.med-workspace .mv-medicine-heading h4,
-.med-workspace .mv-medicine-heading strong {
-  margin: 0;
-  color: #204e2c;
-  font-weight: 750;
-  overflow-wrap: anywhere;
-}
-
-.med-workspace .mv-medicine-heading p {
-  margin: 4px 0 0;
-  color: #48634e;
-}
-
-.med-workspace .mv-medicine-number {
-  display: grid;
-  place-items: center;
-  flex: 0 0 44px;
-  width: 44px;
-  height: 44px;
-  border: 1px solid #286639;
-  border-radius: 12px;
-  background: #286639;
-  color: #ffffff;
-  font-size: 16px;
-  font-weight: 750;
-}
-
-.med-workspace .mv-medicine label {
-  color: #344a39;
-  font-weight: 650;
-}
-
-.med-workspace .mv-medicine input,
-.med-workspace .mv-medicine select,
-.med-workspace .mv-medicine textarea {
-  border: 1px solid #b8cabb;
-  border-radius: 10px;
-  background: #ffffff;
-  color: #292929;
-  box-shadow: none;
-}
-
-.med-workspace .mv-medicine input:focus,
-.med-workspace .mv-medicine select:focus,
-.med-workspace .mv-medicine textarea:focus {
-  border-color: #35834a;
-  outline: 2px solid #35834a;
+.av-medicine button:focus-visible,
+.av-medicine input:focus-visible,
+.av-medicine textarea:focus-visible,
+.av-medicine summary:focus-visible,
+.av-medicine a:focus-visible {
+  outline: 3px solid #86c79d;
   outline-offset: 2px;
 }
 
-.med-workspace .mv-medicine input::placeholder {
-  color: #737373;
+.av-medicine h1,
+.av-medicine h2,
+.av-medicine h3,
+.av-medicine p {
+  overflow-wrap: anywhere;
 }
 
-.med-workspace .mv-medicine .mv-field-note {
-  color: #57635a;
+.av-medicine h1 {
+  margin: 0;
+  color: var(--ink);
+  font-size: clamp(24px, 2.4vw, 30px);
+  font-weight: 750;
+  letter-spacing: -0.7px;
+  line-height: 1.2;
 }
 
-.med-workspace .mv-medicine .mv-source-line {
-  padding: 12px 14px;
-  border: 1px solid #d4ddd5;
+.av-medicine h2 {
+  margin: 0 0 4px;
+  color: var(--ink);
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: -0.2px;
+}
+
+.av-medicine h3 {
+  margin: 0;
+  color: var(--ink);
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.av-medicine p {
+  margin: 0 0 10px;
+}
+
+.av-medicine .av-muted {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.av-medicine .av-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.av-medicine .av-inner {
+  width: 100%;
+  max-width: 1280px;
+  margin: 0 auto;
+}
+
+/* ---------- Toolbar ---------- */
+
+.av-medicine .av-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 26px;
+}
+
+.av-medicine .av-title p {
+  margin: 6px 0 0;
+  color: var(--muted);
+}
+
+.av-medicine .av-toolbar-right {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.av-medicine .av-seg {
+  display: inline-flex;
+  padding: 4px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+}
+
+.av-medicine .av-seg button {
+  min-height: 36px;
+  padding: 6px 18px;
+  border: 0;
   border-radius: 9px;
-  background: #e8eee9;
-  color: #4b554d;
+  background: transparent;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 650;
 }
 
-.med-workspace .mv-medicine .mv-remove {
-  margin-left: auto;
-  padding: 7px 12px;
-  border: 1px solid #b1c5b5;
-  border-radius: 8px;
-  background: #ffffff;
-  color: #505050;
+.av-medicine .av-seg button:hover:not(:disabled):not(.active) {
+  color: var(--ink);
 }
 
-.med-workspace .mv-medicine .mv-remove:hover {
-  border-color: #808080;
-  background: #eeeeee;
-  color: #292929;
+.av-medicine .av-seg button.active {
+  background: var(--brand);
+  color: #ffffff;
 }
 
-.med-workspace .mv-review-layout {
+.av-medicine .av-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 14px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.av-medicine .av-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #b5bdb8;
+}
+
+.av-medicine .av-dot.online {
+  background: #22c55e;
+  box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.2);
+}
+
+/* ---------- Stepper ---------- */
+
+.av-medicine .av-steps {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0;
+  margin: 0 0 28px;
+  padding: 18px 22px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+}
+
+.av-medicine .av-steps button {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  padding: 4px 8px;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font-size: 13.5px;
+  font-weight: 650;
+  text-align: left;
+}
+
+.av-medicine .av-steps button:not(:last-child)::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  right: 4px;
+  left: calc(100% - 56px);
+  height: 2px;
+  background: var(--line);
+}
+
+.av-medicine .av-step-num {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 34px;
+  height: 34px;
+  border: 2px solid var(--line);
+  border-radius: 50%;
+  background: var(--surface);
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.av-medicine .av-steps button.active {
+  color: var(--ink);
+}
+
+.av-medicine .av-steps button.active .av-step-num {
+  border-color: var(--brand);
+  background: var(--brand);
+  color: #ffffff;
+  box-shadow: 0 0 0 4px rgba(21, 128, 61, 0.14);
+}
+
+.av-medicine .av-steps button.done .av-step-num {
+  border-color: var(--brand);
+  background: var(--brand-soft);
+  color: var(--brand);
+}
+
+.av-medicine .av-steps button.done:not(:last-child)::after {
+  background: var(--brand);
+}
+
+/* ---------- Cards and layout ---------- */
+
+.av-medicine .av-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 22px;
   align-items: start;
 }
 
-.med-workspace .mv-reference {
-  border-color: #d1d9d2;
-  background: #eef1ee;
+.av-medicine .av-review {
+  grid-template-columns: minmax(280px, 0.7fr) minmax(0, 1.6fr);
 }
 
-.med-workspace .mv-save-panel {
-  border: 1px solid #bfd5c3;
-  background: #e7f1e8;
+.av-medicine .av-review > aside {
+  position: sticky;
+  top: 16px;
 }
 
-@media (max-width: 550px) {
-  .med-workspace .mv-medicine {
+.av-medicine .av-card {
+  min-width: 0;
+  margin-bottom: 22px;
+  padding: 26px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+.av-medicine .av-card-head {
+  margin-bottom: 18px;
+}
+
+.av-medicine .av-card-head p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.av-medicine fieldset {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+/* ---------- Scope cards ---------- */
+
+.av-medicine .av-scopes {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.av-medicine .av-scope {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 16px 18px;
+  border: 1.5px solid var(--line);
+  border-radius: 13px;
+  background: var(--surface);
+  color: var(--text);
+  text-align: left;
+}
+
+.av-medicine .av-scope strong {
+  color: var(--ink);
+  font-size: 14px;
+}
+
+.av-medicine .av-scope span {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.av-medicine .av-scope:hover:not(:disabled) {
+  border-color: #9dcdb0;
+}
+
+.av-medicine .av-scope[aria-pressed="true"] {
+  border-color: var(--brand);
+  background: var(--brand-soft);
+  box-shadow: 0 0 0 3px rgba(21, 128, 61, 0.1);
+}
+
+.av-medicine .av-scope[aria-pressed="true"] strong {
+  color: var(--brand-dark);
+}
+
+/* ---------- Toggle switch ---------- */
+
+.av-medicine .av-switch {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin: 18px 0 0;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: 13px;
+  background: #fafbfa;
+  cursor: pointer;
+}
+
+.av-medicine .av-switch-track {
+  position: relative;
+  flex-shrink: 0;
+  width: 42px;
+  height: 24px;
+  border-radius: 999px;
+  background: #c7cfca;
+  transition: background-color 0.15s ease;
+}
+
+.av-medicine .av-switch-track::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #ffffff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+  transition: transform 0.15s ease;
+}
+
+.av-medicine .av-switch input:checked + .av-switch-track {
+  background: var(--brand);
+}
+
+.av-medicine .av-switch input:checked + .av-switch-track::after {
+  transform: translateX(18px);
+}
+
+.av-medicine .av-switch input:focus-visible + .av-switch-track {
+  outline: 3px solid #86c79d;
+  outline-offset: 2px;
+}
+
+.av-medicine .av-switch strong {
+  display: block;
+  color: var(--ink);
+  font-size: 13.5px;
+}
+
+.av-medicine .av-switch small {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+/* ---------- Forms ---------- */
+
+.av-medicine label.av-label {
+  display: block;
+  margin: 18px 0 7px;
+  color: var(--ink);
+  font-size: 12.5px;
+  font-weight: 650;
+}
+
+.av-medicine input:not([type="checkbox"]):not([type="file"]),
+.av-medicine select,
+.av-medicine textarea {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  padding: 10px 14px;
+  border: 1px solid #d3dcd6;
+  border-radius: 11px;
+  background: #ffffff;
+  color: var(--ink);
+  font-size: 13.5px;
+}
+
+.av-medicine select {
+  appearance: none;
+  padding-right: 38px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' fill='none' stroke='%2366766c' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M1 1.5l5 5 5-5'/%3E%3C/svg%3E");
+  background-position: right 14px center;
+  background-repeat: no-repeat;
+}
+
+.av-medicine input:not([type="checkbox"]):not([type="file"]):hover:not(:disabled),
+.av-medicine select:hover:not(:disabled),
+.av-medicine textarea:hover:not(:disabled) {
+  border-color: #a5c4b0;
+}
+
+.av-medicine input:not([type="checkbox"]):not([type="file"]):focus,
+.av-medicine select:focus,
+.av-medicine textarea:focus {
+  border-color: var(--brand);
+  box-shadow: 0 0 0 3px rgba(21, 128, 61, 0.15);
+  outline: none;
+}
+
+.av-medicine textarea {
+  min-height: 220px;
+  line-height: 1.75;
+  resize: vertical;
+  font-family: "Cascadia Code", Consolas, "Courier New", monospace;
+  font-size: 13px;
+}
+
+.av-medicine input:disabled,
+.av-medicine select:disabled,
+.av-medicine textarea:disabled {
+  background: #f1f4f2;
+  color: #7a8a80;
+}
+
+.av-medicine .av-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin: 18px 0 14px;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #fafbfa;
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.65;
+  cursor: pointer;
+}
+
+.av-medicine .av-check input {
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  margin-top: 3px;
+}
+
+/* ---------- Buttons ---------- */
+
+.av-medicine .av-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 18px 0;
+}
+
+.av-medicine .av-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 10px 20px;
+  border: 1px solid #cfdad3;
+  border-radius: 11px;
+  background: #ffffff;
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.av-medicine .av-button:hover:not(:disabled) {
+  border-color: #9dcdb0;
+  background: var(--brand-soft);
+  color: var(--brand-dark);
+}
+
+.av-medicine .av-primary {
+  border-color: var(--brand);
+  background: var(--brand);
+  color: #ffffff;
+}
+
+.av-medicine .av-primary:hover:not(:disabled) {
+  border-color: var(--brand-dark);
+  background: var(--brand-dark);
+  color: #ffffff;
+  box-shadow: 0 6px 16px rgba(21, 128, 61, 0.28);
+}
+
+.av-medicine .av-primary:disabled {
+  border-color: #dde3df;
+  background: #e8ece9;
+  color: #84938a;
+  opacity: 1;
+}
+
+.av-medicine .av-ghost {
+  border-color: transparent;
+  background: transparent;
+  color: var(--muted);
+}
+
+.av-medicine .av-danger {
+  border-color: var(--red-line);
+  color: var(--red);
+}
+
+.av-medicine .av-danger:hover:not(:disabled) {
+  border-color: var(--red);
+  background: var(--red-bg);
+  color: var(--red);
+}
+
+.av-medicine .av-wide {
+  width: 100%;
+}
+
+.av-medicine .av-actions .av-wide {
+  flex: 1 1 100%;
+}
+
+.av-medicine .av-add {
+  width: 100%;
+  min-height: 52px;
+  border: 1.5px dashed #aacfb7;
+  border-radius: 14px;
+  background: transparent;
+  color: var(--brand);
+}
+
+/* ---------- Alerts ---------- */
+
+.av-medicine .av-alert {
+  display: flex;
+  gap: 10px;
+  margin: 0 0 16px;
+  padding: 13px 16px;
+  border: 1px solid var(--brand-line);
+  border-radius: 12px;
+  background: var(--brand-soft);
+  color: var(--brand-dark);
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
+.av-medicine .av-alert > div {
+  min-width: 0;
+}
+
+.av-medicine .av-error {
+  border-color: var(--red-line);
+  background: var(--red-bg);
+  color: var(--red);
+}
+
+.av-medicine .av-warning {
+  border-color: var(--amber-line);
+  background: var(--amber-bg);
+  color: var(--amber);
+}
+
+.av-medicine .av-alert p {
+  margin: 0;
+}
+
+.av-medicine .av-alert ul {
+  margin: 8px 0 0;
+  padding-left: 20px;
+}
+
+.av-medicine .av-busy {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.av-medicine .av-spinner {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(21, 128, 61, 0.25);
+  border-top-color: var(--brand);
+  border-radius: 50%;
+  animation: av-spin 0.8s linear infinite;
+}
+
+@keyframes av-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ---------- Upload drop-zone ---------- */
+
+.av-medicine .av-drop {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 260px;
+  margin: 0;
+  padding: 24px;
+  overflow: hidden;
+  border: 2px dashed #b4d3bf;
+  border-radius: 14px;
+  background: #f7fbf8;
+  color: var(--muted);
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.av-medicine .av-drop:hover,
+.av-medicine .av-drop:focus-within {
+  border-color: var(--brand);
+  background: var(--brand-soft);
+}
+
+.av-medicine .av-drop.disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.av-medicine .av-drop-icon {
+  display: grid;
+  place-items: center;
+  width: 60px;
+  height: 60px;
+  margin-bottom: 6px;
+  border-radius: 16px;
+  background: #ffffff;
+  box-shadow: var(--shadow-sm);
+  color: var(--brand);
+}
+
+.av-medicine .av-drop strong {
+  color: var(--ink);
+  font-size: 15px;
+}
+
+.av-medicine .av-drop small {
+  font-size: 12px;
+}
+
+.av-medicine .av-drop img {
+  display: block;
+  width: 100%;
+  max-height: 320px;
+  margin-bottom: 8px;
+  border-radius: 10px;
+  background: #ffffff;
+  object-fit: contain;
+}
+
+.av-medicine .av-drop.has-image {
+  min-height: 0;
+  padding: 16px;
+}
+
+.av-medicine .av-photo {
+  display: block;
+  width: 100%;
+  max-height: 560px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #f5f7f6;
+  object-fit: contain;
+}
+
+/* ---------- Empty state ---------- */
+
+.av-medicine .av-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 22px;
+  padding: 44px 24px;
+  border: 1.5px dashed #cfd9d3;
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--muted);
+  text-align: center;
+}
+
+.av-medicine .av-empty .av-drop-icon {
+  color: #7f9b89;
+}
+
+.av-medicine .av-empty strong {
+  color: var(--ink);
+  font-size: 15px;
+}
+
+.av-medicine .av-empty p {
+  max-width: 380px;
+  margin: 0;
+  font-size: 13px;
+}
+
+/* ---------- Metrics ---------- */
+
+.av-medicine .av-metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 14px;
+  margin-bottom: 22px;
+}
+
+.av-medicine .av-metrics > div {
+  padding: 18px 20px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+}
+
+.av-medicine .av-metrics strong {
+  display: block;
+  color: var(--ink);
+  font-size: 30px;
+  font-weight: 750;
+  line-height: 1.15;
+  letter-spacing: -1px;
+  font-variant-numeric: tabular-nums;
+}
+
+.av-medicine .av-metrics small {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.av-medicine .av-metrics .warn strong {
+  color: var(--amber);
+}
+
+/* ---------- Medicine row cards ---------- */
+
+.av-medicine .av-row {
+  margin-bottom: 18px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+.av-medicine .av-row.attention {
+  border-color: var(--amber-line);
+}
+
+.av-medicine .av-row-head {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 18px 22px;
+  border-bottom: 1px solid var(--line);
+}
+
+.av-medicine .av-row-num {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 38px;
+  height: 38px;
+  border-radius: 11px;
+  background: var(--brand-soft);
+  color: var(--brand-dark);
+  font-size: 13px;
+  font-weight: 750;
+}
+
+.av-medicine .av-row.attention .av-row-num {
+  background: var(--amber-bg);
+  color: var(--amber);
+}
+
+.av-medicine .av-row-title {
+  flex: 1;
+  min-width: 0;
+}
+
+.av-medicine .av-row-title small {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.av-medicine .av-row-body {
+  padding: 22px;
+}
+
+.av-medicine .av-summary {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  margin-bottom: 16px;
+}
+
+.av-medicine .av-tile {
+  display: flex;
+  gap: 12px;
+  min-width: 0;
+  padding: 14px 16px;
+  border: 1px solid var(--brand-line);
+  border-radius: 13px;
+  background: var(--brand-soft);
+}
+
+.av-medicine .av-tile.warn {
+  border-color: var(--amber-line);
+  background: var(--amber-bg);
+}
+
+.av-medicine .av-tile-icon {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--brand);
+  color: #ffffff;
+}
+
+.av-medicine .av-tile.warn .av-tile-icon {
+  background: #d9901a;
+}
+
+.av-medicine .av-tile small {
+  display: block;
+  color: var(--muted);
+  font-size: 11.5px;
+}
+
+.av-medicine .av-tile strong {
+  display: block;
+  color: var(--ink);
+  font-size: 15px;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.av-medicine .av-instruction {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px;
+  margin: 0 0 8px;
+  font-size: 13.5px;
+}
+
+.av-medicine .av-instruction span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.av-medicine .av-instruction code {
+  padding: 2px 9px;
+  border-radius: 7px;
+  background: #eef2ef;
+  color: var(--ink);
+  font-family: "Cascadia Code", Consolas, monospace;
+  font-size: 13px;
+}
+
+.av-medicine .av-suggest {
+  margin-top: 14px;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #fafbfa;
+}
+
+.av-medicine .av-suggest .av-actions {
+  margin: 8px 0 0;
+}
+
+.av-medicine .av-suggest .av-button {
+  min-height: 38px;
+  padding: 7px 14px;
+  border-color: var(--brand-line);
+  background: #ffffff;
+  color: var(--brand-dark);
+}
+
+/* ---------- Chips ---------- */
+
+.av-medicine .av-chip {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  padding: 5px 12px;
+  border-radius: 999px;
+  background: var(--brand-soft);
+  color: var(--brand-dark);
+  font-size: 11.5px;
+  font-weight: 700;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+
+.av-medicine .av-chip.warning {
+  background: #fdf0d2;
+  color: var(--amber);
+}
+
+.av-medicine .av-chip.difference {
+  background: #fde4e1;
+  color: var(--red);
+}
+
+/* ---------- Details ---------- */
+
+.av-medicine details {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+
+.av-medicine summary {
+  color: var(--brand-dark);
+  font-size: 13px;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.av-medicine summary:hover {
+  color: var(--brand);
+}
+
+.av-medicine details ul {
+  margin: 14px 0 0;
+  padding: 12px 14px 12px 30px;
+  border-radius: 10px;
+  background: #f4f7f5;
+  font-size: 12.5px;
+}
+
+.av-medicine details ul li + li {
+  margin-top: 4px;
+}
+
+.av-medicine pre {
+  max-height: 280px;
+  padding: 14px;
+  overflow: auto;
+  border-radius: 10px;
+  background: #f1f4f2;
+  color: #46574d;
+  font-size: 12px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* ---------- Save panel ---------- */
+
+.av-medicine .av-save {
+  border-color: var(--brand-line);
+  background: var(--brand-soft);
+  box-shadow: none;
+}
+
+/* ---------- Results ---------- */
+
+.av-medicine .av-banner {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 18px;
+  padding: 16px 18px;
+  border-radius: 13px;
+  background: var(--brand-soft);
+  color: var(--brand-dark);
+  border: 1px solid var(--brand-line);
+}
+
+.av-medicine .av-banner.warning {
+  border-color: var(--amber-line);
+  background: var(--amber-bg);
+  color: var(--amber);
+}
+
+.av-medicine .av-banner.difference {
+  border-color: var(--red-line);
+  background: var(--red-bg);
+  color: var(--red);
+}
+
+.av-medicine .av-banner strong {
+  display: block;
+  font-size: 15px;
+}
+
+.av-medicine .av-banner small {
+  display: block;
+  opacity: 0.85;
+  font-size: 12.5px;
+}
+
+.av-medicine .av-table {
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+
+.av-medicine table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.av-medicine th,
+.av-medicine td {
+  padding: 13px 16px;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+}
+
+.av-medicine th {
+  background: #f4f7f5;
+  color: var(--muted);
+  font-size: 11.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.av-medicine tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.av-medicine .av-detection {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.av-medicine .av-detection:last-child {
+  border-bottom: 0;
+}
+
+.av-medicine .av-detection small {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.av-medicine .av-detection > strong {
+  flex-shrink: 0;
+  padding: 4px 11px;
+  border-radius: 8px;
+  background: var(--brand-soft);
+  color: var(--brand-dark);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- Footer ---------- */
+
+.av-medicine footer {
+  margin-top: 32px;
+  padding-top: 18px;
+  border-top: 1px solid var(--line);
+  color: #7a8a80;
+  font-size: 12px;
+  text-align: center;
+}
+
+/* ---------- Responsive ---------- */
+
+@media (max-width: 900px) {
+  .av-medicine .av-grid,
+  .av-medicine .av-review {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .av-medicine .av-review > aside {
+    position: static;
+  }
+
+  .av-medicine .av-scopes {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  .av-medicine {
+    padding: 18px 14px 36px;
+  }
+
+  .av-medicine .av-card {
     padding: 18px;
   }
 
-  .med-workspace .mv-medicine-heading {
-    margin: -18px -18px 18px;
-    padding: 16px 18px;
-    gap: 10px;
+  .av-medicine .av-steps {
+    padding: 12px;
   }
-}/* Comparison status colours */
 
-/* Equal counts */
-.med-workspace .mv-result .mv-result-card.match {
-  border: 1px solid #a8d5b5;
-  border-top: 5px solid #238443;
-  background: #f0faf3;
+  .av-medicine .av-steps button {
+    flex-direction: column;
+    gap: 6px;
+    font-size: 11px;
+    text-align: center;
+  }
+
+  .av-medicine .av-steps button::after {
+    display: none;
+  }
+
+  .av-medicine .av-summary {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .av-medicine .av-row-head {
+    flex-wrap: wrap;
+  }
+
+  .av-medicine input:not([type="checkbox"]):not([type="file"]),
+  .av-medicine select,
+  .av-medicine textarea {
+    font-size: 16px;
+  }
 }
 
-.med-workspace .mv-result .mv-result-card.match h3,
-.med-workspace .mv-result .mv-result-card.match .mv-counts strong {
-  color: #185d30;
-}
-
-.med-workspace .mv-badge.match {
-  border: 1px solid #238443;
-  background: #238443;
-  color: #ffffff;
-}
-
-/* Missing or extra predicted pills */
-.med-workspace .mv-result .mv-result-card.difference {
-  border: 1px solid #efb4b4;
-  border-top: 5px solid #c33434;
-  background: #fff3f3;
-}
-
-.med-workspace .mv-result .mv-result-card.difference h3,
-.med-workspace .mv-result .mv-result-card.difference .mv-counts strong {
-  color: #972525;
-}
-
-.med-workspace .mv-badge.difference {
-  border: 1px solid #b92e2e;
-  background: #b92e2e;
-  color: #ffffff;
-}
-
-/* Uncertain predictions */
-.med-workspace .mv-result .mv-result-card.uncertain {
-  border: 1px solid #e6c778;
-  border-top: 5px dashed #a66b08;
-  background: #fff9e9;
-}
-
-.med-workspace .mv-result .mv-result-card.uncertain h3,
-.med-workspace .mv-result .mv-result-card.uncertain .mv-counts strong {
-  color: #795007;
-}
-
-.med-workspace .mv-badge.uncertain {
-  border: 1px dashed #a66b08;
-  background: #fff0c2;
-  color: #795007;
-}
-
-/* Shared result details */
-.med-workspace .mv-result .mv-result-card {
-  border-radius: 14px;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.04);
-}
-
-.med-workspace .mv-result .mv-result-card .mv-counts {
-  border-top: 1px solid rgba(0, 0, 0, 0.12);
-}
-
-.med-workspace .mv-result .mv-result-card .mv-counts small {
-  color: #525252;
-}
-
-.med-workspace .mv-badge.match,
-.med-workspace .mv-badge.difference,
-.med-workspace .mv-badge.uncertain {
-  padding: 8px 12px;
-  border-radius: 8px;
-  font-weight: 700;
-  line-height: 1.5;
+@media (prefers-reduced-motion: reduce) {
+  .av-medicine *,
+  .av-medicine *::before,
+  .av-medicine *::after {
+    transition: none !important;
+    animation: none !important;
+  }
 }
