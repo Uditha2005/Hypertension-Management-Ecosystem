@@ -109,7 +109,7 @@ def test_planned_meals_flow_through_features_into_structured_prediction(monkeypa
     monkeypatch.setattr(predictor, "_MODEL", StubModel())
     features = build_classifier_features(
         summary,
-        age=58,
+        age=68,
         sex_female=1,
         bmi=26.4,
         selected_days=["2026-10-12"],
@@ -118,7 +118,7 @@ def test_planned_meals_flow_through_features_into_structured_prediction(monkeypa
 
     assert client.calls == [123, 456]
     assert features == {
-        "age": 58.0,
+        "age": 68.0,
         "sex_female": 1.0,
         "bmi": 26.4,
         "sodium_mg_mean": 200.0,
@@ -163,7 +163,7 @@ def test_missing_resolved_nutrient_is_rejected_before_prediction():
     with pytest.raises(ValueError, match="unknown nutrient: sodium_mg"):
         build_classifier_features(
             summary,
-            age=58,
+            age=68,
             sex_female=1,
             bmi=26.4,
             selected_days=["2026-10-12"],

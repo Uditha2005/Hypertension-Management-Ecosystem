@@ -1,0 +1,15 @@
+{
+  "merged_after_source_joins": 11656,
+  "day1_reliable_recall": 10434,
+  "adult_day1_reliable_before_required_fields": 8092,
+  "adult_day1_reliable_with_bp_and_bmi": 7473,
+  "day2_reliable": 6470,
+  "complete_day1_nutrients": 7473,
+  "complete_valid_2day_features": 6470,
+  "bp_category_counts": {
+    "Normal": 3279,
+    "Elevated": 1053,
+    "Stage 1": 1554,
+    "Stage 2": 1587
+  }
+}

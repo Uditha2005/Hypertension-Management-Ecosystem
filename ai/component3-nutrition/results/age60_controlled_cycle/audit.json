@@ -1,0 +1,38 @@
+{
+  "purpose": "controlled model-family comparison for adults aged 60+; balanced performance priority",
+  "dataset": "data/processed/rebuilt/nhanes_bp_diet_rebuilt.csv",
+  "eligible_age_60_plus_complete_two_day_rows": 2241,
+  "development_rows": 1792,
+  "holdout_rows_reserved_and_not_evaluated": 449,
+  "features": [
+    "age",
+    "sex_female",
+    "bmi",
+    "sodium_mg_2day_mean",
+    "potassium_mg_2day_mean",
+    "energy_kcal_2day_mean",
+    "sat_fat_g_2day_mean",
+    "na_k_ratio_2day_mean"
+  ],
+  "label_order": [
+    "Normal",
+    "Elevated",
+    "Stage 1",
+    "Stage 2"
+  ],
+  "split": "stratified 80/20, random_state=2026; holdout not scored",
+  "cross_validation": "5-fold StratifiedKFold, shuffle=True, random_state=42; identical folds for candidates",
+  "candidates": [
+    "extra_trees_balanced",
+    "random_forest_balanced_subsample",
+    "logistic_regression_balanced",
+    "hist_gradient_boosting_weighted"
+  ],
+  "selection_metric": "mean fold macro-F1; inspect fold SD and per-category precision/recall before selecting",
+  "limitations": [
+    "Exploratory dataset has been used in prior experiments.",
+    "No claim of statistical significance.",
+    "Observed NHANES dietary recalls do not establish validity for planned meals.",
+    "No causal or future-BP prediction claim."
+  ]
+}

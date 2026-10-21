@@ -21,6 +21,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field, StrictFloat, StrictInt, StrictStr
 
 try:
+    from dietary_assessment import assess_daily_nutrition
     from meal_plan_classifier_features import build_classifier_features
     from meal_plan_service import MealPlanValidationError, PlannedFoodSelection, resolve_meal_plan
     from predict_bp_category import BPCategoryPrediction, predict_bp_category
@@ -33,6 +34,7 @@ try:
         USDARequestError,
     )
 except ModuleNotFoundError:
+    from .dietary_assessment import assess_daily_nutrition
     from .meal_plan_classifier_features import build_classifier_features
     from .meal_plan_service import MealPlanValidationError, PlannedFoodSelection, resolve_meal_plan
     from .predict_bp_category import BPCategoryPrediction, predict_bp_category
@@ -92,7 +94,7 @@ class PlannedFoodInput(BaseModel):
 class MealPlanAnalysisRequest(BaseModel):
     entries: list[PlannedFoodInput] = Field(..., min_length=1)
     selected_days: list[str] = Field(..., min_length=1)
-    age: StrictFloat | StrictInt = Field(..., ge=18, le=80)
+    age: StrictFloat | StrictInt = Field(..., ge=60, le=80)
     sex_female: StrictInt = Field(..., ge=0, le=1)
     bmi: StrictFloat | StrictInt = Field(..., gt=0)
 
@@ -110,11 +112,13 @@ class PredictionResponse(BaseModel):
     predicted_category: str | None = None
     probabilities: dict[str, float] = Field(default_factory=dict)
     experimental_result: str
+    explanations: list[dict[str, Any]] = Field(default_factory=list)
 
 
 class MealPlanAnalysisResponse(BaseModel):
     selected_days: list[str]
     daily_nutrients: dict[str, NutrientSummaryResponse]
+    dietary_assessment_by_day: dict[str, dict[str, Any]]
     complete_plan_total: NutrientSummaryResponse
     classifier_features: dict[str, float] | None = None
     prediction: PredictionResponse | None = None
@@ -123,10 +127,10 @@ class MealPlanAnalysisResponse(BaseModel):
 
 
 LIMITATION_TEXT = (
-    "Experimental research output only. This is not a diagnosis or a validated "
-    "prediction of future blood pressure. The classifier was trained on observed "
-    "NHANES dietary recalls; planned-meal inputs have not been clinically validated "
-    "and are not established as equivalent to observed recalls."
+    "The model output is an exploratory estimate of a BP-associated category, not a meal-suitability label, "
+    "diagnosis, or prediction of future blood pressure. It was trained on observed NHANES Day 1 dietary recalls; "
+    "planned-intake inputs have not been clinically validated. The separate sodium check uses a general adult "
+    "reference and only covers foods entered for each date."
 )
 
 
@@ -285,6 +289,9 @@ def analyze_meal_plan(
         daily_nutrients={
             day: _summary_dict(value) for day, value in summary.daily.items()
         },
+        dietary_assessment_by_day={
+            day: assess_daily_nutrition(summary.daily[day]) for day in selected_days
+        },
         complete_plan_total=_summary_dict(summary.total),
         classifier_features=features,
         prediction=(
@@ -293,6 +300,7 @@ def analyze_meal_plan(
                 predicted_category=prediction.predicted_category,
                 probabilities=prediction.probabilities,
                 experimental_result=prediction.experimental_result,
+                explanations=prediction.explanations or [],
             )
             if prediction is not None
             else None

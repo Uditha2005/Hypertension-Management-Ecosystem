@@ -107,7 +107,7 @@ def valid_payload():
             {"day": "2026-10-13", "fdc_id": 202, "quantity": 2, "unit": "serving"},
         ],
         "selected_days": ["2026-10-12", "2026-10-13"],
-        "age": 58,
+        "age": 68,
         "sex_female": 1,
         "bmi": 26.4,
     }
@@ -163,6 +163,8 @@ def test_analysis_resolves_foods_builds_features_and_returns_prediction(client, 
     ]
     assert body["prediction"]["predicted_category"] == "Normal"
     assert "not a diagnosis" in body["prediction"]["experimental_result"]
+    assert body["dietary_assessment_by_day"]["2026-10-13"]["sodium_status"] == "at_or_below_reference"
+    assert "only the foods entered" in body["dietary_assessment_by_day"]["2026-10-13"]["scope_note"]
     assert "not been clinically validated" in body["limitation"]
     assert fake.calls == [101, 202]
 

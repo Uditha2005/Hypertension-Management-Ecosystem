@@ -47,7 +47,7 @@ def test_builds_ordered_features_from_selected_daily_means():
 
     result = build_classifier_features(
         summary,
-        age=58,
+        age=68,
         sex_female=1,
         bmi=26.4,
         selected_days=["2026-10-12", "2026-10-13"],
@@ -55,7 +55,7 @@ def test_builds_ordered_features_from_selected_daily_means():
 
     assert list(result) == FEATURE_COLUMNS
     assert result == {
-        "age": 58.0,
+        "age": 68.0,
         "sex_female": 1.0,
         "bmi": 26.4,
         "sodium_mg_mean": 2000.0,
@@ -98,7 +98,7 @@ def test_rejects_invalid_selected_daily_summary_type():
     with pytest.raises(TypeError, match="NutrientSummary"):
         build_classifier_features(
             invalid_summary,
-            age=58,
+            age=68,
             sex_female=1,
             bmi=26.4,
             selected_days=["2026-10-12"],
@@ -126,7 +126,7 @@ def test_rejects_non_finite_nutrient_mean(nutrient):
     with pytest.raises(ValueError, match=f"mean {nutrient} must be finite"):
         build_classifier_features(
             summary,
-            age=58,
+            age=68,
             sex_female=1,
             bmi=26.4,
             selected_days=["2026-10-12", "2026-10-13"],
@@ -146,7 +146,7 @@ def test_rejects_non_finite_ratio_after_division():
     with pytest.raises(ValueError, match="na_k_ratio_mean must be finite"):
         build_classifier_features(
             summary,
-            age=58,
+            age=68,
             sex_female=1,
             bmi=26.4,
             selected_days=["2026-10-12"],
@@ -161,7 +161,7 @@ def test_ratio_is_mean_sodium_divided_by_mean_potassium():
 
     result = build_classifier_features(
         summary,
-        age=18,
+        age=60,
         sex_female=0,
         bmi=20,
         selected_days=["2026-10-12", "2026-10-13"],
@@ -177,7 +177,7 @@ def test_rejects_empty_duplicate_or_missing_selected_days(selected_days):
     with pytest.raises(ValueError):
         build_classifier_features(
             summary,
-            age=58,
+            age=68,
             sex_female=1,
             bmi=26.4,
             selected_days=selected_days,
@@ -191,7 +191,7 @@ def test_rejects_malformed_selected_dates(selected_day):
     with pytest.raises(ValueError, match="ISO date"):
         build_classifier_features(
             summary,
-            age=58,
+            age=68,
             sex_female=1,
             bmi=26.4,
             selected_days=[selected_day],
@@ -209,7 +209,7 @@ def test_rejects_unknown_required_nutrient_on_selected_day(nutrient):
     with pytest.raises(ValueError, match="unknown nutrient"):
         build_classifier_features(
             summary,
-            age=58,
+            age=68,
             sex_female=1,
             bmi=26.4,
             selected_days=["2026-10-12"],
@@ -224,7 +224,7 @@ def test_unknown_nutrient_on_unselected_day_is_ignored():
 
     result = build_classifier_features(
         summary,
-        age=58,
+        age=68,
         sex_female=1,
         bmi=26.4,
         selected_days=["2026-10-12"],
@@ -239,7 +239,7 @@ def test_rejects_non_positive_mean_potassium():
     with pytest.raises(ValueError, match="potassium"):
         build_classifier_features(
             summary,
-            age=58,
+            age=68,
             sex_female=1,
             bmi=26.4,
             selected_days=["2026-10-12"],
@@ -267,7 +267,7 @@ def test_rejects_invalid_sex_encoding(sex_female):
     with pytest.raises(ValueError):
         build_classifier_features(
             summary,
-            age=58,
+            age=68,
             sex_female=sex_female,
             bmi=26.4,
             selected_days=["2026-10-12"],
@@ -281,7 +281,7 @@ def test_rejects_invalid_bmi(bmi):
     with pytest.raises(ValueError):
         build_classifier_features(
             summary,
-            age=58,
+            age=68,
             sex_female=1,
             bmi=bmi,
             selected_days=["2026-10-12"],

@@ -1,0 +1,49 @@
+{
+  "strategy": "cumulative_ordinal_logistic",
+  "evaluation": "out-of-fold predictions on training partition only",
+  "labels": [
+    "Normal",
+    "Elevated",
+    "Stage 1",
+    "Stage 2"
+  ],
+  "report": {
+    "Normal": {
+      "precision": 0.6317554975773388,
+      "recall": 0.6462066336256195,
+      "f1-score": 0.638899359215982,
+      "support": 2623.0
+    },
+    "Elevated": {
+      "precision": 0.1608187134502924,
+      "recall": 0.06532066508313539,
+      "f1-score": 0.0929054054054054,
+      "support": 842.0
+    },
+    "Stage 1": {
+      "precision": 0.2814070351758794,
+      "recall": 0.09010458567980692,
+      "f1-score": 0.1365021328458257,
+      "support": 1243.0
+    },
+    "Stage 2": {
+      "precision": 0.3448140900195695,
+      "recall": 0.6937007874015748,
+      "f1-score": 0.46065359477124185,
+      "support": 1270.0
+    },
+    "accuracy": 0.45884911341585816,
+    "macro avg": {
+      "precision": 0.3546988340557701,
+      "recall": 0.3738331679475342,
+      "f1-score": 0.3322401230596137,
+      "support": 5978.0
+    },
+    "weighted avg": {
+      "precision": 0.4316170735896583,
+      "recall": 0.45884911341585816,
+      "f1-score": 0.4196657054301958,
+      "support": 5978.0
+    }
+  }
+}

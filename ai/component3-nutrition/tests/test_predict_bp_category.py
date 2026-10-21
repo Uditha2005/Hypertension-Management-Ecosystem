@@ -16,7 +16,7 @@ from train_selected_model import FEATURE_COLUMNS, LABEL_MAPPING  # noqa: E402
 
 
 VALID_FEATURES = {
-    "age": 58,
+    "age": 68,
     "sex_female": 1,
     "bmi": 26.4,
     "sodium_mg_mean": 2200,
@@ -36,6 +36,9 @@ def test_predict_returns_structured_experimental_result():
     assert all(np.isfinite(value) for value in result.probabilities.values())
     assert "experimental" in result.experimental_result.lower()
     assert "not a diagnosis" in result.experimental_result.lower()
+    assert result.explanations is not None
+    assert len(result.explanations) <= 3
+    assert all("label" in item and "direction" in item for item in result.explanations)
 
 
 def test_predict_uses_authoritative_feature_order(monkeypatch):

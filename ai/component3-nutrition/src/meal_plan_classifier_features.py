@@ -26,7 +26,7 @@ _REQUIRED_NUTRIENTS = (
     "energy_kcal",
     "sat_fat_g",
 )
-_MIN_TRAINING_AGE = 18
+_MIN_TRAINING_AGE = 60
 _MAX_TRAINING_AGE = 80
 
 
@@ -73,7 +73,7 @@ def _validate_selected_days(selected_days: Iterable[str], daily: dict[str, Nutri
 def _validate_demographics(age: Real, sex_female: int, bmi: Real) -> tuple[float, float]:
     age_value = _validate_numeric(age, "age")
     if not _MIN_TRAINING_AGE <= age_value <= _MAX_TRAINING_AGE:
-        raise ValueError("age must be within the training dataset range of 18 through 80")
+        raise ValueError("age must be within the training dataset range of 60 through 80")
 
     if isinstance(sex_female, bool) or not isinstance(sex_female, Integral) or sex_female not in (0, 1):
         raise ValueError("sex_female must be the integer encoding 0 or 1")

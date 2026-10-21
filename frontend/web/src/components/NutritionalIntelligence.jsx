@@ -295,10 +295,10 @@ export default function NutritionalIntelligence() {
     if (
       !age.trim() ||
       !Number.isFinite(Number(age)) ||
-      Number(age) < 18 ||
+      Number(age) < 60 ||
       Number(age) > 80
     )
-      return "Enter an age from 18 to 80 years.";
+      return "Enter an age from 60 to 80 years for this research model.";
     if (!bmi.trim() || !Number.isFinite(Number(bmi)) || Number(bmi) <= 0)
       return "Enter a BMI greater than zero.";
     return "";
@@ -367,11 +367,9 @@ export default function NutritionalIntelligence() {
       <header className="ci3-hero">
         <div>
           <p className="ci3-eyebrow">COMPONENT 3 · CAREGIVER WORKSPACE</p>
-          <h1>Plan meals with confidence</h1>
+          <h1>Hypertension-related dietary assessment</h1>
           <p className="ci3-subtitle">
-            Build a resident's planned meals from real USDA food records, then
-            review the nutrition summary together. This research tool does not
-            determine clinical risk.
+            Build a resident's planned meals from USDA food records, review daily nutrient concerns, and view an experimental ML estimate of BP-associated patterns. The model is research-only and does not determine meal suitability or clinical risk.
           </p>
         </div>
         <div className={`ci3-api-status ci3-api-${apiState}`} role="status">
@@ -416,13 +414,13 @@ export default function NutritionalIntelligence() {
               <input
                 id="ci3-age"
                 type="number"
-                min="18"
+                min="60"
                 max="80"
                 value={age}
                 onChange={(event) => setAge(event.target.value)}
-                placeholder="18-80"
+                placeholder="60-80"
               />
-              <small>Supported research range: 18-80</small>
+              <small>Research cohort: adults aged 60-80</small>
             </label>
             <label htmlFor="ci3-sex">
               Sex used by research model
@@ -757,8 +755,35 @@ export default function NutritionalIntelligence() {
                   ),
                 )}
               </div>
+              <div className="ci3-result-block">
+                <h3>Daily dietary assessment</h3>
+                <p className="ci3-muted">
+                  The sodium check uses a general adult reference of 2,300 mg/day and reflects only the foods entered for each date.
+                </p>
+                {Object.entries(analysis.dietary_assessment_by_day || {}).map(
+                  ([day, assessment]) => (
+                    <article className="ci3-daily-result" key={`assessment-${day}`}>
+                      <h4>{formatDay(day)}</h4>
+                      <p><strong>
+                        {assessment.sodium_status === "above_reference"
+                          ? "Sodium above general reference"
+                          : assessment.sodium_status === "at_or_below_reference"
+                            ? "Sodium at or below general reference"
+                            : "Sodium status unknown"}
+                      </strong></p>
+                      <p>{assessment.sodium_message}</p>
+                      {assessment.nutritional_concerns?.length > 0 && (
+                        <p><span className="ci3-muted">Items to review: </span>
+                          {assessment.nutritional_concerns.join(", ")}
+                        </p>
+                      )}
+                      <small>{assessment.scope_note}</small>
+                    </article>
+                  ),
+                )}
+              </div>
               <div className="ci3-prediction">
-                <p className="ci3-eyebrow">EXPERIMENTAL CLASSIFIER OUTPUT</p>
+                <p className="ci3-eyebrow">EXPERIMENTAL ML RESEARCH OUTPUT</p>
                 <h3>
                   {analysis.prediction?.predicted_category ||
                     "Experimental classifier unavailable"}
@@ -771,7 +796,7 @@ export default function NutritionalIntelligence() {
                 {Object.keys(analysis.prediction?.probabilities || {}).length >
                   0 && (
                   <>
-                    <h4>Returned model probabilities</h4>
+                    <h4>Model class probabilities (not clinical risk probabilities)</h4>
                     <div className="ci3-probabilities">
                       {Object.entries(analysis.prediction.probabilities).map(
                         ([category, probability]) => (
@@ -795,10 +820,24 @@ export default function NutritionalIntelligence() {
                     </div>
                   </>
                 )}
+                {analysis.prediction?.explanations?.length > 0 && (
+                  <div className="ci3-model-explanations">
+                    <h4>Factors influencing this model output</h4>
+                    <p className="ci3-muted">
+                      Approximate sensitivity checks compare each entered feature with its training-set reference value. They describe model behaviour, not causes.
+                    </p>
+                    <ul>
+                      {analysis.prediction.explanations.map((item) => (
+                        <li key={item.feature}>
+                          <strong>{item.label}</strong>: {displayValue(item.value, item.feature)}
+                          {" · "}{item.direction}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
                 <p className="ci3-classifier-note">
-                  This output is experimental, is not a diagnosis, and has not
-                  been clinically validated as a prediction of future blood
-                  pressure.
+                  This model predicts a BP-associated category from demographic and daily-intake patterns. It does not directly judge whether a particular meal is suitable, is not a diagnosis, and has not been clinically validated as a prediction of future blood pressure.
                 </p>
               </div>
               <div className="ci3-alert ci3-alert-warning">

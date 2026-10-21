@@ -1,0 +1,50 @@
+{
+  "candidate_name": "age60_extra_trees_balanced",
+  "status": "research candidate; not production",
+  "cohort": "age >= 60",
+  "dataset": "data/processed/rebuilt/nhanes_bp_diet_rebuilt.csv",
+  "features_source_columns": [
+    "age",
+    "sex_female",
+    "bmi",
+    "sodium_mg_2day_mean",
+    "potassium_mg_2day_mean",
+    "energy_kcal_2day_mean",
+    "sat_fat_g_2day_mean",
+    "na_k_ratio_2day_mean"
+  ],
+  "inference_feature_columns": [
+    "age",
+    "sex_female",
+    "bmi",
+    "sodium_mg_mean",
+    "potassium_mg_mean",
+    "energy_kcal_mean",
+    "sat_fat_g_mean",
+    "na_k_ratio_mean"
+  ],
+  "label_mapping": {
+    "Normal": 0,
+    "Elevated": 1,
+    "Stage 1": 2,
+    "Stage 2": 3
+  },
+  "pipeline": [
+    "SimpleImputer(strategy=median)",
+    "ExtraTreesClassifier(n_estimators=220,min_samples_leaf=3,max_features=sqrt,class_weight=balanced,random_state=42,n_jobs=-1)"
+  ],
+  "training_partition": {
+    "method": "stratified 80/20 split",
+    "random_state": 2026,
+    "development_rows": 1792,
+    "reserved_holdout_rows": 449,
+    "fit_on_development_only": true,
+    "holdout_used_for_fit_or_selection": false
+  },
+  "selection_evidence": "5-fold stratified CV on development partition; see results/age60_controlled_cycle/summary.csv",
+  "limitations": [
+    "Existing dataset and holdout have been examined in previous experiments; not independent confirmatory evidence.",
+    "NHANES observed dietary recalls are not validated as planned-meal inputs.",
+    "Not a diagnosis and not a forecast of future blood pressure."
+  ]
+}
