@@ -1,11 +1,18 @@
-"""Build editable prescription drafts without inferring treatment doses."""
+"""Build editable prescription drafts with flagged, conservative auto-correction.
+
+Automatic corrections (always recorded in reviewNotes/autoCorrections):
+- OCR letter/digit confusion directly before a unit (e.g. 'so mg' -> '50 mg')
+- Close drug-name spelling matched to ONE unambiguous catalog drug
+- Decimal-point slip (25 mg vs 2.5 mg) only when the catalog has exactly
+  one variant with the same digits
+Ambiguous cases are never selected; they remain suggestions.
+"""
 
 import re
 import unicodedata
 from difflib import SequenceMatcher
 
 
-# Remove an explicit prescription prefix.
 PREFIX = re.compile(
     r"^\s*"
     r"(?:(?:[-–—•]|\d+[.)])\s*)?"
@@ -15,11 +22,8 @@ PREFIX = re.compile(
     re.I,
 )
 
-BULLET = re.compile(
-    r"^\s*(?:[-–—•]|\d+[.)])\s*"
-)
+BULLET = re.compile(r"^\s*(?:[-–—•]|\d+[.)])\s*")
 
-# Only numbers with explicit units qualify as strengths.
 STRENGTH = re.compile(
     r"(?<![\w./])"
     r"\d+(?:\.\d+)?\s*"
@@ -28,7 +32,16 @@ STRENGTH = re.compile(
     re.I,
 )
 
-# Quantity must explicitly refer to this tray.
+# Standalone token made only of digit-like letters, directly before a unit.
+CONFUSED_STRENGTH = re.compile(
+    r"(?<![\w./])([0-9OoSsIl|]{1,4})(\s*)(mcg|ug|mg|g|ml|iu)(?!\w)",
+    re.I,
+)
+CONFUSION_MAP = {
+    "O": "0", "o": "0", "S": "5", "s": "5",
+    "I": "1", "l": "1", "|": "1",
+}
+
 TRAY_QUANTITY = re.compile(
     r"\b(?:"
     r"tray\s+(?:qty|quantity)\s*[:=]\s*(\d+)"
@@ -46,8 +59,6 @@ SCHEDULE = re.compile(
     re.I,
 )
 
-# Remove clearly separated instructions from the name only.
-# Never convert these instructions into a tray quantity.
 DOSE_INSTRUCTION = re.compile(
     r"\s*[-–—;,]\s*"
     r"(?:\d+(?:\.\d+)?|[Il])\s*"
@@ -61,7 +72,6 @@ FORMS = re.compile(
     re.I,
 )
 
-# Do not partially extract combination strengths or concentrations.
 COMPLEX = re.compile(
     r"\d\s*[/+]\s*\d"
     r"|"
@@ -69,46 +79,43 @@ COMPLEX = re.compile(
     re.I,
 )
 
+NAME_MATCH_MIN = 0.80      # minimum spelling similarity for auto-match
+NAME_MATCH_MARGIN = 0.06   # best drug must beat any other drug by this much
+SUGGESTION_MIN = 0.65
+
 
 def clean(text):
-    """Normalize whitespace and microgram symbols, not drug spelling."""
-    value = unicodedata.normalize(
-        "NFKC",
-        str(text or ""),
-    )
-
+    value = unicodedata.normalize("NFKC", str(text or ""))
     value = value.replace("μ", "u").replace("µ", "u")
-
     return re.sub(r"\s+", " ", value).strip()
 
 
 def identity(text):
-    """Create a comparison key while retaining release/brand qualifiers."""
-    value = FORMS.sub(
-        " ",
-        clean(text).casefold(),
-    )
-
+    value = FORMS.sub(" ", clean(text).casefold())
     return re.sub(r"[^a-z0-9%]", "", value)
 
 
 def strength_key(text):
-    value = re.sub(
-        r"\s+",
-        "",
-        clean(text).casefold(),
-    )
-
+    value = re.sub(r"\s+", "", clean(text).casefold())
     return value.replace("ug", "mcg")
 
 
+def digit_key(text):
+    """Digits without decimal point, plus unit: '2.5mg' and '25mg' match."""
+    parts = re.fullmatch(
+        r"(\d+(?:\.\d+)?)([a-z%]+)",
+        strength_key(text),
+    )
+
+    if not parts:
+        return None
+
+    number, unit = parts.groups()
+    return number.replace(".", "").lstrip("0"), unit
+
+
 def strength_value(match):
-    """Format an explicitly matched strength."""
-    value = re.sub(
-        r"\s+",
-        "",
-        match.group(),
-    ).lower()
+    value = re.sub(r"\s+", "", match.group()).lower()
 
     parts = re.fullmatch(
         r"(\d+(?:\.\d+)?)(mcg|ug|mg|g|ml|iu|%)",
@@ -123,8 +130,31 @@ def strength_value(match):
     return f"{number} {unit}"
 
 
+def repair_strength_token(body):
+    """Fix letter/digit confusion before a unit, e.g. 'so mg' -> '50 mg'."""
+    fixes = []
+
+    def replace(match):
+        token = match.group(1)
+
+        if token.isdigit():
+            return match.group()
+
+        fixed = "".join(CONFUSION_MAP.get(c, c) for c in token)
+
+        if not fixed.isdigit() or fixed.startswith("0"):
+            return match.group()
+
+        fixes.append(
+            f"OCR strength '{token} {match.group(3)}' read as "
+            f"'{fixed} {match.group(3)}'. Verify against the image."
+        )
+        return f"{fixed} {match.group(3)}"
+
+    return CONFUSED_STRENGTH.sub(replace, body), fixes
+
+
 def extract_name_strength(text):
-    """Extract one clear strength; preserve ambiguous text for review."""
     body = clean(text)
     matches = list(STRENGTH.finditer(body))
 
@@ -132,9 +162,7 @@ def extract_name_strength(text):
         match = matches[0]
 
         name = clean(
-            body[:match.start()]
-            + " "
-            + body[match.end():]
+            body[:match.start() ] + " " + body[match.end():]
         ).strip(" -,:;")
 
         if name:
@@ -144,7 +172,6 @@ def extract_name_strength(text):
 
 
 def product_fields(product):
-    """Avoid counting a strength twice when it is also in the name."""
     label = clean(product.get("name", ""))
 
     name, embedded_strength = extract_name_strength(label)
@@ -158,7 +185,6 @@ def product_fields(product):
 
         metadata_strength = strength_value(match)
 
-    # Conflicting catalog values must not produce an automatic match.
     if (
         embedded_strength
         and metadata_strength
@@ -173,11 +199,95 @@ def product_fields(product):
     ):
         return name, "", False
 
-    return (
-        name,
-        embedded_strength or metadata_strength,
-        True,
+    return name, embedded_strength or metadata_strength, True
+
+
+def pick_product(name, strength, catalog):
+    """Return (entry, match_type, note) or (None, '', '').
+
+    entry = (product_id, label, product_name, product_strength, valid)
+    """
+    usable = [e for e in catalog if e[4] and e[3]]
+    wanted = identity(name)
+
+    # 1. Exact name + strength.
+    exact = [
+        e for e in usable
+        if strength
+        and identity(e[2]) == wanted
+        and strength_key(e[3]) == strength_key(strength)
+    ]
+
+    if len(exact) == 1:
+        return exact[0], "exact-text", ""
+
+    if exact or len(wanted) < 4:
+        return None, "", ""
+
+    # 2. Unambiguous fuzzy drug name.
+    scored = [
+        (SequenceMatcher(None, wanted, identity(e[2])).ratio(), e)
+        for e in usable
+    ]
+
+    if not scored:
+        return None, "", ""
+
+    best_score, best_entry = max(scored, key=lambda item: item[0])
+
+    if best_score < NAME_MATCH_MIN:
+        return None, "", ""
+
+    best_identity = identity(best_entry[2])
+    group = [e for score, e in scored if identity(e[2]) == best_identity]
+
+    other_scores = [
+        score for score, e in scored
+        if identity(e[2]) != best_identity
+    ]
+
+    if other_scores and best_score - max(other_scores) < NAME_MATCH_MARGIN:
+        return None, "", ""
+
+    spelled = (
+        "" if wanted == best_identity
+        else f"Drug name '{name}' auto-matched to '{best_entry[2]}'. "
     )
+
+    if strength:
+        same = [
+            e for e in group
+            if strength_key(e[3]) == strength_key(strength)
+        ]
+
+        if len(same) == 1:
+            return same[0], "auto-name", spelled + "Verify against the image."
+
+        if not same:
+            wanted_digits = digit_key(strength)
+            slips = [
+                e for e in group
+                if wanted_digits and digit_key(e[3]) == wanted_digits
+            ]
+
+            if len(slips) == 1:
+                return slips[0], "auto-strength-corrected", (
+                    spelled
+                    + f"Strength '{strength}' is not in the dataset for "
+                    f"this drug; corrected to '{slips[0][3]}' (decimal "
+                    "point). VERIFY the strength on the image."
+                )
+
+        return None, "", ""
+
+    if len(group) == 1:
+        return group[0], "auto-name", (
+            spelled
+            + f"Strength was unclear; set to '{group[0][3]}' (only "
+            "dataset variant). Verify against the image."
+        )
+
+    return None, "", ""
 
 
 def build_draft(text, products):
@@ -186,11 +296,7 @@ def build_draft(text, products):
             "Prescription draft text must be at most 12,000 characters."
         )
 
-    lines = [
-        line.strip()
-        for line in text.splitlines()
-        if line.strip()
-    ]
+    lines = [line.strip() for line in text.splitlines() if line.strip()]
 
     if len(lines) > 50:
         raise ValueError("Use at most 50 medicine rows.")
@@ -202,156 +308,80 @@ def build_draft(text, products):
             continue
 
         name, strength, valid = product_fields(product)
-
         catalog.append(
-            (
-                str(product_id),
-                str(product["name"]),
-                name,
-                strength,
-                valid,
-            )
+            (str(product_id), str(product["name"]), name, strength, valid)
         )
 
     rows = []
 
     for line in lines:
-        body = BULLET.sub(
-            "",
-            clean(line),
-            count=1,
-        )
+        body = BULLET.sub("", clean(line), count=1)
+        body = PREFIX.sub("", body, count=1).strip()
 
-        body = PREFIX.sub(
-            "",
-            body,
-            count=1,
-        ).strip()
-
-        # Multiple quantity statements remain unresolved.
         quantities = list(TRAY_QUANTITY.finditer(body))
         quantity = None
 
         if len(quantities) == 1:
-            candidate = int(
-                quantities[0].group(1)
-                or quantities[0].group(2)
-            )
+            candidate = int(quantities[0].group(1) or quantities[0].group(2))
 
             if 1 <= candidate <= 100:
                 quantity = candidate
 
-        body = TRAY_QUANTITY.sub(
-            " ",
-            body,
-        ).strip(" -,:;")
+        body = TRAY_QUANTITY.sub(" ", body).strip(" -,:;")
+        body = DOSE_INSTRUCTION.sub("", body).strip(" -,:;")
+        body = SCHEDULE.sub("", body).strip(" -,:;")
 
-        body = DOSE_INSTRUCTION.sub(
-            "",
-            body,
-        ).strip(" -,:;")
-
-        body = SCHEDULE.sub(
-            "",
-            body,
-        ).strip(" -,:;")
-
+        body, corrections = repair_strength_token(body)
         name, strength = extract_name_strength(body)
         name = name or line
 
-        exact_matches = []
-        scored_suggestions = []
+        entry, match_type, match_note = pick_product(name, strength, catalog)
+        product_id = entry[0] if entry else ""
 
-        for (
-            product_id,
-            product_label,
-            product_name,
-            product_strength,
-            valid,
-        ) in catalog:
-            if not valid:
-                continue
-
-            # Do not suggest a known different strength.
-            if (
-                strength
-                and product_strength
-                and strength_key(strength)
-                != strength_key(product_strength)
-            ):
-                continue
-
-            same_name = (
-                identity(name)
-                == identity(product_name)
-            )
-
-            same_strength = bool(
-                strength
-                and product_strength
-                and strength_key(strength)
-                == strength_key(product_strength)
-            )
-
-            if same_name and same_strength:
-                exact_matches.append(product_id)
-
-            score = SequenceMatcher(
-                None,
-                identity(name),
-                identity(product_name),
-            ).ratio()
-
-            if score >= 0.65:
-                scored_suggestions.append(
-                    (
-                        score,
-                        product_id,
-                        product_label,
-                    )
-                )
-
-        # Only a unique name + strength match is preselected.
-        # Similar spelling is a suggestion, never an automatic selection.
-        product_id = (
-            exact_matches[0]
-            if len(exact_matches) == 1
-            else ""
-        )
+        if entry and match_type != "exact-text":
+            name, strength = entry[2], entry[3]
+            corrections.append(match_note)
 
         suggestions = []
 
         if not product_id:
+            scored = []
+            wanted = identity(name)
+
+            for pid, label, pname, pstrength, valid in catalog:
+                if not valid:
+                    continue
+
+                if (
+                    strength and pstrength
+                    and strength_key(strength) != strength_key(pstrength)
+                    and digit_key(strength) != digit_key(pstrength)
+                ):
+                    continue
+
+                score = SequenceMatcher(
+                    None, wanted, identity(pname)
+                ).ratio()
+
+                if score >= SUGGESTION_MIN:
+                    scored.append((score, pid, label))
+
             suggestions = [
-                {
-                    "productId": candidate_id,
-                    "name": candidate_label,
-                }
-                for _, candidate_id, candidate_label
-                in sorted(
-                    scored_suggestions,
-                    reverse=True,
-                )[:3]
+                {"productId": pid, "name": label}
+                for _, pid, label in sorted(scored, reverse=True)[:3]
             ]
 
-        review_notes = []
+        review_notes = list(corrections)
 
         if not strength:
             review_notes.append(
-                "Strength unclear or compound; review the original. "
-                "No strength was guessed."
-            )
-
-        if quantity is None:
-            review_notes.append(
-                "Enter pills for this tray; schedules and supply "
-                "totals were not converted."
+                "Strength unclear or compound; review the original."
             )
 
         if not product_id:
             review_notes.append(
-                "Exact product not uniquely matched. "
-                "Review suggestions or leave unsupported."
+                "No unique dataset match. Check the spelling and strength "
+                "or choose a suggested product."
             )
 
         rows.append(
@@ -361,12 +391,9 @@ def build_draft(text, products):
                 "strength": strength,
                 "quantity": quantity,
                 "productId": product_id,
-                "matchType": (
-                    "exact-text"
-                    if product_id
-                    else "unresolved"
-                ),
+                "matchType": match_type if product_id else "unresolved",
                 "suggestions": suggestions,
+                "autoCorrections": corrections,
                 "reviewNotes": review_notes,
                 "requiresManualReview": True,
             }
