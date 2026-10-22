@@ -71,7 +71,7 @@ function NutrientGrid({ summary }) {
 function Stepper({ step }) {
   return (
     <nav className="ci3-stepper" aria-label="Nutrition plan progress">
-      {["Setup", "Build meals", "Review nutrition"].map((label, index) => {
+      {["Plan dates", "Build meals", "Review nutrition"].map((label, index) => {
         const number = index + 1;
         return (
           <React.Fragment key={label}>
@@ -171,14 +171,16 @@ export default function NutritionalIntelligence() {
   const [step, setStep] = useState(1);
   const [apiState, setApiState] = useState("checking");
   const [apiMessage, setApiMessage] = useState("Checking API connection...");
-  const [age, setAge] = useState("");
-  const [sexFemale, setSexFemale] = useState("1");
-  const [bmi, setBmi] = useState("");
   const [selectedDays, setSelectedDays] = useState([today]);
   const [newDay, setNewDay] = useState(today);
   const [activeDay, setActiveDay] = useState(today);
   const [activeMeal, setActiveMeal] = useState("Breakfast");
   const [entries, setEntries] = useState([]);
+  const [ageYears, setAgeYears] = useState("60");
+  const [bmi, setBmi] = useState("");
+  const [sexCode, setSexCode] = useState("");
+  const [fullDayIntake, setFullDayIntake] = useState(false);
+  const [dietaryRequirements, setDietaryRequirements] = useState("");
   const [query, setQuery] = useState("");
   const [foodResults, setFoodResults] = useState([]);
   const [searchError, setSearchError] = useState("");
@@ -291,18 +293,6 @@ export default function NutritionalIntelligence() {
     setSearchError("");
   };
 
-  const setupError = () => {
-    if (
-      !age.trim() ||
-      !Number.isFinite(Number(age)) ||
-      Number(age) < 60 ||
-      Number(age) > 80
-    )
-      return "Enter an age from 60 to 80 years for this research model.";
-    if (!bmi.trim() || !Number.isFinite(Number(bmi)) || Number(bmi) <= 0)
-      return "Enter a BMI greater than zero.";
-    return "";
-  };
   const validateMeals = () => {
     if (!entries.length) return "Add at least one food to the meal plan.";
     for (const [index, entry] of entries.entries()) {
@@ -322,17 +312,12 @@ export default function NutritionalIntelligence() {
     return "";
   };
   const goToBuild = () => {
-    const error = setupError();
-    if (error) {
-      setAnalysisError(error);
-      return;
-    }
     setAnalysisError("");
     setStep(2);
   };
   const submitAnalysis = async (event) => {
     event.preventDefault();
-    const error = setupError() || validateMeals();
+    const error = validateMeals();
     if (error) {
       setAnalysisError(error);
       return;
@@ -343,16 +328,19 @@ export default function NutritionalIntelligence() {
     setStep(3);
     try {
       const payload = {
-        entries: entries.map(({ day, fdc_id, quantity, unit }) => ({
+        entries: entries.map(({ day, meal, fdc_id, quantity, unit }) => ({
           day,
+          meal,
           fdc_id: Number(fdc_id),
           quantity: Number(quantity),
           unit,
         })),
         selected_days: selectedDays,
-        age: Number(age),
-        sex_female: Number(sexFemale),
-        bmi: Number(bmi),
+        personal_profile: {
+          age_years: Number(ageYears),
+          bmi: bmi.trim() ? Number(bmi) : null,
+          dietary_requirements: dietaryRequirements.split(",").map((item) => item.trim()).filter(Boolean),
+        },
       };
       setAnalysis(await analyzeMealPlan(payload));
     } catch (errorResponse) {
@@ -367,9 +355,9 @@ export default function NutritionalIntelligence() {
       <header className="ci3-hero">
         <div>
           <p className="ci3-eyebrow">COMPONENT 3 · CAREGIVER WORKSPACE</p>
-          <h1>Hypertension-related dietary assessment</h1>
+          <h1>DASH-Informed Personalized Meal Assessment</h1>
           <p className="ci3-subtitle">
-            Build a resident's planned meals from USDA food records, review daily nutrient concerns, and view an experimental ML estimate of BP-associated patterns. The model is research-only and does not determine meal suitability or clinical risk.
+            Build meals from USDA food records, calculate nutrient totals, assess dietary references, and—when you confirm a complete day's intake—see an ML estimate of daily reference alignment. The estimate is a rule-derived research proxy, not a clinical meal-suitability score.
           </p>
         </div>
         <div className={`ci3-api-status ci3-api-${apiState}`} role="status">
@@ -400,55 +388,41 @@ export default function NutritionalIntelligence() {
           <div className="ci3-section-heading">
             <span className="ci3-step">1</span>
             <div>
-              <p className="ci3-eyebrow">RESIDENT AND PLAN SETUP</p>
-              <h2 id="setup-title">Tell us about this plan</h2>
+              <p className="ci3-eyebrow">MEAL PLAN SETUP</p>
+              <h2 id="setup-title">Choose the dates to assess</h2>
               <p>
-                These details are inputs for the research model, not a diagnosis
-                or a complete clinical profile.
+                Add one or more dates, then enter foods, quantities and serving units. Add relevant personal information to support the intended personalized assessment.
               </p>
             </div>
           </div>
-          <div className="ci3-profile-grid">
-            <label htmlFor="ci3-age">
-              Age in years
-              <input
-                id="ci3-age"
-                type="number"
-                min="60"
-                max="80"
-                value={age}
-                onChange={(event) => setAge(event.target.value)}
-                placeholder="60-80"
-              />
-              <small>Research cohort: adults aged 60-80</small>
-            </label>
-            <label htmlFor="ci3-sex">
-              Sex used by research model
-              <select
-                id="ci3-sex"
-                value={sexFemale}
-                onChange={(event) => setSexFemale(event.target.value)}
-              >
-                <option value="1">Female</option>
-                <option value="0">Male</option>
-              </select>
-              <small>This is encoded for the existing API.</small>
-            </label>
-            <label htmlFor="ci3-bmi">
-              BMI (kg/m²)
-              <input
-                id="ci3-bmi"
-                type="number"
-                min="0.1"
-                step="0.1"
-                value={bmi}
-                onChange={(event) => setBmi(event.target.value)}
-                placeholder="e.g. 26.4"
-              />
-              <small>Use the resident's available measurement.</small>
-            </label>
-          </div>
           <div className="ci3-plan-choice">
+            <h3>Personal profile</h3>
+            <p>Enter only information relevant to meal assessment. These fields do not diagnose hypertension or replace professional advice.</p>
+            <div className="ci3-entry-grid">
+              <label>Age (years)
+                <input type="number" min="19" max="119" value={ageYears} onChange={(event) => setAgeYears(event.target.value)} required />
+              </label>
+              <label>BMI (optional)
+                <input type="number" min="10" max="100" step="0.1" value={bmi} onChange={(event) => setBmi(event.target.value)} placeholder="e.g. 26.5" />
+              </label>
+              <label>Sex code for optional ML estimate (optional)
+                <select value={sexCode} onChange={(event) => setSexCode(event.target.value)}>
+                  <option value="">Not provided</option>
+                  <option value="1">Code 1</option>
+                  <option value="2">Code 2</option>
+                </select>
+              </label>
+              <label>Dietary requirements (optional, comma-separated)
+                <input value={dietaryRequirements} onChange={(event) => setDietaryRequirements(event.target.value)} placeholder="e.g. lower sodium, vegetarian" />
+              </label>
+            </div>
+            <label className="ci3-full-day-option">
+              <input type="checkbox" checked={fullDayIntake} onChange={(event) => setFullDayIntake(event.target.checked)} />
+              <span>
+                <strong>These entries represent the complete day's food intake</strong>
+                <small>Only select this if you have entered all foods for each selected day. This enables the optional daily ML estimate; it does not make the model a meal-suitability predictor.</small>
+              </span>
+            </label>
             <h3>How many days are you planning?</h3>
             <p>
               Start with one day, or add dates for a multi-day plan. You can
@@ -756,105 +730,51 @@ export default function NutritionalIntelligence() {
                 )}
               </div>
               <div className="ci3-result-block">
-                <h3>Daily dietary assessment</h3>
-                <p className="ci3-muted">
-                  The sodium check uses a general adult reference of 2,300 mg/day and reflects only the foods entered for each date.
-                </p>
-                {Object.entries(analysis.dietary_assessment_by_day || {}).map(
-                  ([day, assessment]) => (
-                    <article className="ci3-daily-result" key={`assessment-${day}`}>
-                      <h4>{formatDay(day)}</h4>
-                      <p><strong>
-                        {assessment.sodium_status === "above_reference"
-                          ? "Sodium above general reference"
-                          : assessment.sodium_status === "at_or_below_reference"
-                            ? "Sodium at or below general reference"
-                            : "Sodium status unknown"}
-                      </strong></p>
-                      <p>{assessment.sodium_message}</p>
-                      {assessment.nutritional_concerns?.length > 0 && (
-                        <p><span className="ci3-muted">Items to review: </span>
-                          {assessment.nutritional_concerns.join(", ")}
-                        </p>
-                      )}
-                      <small>{assessment.scope_note}</small>
-                    </article>
-                  ),
-                )}
+                <h3>DASH-informed nutrient assessment</h3>
+                <p className="ci3-muted">Each meal is assessed using transparent nutrient calculations and documented dietary-reference context. Daily reference values are not meal-level clinical limits, and missing nutrient values remain unknown.</p>
+                {Object.entries(analysis.meal_assessments || {}).map(([mealKey, assessment]) => (
+                  <article className="ci3-daily-result" key={`assessment-${mealKey}`}>
+                    <h4>{mealKey}</h4>
+                    <p><strong>{assessment.label || "Nutrient-reference assessment"}</strong></p>
+                    {(assessment.items || []).map((item) => (
+                      <p key={`${mealKey}-${item.nutrient}`}><strong>{item.nutrient}:</strong> {item.message}</p>
+                    ))}
+                    {(assessment.suggestions || []).map((suggestion, index) => (
+                      <p key={`${mealKey}-suggestion-${index}`}>Suggestion: {suggestion}</p>
+                    ))}
+                    {(assessment.notes || []).map((note, index) => (
+                      <p key={`${mealKey}-note-${index}`} className="ci3-muted">{note}</p>
+                    ))}
+                  </article>
+                ))}
               </div>
-              <div className="ci3-prediction">
-                <p className="ci3-eyebrow">EXPERIMENTAL ML RESEARCH OUTPUT</p>
-                <h3>
-                  {analysis.prediction?.predicted_category ||
-                    "Experimental classifier unavailable"}
-                </h3>
-                <p>
-                  {analysis.prediction?.experimental_result ||
-                    analysis.classifier_unavailable_reason ||
-                    "The classifier result is unavailable for this plan."}
-                </p>
-                {Object.keys(analysis.prediction?.probabilities || {}).length >
-                  0 && (
-                  <>
-                    <h4>Model class probabilities (not clinical risk probabilities)</h4>
-                    <div className="ci3-probabilities">
-                      {Object.entries(analysis.prediction.probabilities).map(
-                        ([category, probability]) => (
-                          <div className="ci3-probability" key={category}>
-                            <div>
-                              <span>{category}</span>
-                              <strong>
-                                {(Number(probability) * 100).toFixed(1)}%
-                              </strong>
-                            </div>
-                            <div className="ci3-progress">
-                              <span
-                                style={{
-                                  width: `${Math.max(0, Math.min(100, Number(probability) * 100))}%`,
-                                }}
-                              />
-                            </div>
-                          </div>
-                        ),
-                      )}
-                    </div>
-                  </>
-                )}
-                {analysis.prediction?.explanations?.length > 0 && (
-                  <div className="ci3-model-explanations">
-                    <h4>Factors influencing this model output</h4>
-                    <p className="ci3-muted">
-                      Approximate sensitivity checks compare each entered feature with its training-set reference value. They describe model behaviour, not causes.
-                    </p>
-                    <ul>
-                      {analysis.prediction.explanations.map((item) => (
-                        <li key={item.feature}>
-                          <strong>{item.label}</strong>: {displayValue(item.value, item.feature)}
-                          {" · "}{item.direction}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-                <p className="ci3-classifier-note">
-                  This model predicts a BP-associated category from demographic and daily-intake patterns. It does not directly judge whether a particular meal is suitable, is not a diagnosis, and has not been clinically validated as a prediction of future blood pressure.
-                </p>
+              <div className="ci3-result-block">
+                <h3>Machine-learning estimate for complete daily intake</h3>
+                <p className="ci3-muted">When you confirm that all foods for the day are entered and the required nutrient data are available, the saved classifier estimates a rule-derived daily alignment category. This is an ML output inside the main analysis flow, but it is not a clinical meal-suitability score.</p>
+                {Object.entries(analysis.daily_ml_alignment_estimates || {}).map(([day, result]) => (
+                  <article className="ci3-daily-result" key={`ml-${day}`}>
+                    <h4>{formatDay(day)}</h4>
+                    {result.status === "estimated" ? (
+                      <>
+                        <p><strong>Estimated category:</strong> {result.predicted_daily_alignment_proxy === "reference_aligned_proxy" ? "Reference-aligned proxy" : "Needs review proxy"}</p>
+                        <p><strong>Model:</strong> {result.model}</p>
+                        {result.confidence !== null && result.confidence !== undefined && <p><strong>Model confidence:</strong> {(result.confidence * 100).toFixed(1)}% (not clinical certainty)</p>}
+                        <p className="ci3-muted">{result.explanation}</p>
+                      </>
+                    ) : (
+                      <p className="ci3-muted">{result.reason || "ML estimate unavailable."} {result.missing_features?.length ? `Missing: ${result.missing_features.join(", ")}.` : ""}</p>
+                    )}
+                  </article>
+                ))}
               </div>
               <div className="ci3-alert ci3-alert-warning">
-                <strong>Review with a qualified clinician</strong>
-                <p>{analysis.limitation}</p>
+                <strong>Separate daily DASH optimization</strong>
+                <p>The optimizer uses a different trained model to predict daily food-group servings and then adjusts the daily pattern against DASH constraints. These models do not diagnose hypertension or establish ground-truth meal suitability.</p>
               </div>
-              <details className="ci3-technical-details">
-                <summary>Technical classifier details</summary>
-                <pre>
-                  {JSON.stringify(analysis.classifier_features, null, 2)}
-                </pre>
-              </details>
             </>
           )}
         </section>
       )}
-      +{" "}
       {step === 3 && (
         <div className="ci3-result-actions">
           <button

@@ -1,48 +1,81 @@
-# Component 3: Hypertension Dietary Risk Assessment System
+# Component 3 — DASH-Informed Personalized Meal Assessment and Diet Optimization for Hypertension
 
-Part of the AI-Powered Hypertension Management Ecosystem (project J26-SE-312).
+This module is part of the Hypertension Management Ecosystem. It replaces the earlier BP-category classifier workflow with the agreed meal-assessment and daily diet-optimization flow. The root React entry file `frontend/web/src/index.js` is intentionally unchanged.
 
-## Agreed system workflow
+## Application workflow
 
-1. Caregiver enters meal foods, quantities and relevant resident information.
-2. USDA FoodData Central records are used to calculate nutrient totals.
-3. A trained ML model returns an **exploratory BP-associated category estimate** based on resident characteristics and average daily dietary features.
-4. A separate nutrient assessment highlights selected dietary concerns (currently sodium relative to a general adult reference).
-5. The UI displays approximate model-feature sensitivity explanations to help users understand model behaviour.
+1. Enter age, optional BMI, and relevant dietary requirements.
+2. Search foods using USDA FoodData Central, select foods, and enter quantities and units.
+3. Calculate available sodium, potassium, energy, saturated-fat, and sodium-to-potassium totals.
+4. Assess each meal using transparent dietary-reference context and explain nutrient concerns.
+5. If the user confirms the entered foods represent the complete day's intake, the main analysis flow calls the saved ML classifier to estimate the daily nutrient-reference alignment proxy. The model only runs when its required nutrient features are available.
+6. Use the daily DASH optimizer to explore daily food-group patterns under the dataset's daily nutrient constraints.
 
-**Important:** the trained model predicts an NHANES BP-associated category. It is not trained on meal-suitability labels and does not directly determine whether a meal is suitable, diagnose hypertension, prove causality, or predict future BP changes. Model output and nutrient-reference checks are deliberately presented separately.
+Meal-level assessment remains reference-based. The main analysis flow now optionally invokes the trained classifier for a complete day's intake, returning a daily reference-alignment proxy category with a clear limitation. The classifier is not a meal-suitability model. Daily nutrient references are context and are not meal-level clinical limits. Unknown nutrient values are not treated as zero.
 
-## Research core
+## ML training and research
 
-The research pipeline compares demographic-only features against dietary-enhanced features and compares Logistic Regression, Random Forest, Extra Trees and RBF SVM. The selected application model is chosen by five-fold CV macro-F1 among models using demographic + Day 1 dietary features. The feature-set comparison also includes a two-day dietary mean.
+The project contains two separate ML research tasks using the bundled real dietary dataset:
 
-The research cohort is adults aged 60–80, consistent with the elderly-care focus. BP readings are used only to create the target label and are not model inputs. NHANES contains observed 24-hour dietary recalls, not a planned seven-day intake record.
+### A. Daily nutrient-reference alignment proxy classification
 
-## Run the model experiment
+```bash
+python ai/component3-nutrition/src/train_proxy_alignment_models.py
+```
+
+The script uses real NHANES Day 1 nutrient records joined with demographics. It creates an explicitly rule-derived *daily nutrient-reference alignment proxy* target, then compares Logistic Regression, Random Forest, Extra Trees, and HistGradientBoosting. The variables defining the proxy label are excluded from the predictor set. Participants are grouped across splits. The script saves the selected fitted model and comparison/held-out evaluation artifacts.
+
+This is weak supervision: the model learns a proxy derived from documented rules. These labels are **not** expert-labelled ground truth, meal-level suitability labels, or clinical outcomes.
+
+### B. Daily food-group preference regression and DASH optimization
+
+```bash
+python ai/component3-nutrition/research/dash_servings/src/train_compare_servings.py
+python ai/component3-nutrition/research/dash_servings/src/evaluate_optimization.py
+```
+
+This task predicts observed daily food-group servings using participant-level dietary records and then projects a profile against documented daily DASH nutrient constraints. It is not a meal-suitability classifier. The bundled results include validation comparison, held-out evaluation, and optimizer evaluation.
+
+## Setup
 
 From the repository root:
 
 ```bash
-source ai/venv/bin/activate
-python ai/component3-nutrition/src/run_final_training_experiment.py
-python -m pytest ai/component3-nutrition/tests -q
+python -m venv .venv
+# Windows: .venv\\Scripts\\activate
+source .venv/bin/activate
+python -m pip install -r ai/component3-nutrition/requirements.txt
+cp .env.example .env
+# Set USDA_FDC_API_KEY in .env for live USDA food search.
+npm --prefix frontend/web ci
 ```
 
-The script writes model comparison results and an evaluation report to
-`ai/component3-nutrition/results/final_training/` and the selected pipeline to
-`ai/component3-nutrition/models/selected_daily_intake.joblib`.
+Run the API and UI in separate terminals:
 
-## Run the application
+```bash
+npm run dev:nutrition-api
+npm run dev:web
+```
 
-Install the Python dependencies from `ai/component3-nutrition/requirements.txt`,
-configure `USDA_FDC_API_KEY` for USDA lookups, and start the API using the
-project's existing startup instructions. The React UI is under
-`frontend/web/`.
+API docs: http://127.0.0.1:8000/docs
 
-## Dietary reference and limitations
+Build the frontend:
 
-The sodium check uses 2,300 mg/day as a general adult reference, not an
-individualised medical prescription. It assesses only foods entered for each
-date; omitted foods can change the result. Model class probabilities are not
-calibrated clinical risk probabilities. The existing holdout was examined in
-earlier project experiments, so the recorded test metrics are exploratory.
+```bash
+npm run build:web
+```
+
+Run tests:
+
+```bash
+python -m pytest ai/component3-nutrition/tests ai/component3-nutrition/research/dash_servings/tests -q
+```
+
+## Important interpretation limits
+
+- The application does not diagnose hypertension or prescribe an individual diet.
+- A meal's nutrients cover only foods entered and may be incomplete if USDA nutrient values are missing.
+- Daily DASH constraints apply to daily food-group patterns, not single meals.
+- The proxy classification task learns rule-derived daily reference alignment; it does not establish real-world meal suitability.
+- Performance is reported as observed and may be weak; no clinical validity is implied.
+- Live USDA lookup requires a valid USDA FoodData Central API key.

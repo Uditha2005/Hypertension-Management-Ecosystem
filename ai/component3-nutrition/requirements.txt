@@ -1,12 +1,16 @@
-# Component 3 research and application dependencies (Python 3.12)
-pandas>=2.0
-numpy>=1.24
-scikit-learn>=1.3
-xgboost>=2.0
-joblib>=1.3
-matplotlib>=3.7
-pytest>=8.0
 fastapi>=0.110
 uvicorn[standard]>=0.27
 requests>=2.31
 python-dotenv>=1.0
+pydantic>=2.0
+pytest>=8.0
+httpx>=0.27
+pandas>=2.1
+numpy>=1.26
+scikit-learn>=1.4
+joblib>=1.3
+jupyter>=1.0
+matplotlib>=3.8
+
+scipy>=1.11
+openpyxl>=3.1

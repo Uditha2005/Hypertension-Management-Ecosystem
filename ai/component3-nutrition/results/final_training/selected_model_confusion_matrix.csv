@@ -1,5 +1,0 @@
-,pred_Normal,pred_Elevated,pred_Stage1,pred_Stage2
-true_Normal,45,27,22,22
-true_Elevated,20,24,24,12
-true_Stage1,25,25,19,26
-true_Stage2,49,36,19,54

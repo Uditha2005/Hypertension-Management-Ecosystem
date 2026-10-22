@@ -1,0 +1,2 @@
+selected_model,mae_servings_per_food_group,variance_weighted_r2,test_participants,validation_participants,training_participants,eligible_participants,target,not_a_meal_suitability_classifier
+DummyMedian,0.344729200748287,-0.10211687804828186,661,661,3080,4402,average observed servings per food group across NHANES Day 1 and Day 2,True

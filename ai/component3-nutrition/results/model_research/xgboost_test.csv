@@ -1,7 +1,0 @@
-model,model_label,feature_set,feature_set_label,group,n,accuracy,macro_precision,macro_recall,macro_f1,weighted_f1,artifact_path
-xgboost,XGBoost,demographic_only,Demographic only,all_adults,1495,0.4006688963210702,0.3799455141645699,0.3718534077929654,0.3650583003629002,0.4208329102332951,models/research_candidates/xgboost__demographic_only.joblib
-xgboost,XGBoost,demographic_only,Demographic only,age_60_plus,510,0.3058823529411765,0.3440737664339376,0.25210860164115534,0.20805130791533644,0.24392052076245183,models/research_candidates/xgboost__demographic_only.joblib
-xgboost,XGBoost,demographic_day1,Demographic + day 1 diet,all_adults,1495,0.4100334448160535,0.37436253774276657,0.37375695796302366,0.365342143519103,0.4234639592513958,models/research_candidates/xgboost__demographic_day1.joblib
-xgboost,XGBoost,demographic_day1,Demographic + day 1 diet,age_60_plus,510,0.3254901960784314,0.2847090461618687,0.27465411610323875,0.23769873917870396,0.2666770045666022,models/research_candidates/xgboost__demographic_day1.joblib
-xgboost,XGBoost,demographic_multiday,Demographic + multi-day diet,all_adults,1495,0.4193979933110368,0.375873474690249,0.37776318098579886,0.36959349632638866,0.43111599537629697,models/research_candidates/xgboost__demographic_multiday.joblib
-xgboost,XGBoost,demographic_multiday,Demographic + multi-day diet,age_60_plus,510,0.33725490196078434,0.27689009708240475,0.27981873817503544,0.2371622407438478,0.2703132571509274,models/research_candidates/xgboost__demographic_multiday.joblib
