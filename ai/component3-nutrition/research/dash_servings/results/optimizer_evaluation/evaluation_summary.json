@@ -1,0 +1,45 @@
+{
+  "participants_total": 4402,
+  "train_participants": 3521,
+  "test_participants": 881,
+  "features": [
+    "RIDAGEYR",
+    "RIAGENDR",
+    "hypertension_reported"
+  ],
+  "target": "mean observed food-group servings across NHANES Day 1 and Day 2",
+  "selected_regressor_by_holdout_MAE": "DummyMedian",
+  "model_comparison": [
+    {
+      "model": "DummyMedian",
+      "holdout_mae_servings_per_food_group": 0.34972036330217804,
+      "holdout_variance_weighted_r2": -0.1015285482273977,
+      "train_participants": 3521,
+      "test_participants": 881
+    },
+    {
+      "model": "RandomForest",
+      "holdout_mae_servings_per_food_group": 0.4314288989451254,
+      "holdout_variance_weighted_r2": -0.043297278342502306,
+      "train_participants": 3521,
+      "test_participants": 881
+    },
+    {
+      "model": "ExtraTrees",
+      "holdout_mae_servings_per_food_group": 0.4317791487781691,
+      "holdout_variance_weighted_r2": -0.04560313882527028,
+      "train_participants": 3521,
+      "test_participants": 881
+    }
+  ],
+  "optimizer_constraints_feasible": true,
+  "optimizer_profiles_evaluated": 100,
+  "optimizer_success_rate": 0.4,
+  "mean_violation_sum_before": 21.045127459061636,
+  "mean_violation_sum_after": 5.65209780023501e-11,
+  "median_violation_sum_before": 5.663082909835758,
+  "median_violation_sum_after": 4.118189411685543e-12,
+  "profiles_all_constraints_satisfied_after": 100,
+  "mean_scaled_preference_distance": 9.770592101292921,
+  "caution": "This optimizes aggregate daily food-group profiles against source-derived nutrient bounds; it is not meal suitability or clinical validation."
+}

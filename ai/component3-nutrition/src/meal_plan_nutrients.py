@@ -18,6 +18,12 @@ NUTRIENT_FIELDS = (
     "potassium_mg",
     "energy_kcal",
     "sat_fat_g",
+    "protein_g",
+    "carbs_g",
+    "fiber_g",
+    "calcium_mg",
+    "magnesium_mg",
+    "vitamin_c_mg",
 )
 
 
@@ -36,6 +42,12 @@ class NutrientProfile:
     potassium_mg: float | None = None
     energy_kcal: float | None = None
     sat_fat_g: float | None = None
+    protein_g: float | None = None
+    carbs_g: float | None = None
+    fiber_g: float | None = None
+    calcium_mg: float | None = None
+    magnesium_mg: float | None = None
+    vitamin_c_mg: float | None = None
 
 
 @dataclass(frozen=True)
@@ -57,6 +69,12 @@ class NutrientSummary:
     energy_kcal: float | None
     sat_fat_g: float | None
     na_k_ratio: float | None
+    protein_g: float | None = None
+    carbs_g: float | None = None
+    fiber_g: float | None = None
+    calcium_mg: float | None = None
+    magnesium_mg: float | None = None
+    vitamin_c_mg: float | None = None
 
 
 @dataclass(frozen=True)
@@ -119,6 +137,8 @@ def _summary(values: dict[str, list[float | None]]) -> NutrientSummary:
         energy_kcal=totals["energy_kcal"],
         sat_fat_g=totals["sat_fat_g"],
         na_k_ratio=ratio,
+        protein_g=totals["protein_g"], carbs_g=totals["carbs_g"], fiber_g=totals["fiber_g"],
+        calcium_mg=totals["calcium_mg"], magnesium_mg=totals["magnesium_mg"], vitamin_c_mg=totals["vitamin_c_mg"],
     )
 
 

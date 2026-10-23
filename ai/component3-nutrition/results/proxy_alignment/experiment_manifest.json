@@ -1,0 +1,39 @@
+{
+  "experiment": "weak_supervision_daily_nutrient_reference_alignment",
+  "target": "alignment_proxy_label",
+  "label_definition": "reference_aligned_proxy iff Day 1 sodium <= 2300 mg AND saturated fat energy share <= 6%; otherwise needs_review_proxy",
+  "label_status": "rule-derived proxy labels; NOT expert ground truth, NOT meal-suitability labels, NOT clinical validation",
+  "source": "NHANES Day 1 total nutrient intake and demographics files bundled in Dietary-Behavior-Dataset-master.zip",
+  "rows_after_required_value_filter": 8326,
+  "train_rows": 6660,
+  "heldout_rows": 1666,
+  "unique_participants": 8326,
+  "class_counts": {
+    "needs_review_proxy": 8017,
+    "reference_aligned_proxy": 309
+  },
+  "features": [
+    "DR1TPOTA",
+    "DR1TFIBE",
+    "DR1TPROT",
+    "DR1TCARB",
+    "DR1TCALC",
+    "DR1TMAGN",
+    "DR1TVC",
+    "RIDAGEYR",
+    "RIAGENDR"
+  ],
+  "excluded_label_defining_features": [
+    "DR1TSODI",
+    "DR1TSFAT",
+    "DR1TKCAL"
+  ],
+  "split": "GroupShuffleSplit by SEQN, test_size=0.20, random_state=42",
+  "selection": "highest grouped-CV macro-F1; held-out set used only for final evaluation",
+  "selected_model": "ExtraTrees",
+  "references_context": {
+    "sodium_mg_per_day": 2300,
+    "saturated_fat_energy_share": 0.06
+  },
+  "caution": "A model trained on labels derived from rules approximates those rules using other nutrient/demographic features. It does not establish independently validated suitability."
+}

@@ -25,6 +25,12 @@ _NUTRIENT_IDS = {
     "potassium_mg": {1092},
     "energy_kcal": {1008},
     "sat_fat_g": {1258},
+    "protein_g": {1003},
+    "carbs_g": {1005},
+    "fiber_g": {1079},
+    "calcium_mg": {1087},
+    "magnesium_mg": {1090},
+    "vitamin_c_mg": {1162},
 }
 _ENERGY_KJ_ID = 1062
 _NUTRIENT_NAME_ALIASES = {
@@ -36,6 +42,12 @@ _NUTRIENT_NAME_ALIASES = {
         "saturated fat",
         "saturated fatty acids",
     },
+    "protein_g": {"protein"},
+    "carbs_g": {"carbohydrate, by difference", "carbohydrate"},
+    "fiber_g": {"fiber, total dietary", "dietary fiber"},
+    "calcium_mg": {"calcium, ca", "calcium"},
+    "magnesium_mg": {"magnesium, mg", "magnesium"},
+    "vitamin_c_mg": {"vitamin c, total ascorbic acid", "vitamin c"},
 }
 
 
@@ -181,7 +193,7 @@ def _normalize_nutrient(target: str, value: object, unit: object) -> float | Non
     if not isinstance(unit, str) or not unit.strip():
         raise USDAUnsupportedUnitError(f"Missing source unit for {target}")
     normalized_unit = unit.casefold().replace(" ", "")
-    if target in {"sodium_mg", "potassium_mg"}:
+    if target in {"sodium_mg", "potassium_mg", "calcium_mg", "magnesium_mg", "vitamin_c_mg"}:
         if normalized_unit != "mg":
             raise USDAUnsupportedUnitError(f"Unsupported source unit for {target}: {unit}")
         return amount
