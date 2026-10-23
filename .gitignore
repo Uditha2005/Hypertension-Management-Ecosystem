@@ -54,6 +54,8 @@ ai/**/data/external/
 *.pth
 *.pkl
 *.joblib
+!ai/component3-nutrition/models/daily_reference_alignment_proxy.joblib
+!ai/component3-nutrition/research/dash_servings/results/training/selected_food_group_preference_model.joblib
 
 # Component 4 local models and generated files
 ai/component4-medicine/models/

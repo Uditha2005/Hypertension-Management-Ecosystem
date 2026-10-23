@@ -1,0 +1,4 @@
+model,holdout_mae_servings_per_food_group,holdout_variance_weighted_r2,train_participants,test_participants
+DummyMedian,0.34972036330217804,-0.1015285482273977,3521,881
+RandomForest,0.4314288989451254,-0.043297278342502306,3521,881
+ExtraTrees,0.4317791487781691,-0.04560313882527028,3521,881
