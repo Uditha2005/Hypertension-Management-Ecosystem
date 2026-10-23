@@ -32,3 +32,16 @@ ENV/
 logs/
 *.log
 npm-debug.log*
+
+/backend/.env
+/backend/node_modules/
+/backend/data/hypercare_accounts.sqlite3
+/backend/data/hypercare_accounts.sqlite3-wal
+/backend/data/hypercare_accounts.sqlite3-shm
+/frontend/mobile-rn/node_modules/
+/frontend/mobile-rn/.expo/
+/frontend/mobile-rn/.env
+/frontend/mobile-rn/.env.*
+/frontend/mobile-rn/dist/
+/frontend/mobile-rn/web-build/
+*.backup-*

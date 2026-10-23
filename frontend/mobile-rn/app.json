@@ -1,0 +1,34 @@
+{
+  "expo": {
+    "name": "HyperCare",
+    "slug": "mobile-rn",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/hypercare-icon.png",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/hypercare-icon.png",
+        "backgroundColor": "#123F35"
+      }
+    },
+    "web": {
+      "favicon": "./assets/hypercare-icon.png"
+    },
+    "plugins": [
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow HyperCare to select prescription and medicine tray photos.",
+          "cameraPermission": "Allow HyperCare to photograph prescriptions and medicine trays.",
+          "microphonePermission": false
+        }
+      ],
+      "expo-secure-store",
+      "expo-font"
+    ]
+  }
+}
