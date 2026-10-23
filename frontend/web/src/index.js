@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import ReactDOM from "react-dom/client";
 
 import MentalWellness from "./components/MentalWellness";
@@ -6,115 +6,110 @@ import NutritionalIntelligence from "./components/NutritionalIntelligence";
 import TrayVerification from "./components/TrayVerification";
 import PatientMonitoring from "./components/PatientMonitoring";
 
+import HomePage, {
+  CARE_MODULES,
+  CareIcon,
+} from "./components/HomePage";
+
 const tabs = [
-  { id: "mental", label: "Mental & Physiological Wellness" },
-  { id: "nutrition", label: "Personalized Nutritional Intelligence" },
-  { id: "medicine", label: "Medicine Intelligence & Verification" },
-  { id: "monitoring", label: "Smart Patient Monitoring" },
+  {
+    id: "home",
+    navLabel: "Home",
+    title: "Home",
+    icon: "home",
+  },
+  ...CARE_MODULES,
 ];
 
 const App = () => {
-  const [activeTab, setActiveTab] = useState("mental");
+  const [activeTab, setActiveTab] = useState("home");
+  const contentRef = useRef(null);
+  const firstRender = useRef(true);
+
+  useEffect(() => {
+    const current = tabs.find((tab) => tab.id === activeTab);
+    document.title = `${current.title} | HyperCare`;
+
+    if (firstRender.current) {
+      firstRender.current = false;
+      return;
+    }
+
+    window.scrollTo({ top: 0, behavior: "auto" });
+    contentRef.current?.focus({ preventScroll: true });
+  }, [activeTab]);
 
   return (
-    <>
-      <style>{`
-        * { box-sizing: border-box; }
-        html, body, #root { margin: 0; min-height: 100%; }
-        body {
-          background: #edf3ef;
-          color: #172d32;
-          font-family: Arial, sans-serif;
-        }
-        .module-shell {
-          min-height: 100vh;
-          background: linear-gradient(180deg, #f3f8f5 0%, #edf4ef 100%);
-        }
-        .module-header {
-          position: sticky;
-          top: 0;
-          z-index: 10;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          padding: 18px 20px 14px;
-          border-bottom: 1px solid #d9e6df;
-          background: rgba(255, 255, 255, 0.8);
-          backdrop-filter: blur(12px);
-        }
-        .module-inner {
-          width: min(1280px, 100%);
-        }
-        .module-nav {
-          display: flex;
-          flex-wrap: wrap;
-          gap: 10px;
-          justify-content: center;
-        }
-        .module-tab {
-          border: 1px solid #d1e4dc;
-          border-radius: 999px;
-          background: #fff;
-          color: #214d46;
-          padding: 10px 18px;
-          font-size: 0.78rem;
-          font-weight: 700;
-          letter-spacing: 0.02em;
-          cursor: pointer;
-          transition: all 180ms ease;
-        }
-        .module-tab:hover {
-          border-color: #9cc5b4;
-          transform: translateY(-1px);
-        }
-        .module-tab.active {
-          color: #fff;
-          background: linear-gradient(135deg, #1a7e76 0%, #0f5e57 100%);
-          border-color: #0f5e57;
-          box-shadow: 0 8px 18px rgba(15, 94, 87, 0.18);
-        }
-        @media (max-width: 700px) {
-          .module-header {
-            padding-left: 12px;
-            padding-right: 12px;
-          }
-          .module-nav {
-            justify-content: flex-start;
-            overflow-x: auto;
-            white-space: nowrap;
-          }
-        }
-      `}</style>
+    <div className="hc-portal">
+      <a className="hc-skip" href="#hc-content">
+        Skip to content
+      </a>
 
-      <div className="module-shell">
-        <header className="module-header">
-          <div className="module-inner">
-            <nav
-              className="module-nav"
-              aria-label="Healthcare intelligence modules"
-            >
-              {tabs.map((tab) => (
-                <button
-                  key={tab.id}
-                  type="button"
-                  className={`module-tab ${
-                    activeTab === tab.id ? "active" : ""
-                  }`}
-                  onClick={() => setActiveTab(tab.id)}
-                >
-                  {tab.label}
-                </button>
-              ))}
-            </nav>
-          </div>
-        </header>
+      <header className="hc-header">
+        <div className="hc-header-inner">
+          <button
+            type="button"
+            className="hc-brand"
+            onClick={() => setActiveTab("home")}
+            aria-label="HyperCare Home"
+          >
+            <span className="hc-brand-mark">
+              <CareIcon name="wellness" />
+            </span>
+
+            <span>
+              <strong>HyperCare</strong>
+              <small>Elderly-care management</small>
+            </span>
+          </button>
+
+          <nav className="hc-nav" aria-label="Care workspaces">
+            {tabs.map((tab) => (
+              <button
+                key={tab.id}
+                type="button"
+                className={`hc-nav-button ${
+                  activeTab === tab.id ? "is-active" : ""
+                }`}
+                aria-current={
+                  activeTab === tab.id ? "page" : undefined
+                }
+                title={tab.title}
+                onClick={() => setActiveTab(tab.id)}
+              >
+                <CareIcon name={tab.icon} />
+                <span>{tab.navLabel}</span>
+              </button>
+            ))}
+          </nav>
+
+          <span className="hc-research-label">
+            Research prototype
+          </span>
+        </div>
+      </header>
+
+      <div
+        id="hc-content"
+        ref={contentRef}
+        tabIndex={-1}
+        className="hc-content"
+      >
+        {activeTab === "home" && (
+          <HomePage onNavigate={setActiveTab} />
+        )}
 
         {activeTab === "mental" && <MentalWellness />}
-        {activeTab === "nutrition" && <NutritionalIntelligence />}
+
+        {activeTab === "nutrition" && (
+          <NutritionalIntelligence />
+        )}
+
         {activeTab === "medicine" && <TrayVerification />}
+
         {activeTab === "monitoring" && <PatientMonitoring />}
       </div>
-    </>
+    </div>
   );
 };
 
