@@ -29,6 +29,34 @@ NON_MEDICINE = re.compile(
     r"glucose|fbs|rbs|hba1c|cholesterol|creatinine|sodium|potassium)\b", re.I
 )
 
+# Handwritten "1" is often read as / | I l. Applied only to the two digit
+# positions of an "A x B" shorthand, never elsewhere in the text.
+SHORTHAND_TOKEN = r"(?:[1-9]|[/|Il])"
+SHORTHAND = re.compile(
+    rf"(?<![\w./|])({SHORTHAND_TOKEN})\s*[x×]\s*({SHORTHAND_TOKEN})(?![\w/|])",
+    re.I,
+)
+
+
+def repair_shorthand(text):
+    """Return (text, corrections) after fixing '1x/' style digit misreads."""
+    corrections = []
+
+    def replace(match):
+        first, second = match.group(1), match.group(2)
+        fixed_first = first if first.isdigit() else "1"
+        fixed_second = second if second.isdigit() else "1"
+        original = match.group().strip()
+        fixed = f"{fixed_first}x{fixed_second}"
+        if original.replace(" ", "") != fixed:
+            corrections.append(
+                f"OCR shorthand '{original}' read as '{fixed}'. "
+                "Verify against the image."
+            )
+        return fixed
+
+    return SHORTHAND.sub(replace, text), corrections
+
 
 def is_medicine_candidate(text):
     """Select possible medicine lines, never validate their drug identity."""
@@ -37,8 +65,6 @@ def is_medicine_candidate(text):
         return False
     if MEDICINE_PREFIX.match(text):
         return True
-    # Some prescriptions start directly with the brand/name, e.g.
-    # 'Betaloc 100mg - I tab BID'. Preserve the OCR spelling unchanged.
     match = STRENGTH.search(text)
     if match is None:
         return False
@@ -64,7 +90,6 @@ def join_fragments(parts):
             right_char = (part["bbox"][2] - part["bbox"][0]) / max(1, len(right))
             for size in range(min(len(left), len(right), 12), 0, -1):
                 suffix, prefix = left[-size:], right[:size]
-                # Exact characters only. Never deduplicate digits/strengths.
                 if suffix != prefix or not prefix.strip() or any(c.isdigit() for c in prefix):
                     continue
                 if size < len(right) and right[size].isalpha():
@@ -88,12 +113,7 @@ def join_fragments(parts):
 
 
 def assemble_lines(raw_blocks):
-    """Join close horizontal fragments only; preserve every original block.
-
-    This reconstructs OCR layout, not medicine spelling. It deliberately
-    leaves distant columns, vertical text and neighbouring lines separate.
-    Geometry remains heuristic: all assembled lines need manual review.
-    """
+    """Join close horizontal fragments only; preserve every original block."""
     visible = [b for b in raw_blocks if b["text"].strip()]
     heights = [b["bbox"][3] - b["bbox"][1] for b in visible
                if b["bbox"][3] > b["bbox"][1]]
@@ -124,8 +144,6 @@ def assemble_lines(raw_blocks):
             groups[min(candidates)[1]].append(block)
         else:
             groups.append([block])
-    # Vertical alignment first; then split distant columns and substantial overlaps.
-    # This is independent of which fragment has the slightly higher y value.
     horizontal_groups = []
     for group in groups:
         current = []
@@ -153,7 +171,6 @@ def assemble_lines(raw_blocks):
         assembled.append({
             "text": joined_text,
             "assemblyChanges": changes,
-            # The weakest fragment is retained, never inflate confidence.
             "confidence": min(p["confidence"] for p in parts),
             "bbox": [min(p["bbox"][0] for p in parts),
                      min(p["bbox"][1] for p in parts),
@@ -188,6 +205,17 @@ def read_prescription(image):
     finally:
         oriented.close()
     try:
+        # Small photos give poor handwriting recognition; enlarge modestly.
+        long_side = max(prepared.size)
+        if long_side < 1400:
+            scale = 1600 / long_side
+            enlarged = prepared.resize(
+                (round(prepared.width * scale), round(prepared.height * scale)),
+                Image.LANCZOS,
+            )
+            prepared.close()
+            prepared = enlarged
+
         image_bgr = np.asarray(prepared)[:, :, ::-1].copy()
         with OCR_LOCK:
             print("[prescription OCR] Loading OCR models...", flush=True)
@@ -215,6 +243,17 @@ def read_prescription(image):
                 })
         assembled = assemble_lines(raw_blocks)
         blocks = [block for block in assembled if is_medicine_candidate(block["text"])]
+
+        # Flagged correction of misread handwritten "1" in shorthand.
+        shorthand_notes = []
+        for block in blocks:
+            fixed, notes = repair_shorthand(block["text"])
+            if notes:
+                block["originalOcrText"] = block["text"]
+                block["text"] = fixed
+                block["shorthandCorrections"] = notes
+                shorthand_notes.extend(notes)
+
         merged_count = sum(block["assembledFromFragments"] for block in assembled)
         print(f"[prescription OCR] {len(raw_blocks)} regions -> "
               f"{len(assembled)} reconstructed lines -> {len(blocks)} medicine candidates", flush=True)
@@ -226,7 +265,7 @@ def read_prescription(image):
             "Selection and line assembly are heuristic and can miss rows or "
             "include other text. Check the original prescription."
         )
-        warnings = []
+        warnings = list(shorthand_notes)
         if any(b["assemblyChanges"] for b in assembled):
             warnings.append("Exact duplicated edge text was removed from overlapping fragments. Review assemblyChanges and rawBlocks against the image.")
         if merged_count:
@@ -250,10 +289,10 @@ def read_prescription(image):
             "assembledText": "\n".join(b["text"] for b in assembled),
             "assembledBlocks": assembled, "assembledLineCount": len(assembled),
             "fragmentJoinedLineCount": merged_count,
-            "filterMethod": "overlap_aware_lines_v4", "filterMessage": message,
+            "filterMethod": "overlap_aware_lines_v5", "filterMessage": message,
             "warnings": warnings, "requiresManualReview": True,
             "confirmed": False, "comparisonPerformed": False,
-            "notes": message + " Original OCR blocks are preserved in rawBlocks; overlap-edge deduplication is recorded in assemblyChanges. Medicine identity, strengths and instructions are unverified. Confidence scores do not guarantee correctness.",
+            "notes": message + " Original OCR blocks are preserved in rawBlocks; overlap-edge deduplication is recorded in assemblyChanges and shorthand fixes in originalOcrText. Medicine identity, strengths and instructions are unverified. Confidence scores do not guarantee correctness.",
         }
     finally:
         prepared.close()

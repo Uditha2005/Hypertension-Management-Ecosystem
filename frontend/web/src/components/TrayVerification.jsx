@@ -5,207 +5,71 @@ const API = (
   process.env.REACT_APP_API_URL || "http://localhost:8000"
 ).replace(/\/+$/, "");
 
-const STEPS = ["Prescription", "Review medicines", "Tray & results"];
+const TRAY_SCOPE = "single-dose";
+const TRAY_LABEL = "One-dose tray";
+const DEFAULT_REVIEW_THRESHOLD = 0.65;
 
-const REVIEW_STYLES = `
-.med-workspace {
-  --mv-ink:#292929;
-  --mv-muted:#666666;
-  --mv-line:#d7ded8;
-  --mv-teal:#287a43;
-  --mv-teal-dark:#1d6033;
-  --mv-canvas:#f2f4f2;
-  color-scheme:light;
-  accent-color:#287a43;
-}
-.med-workspace .mv-top {
-  background:#193f27;
-  border-color:#315b3a;
-}
-.med-workspace .mv-brand-icon {
-  background:#315b3a;
-  color:#fff;
-  border-color:#628769;
-}
-.med-workspace .mv-top nav {
-  background:#12321d;
-  border-color:#41694b;
-}
-.med-workspace .mv-top nav button { color:#d8e7da; }
-.med-workspace .mv-top nav button.active {
-  background:#fff;
-  color:#245c34;
-}
-.med-workspace .mv-review-layout { align-items:start; }
-.med-workspace .mv-reference {
-  background:#eaf0eb;
-  border-color:#cbd8ce;
-}
-.med-workspace .mv-reference-note {
-  padding:16px;
-  border:1px solid #bfd4c3;
-  border-radius:12px;
-  background:#dcebdd;
-  color:#34533b;
-}
-.med-workspace .mv-medicine {
-  margin-bottom:20px;
-  padding:24px;
-  overflow:hidden;
-  border:1px solid #bfd5c3;
-  border-left:5px solid #35834a;
-  border-radius:16px;
-  background:#f1f7f2;
-  box-shadow:0 5px 18px rgba(0,0,0,.04);
-}
-.med-workspace .mv-medicine-heading {
-  display:flex;
-  align-items:center;
-  gap:14px;
-  margin:-24px -24px 22px;
-  padding:20px 24px;
-  border-bottom:1px solid #bfd5c3;
-  background:#dcebdd;
-  color:#204e2c;
-}
-.med-workspace .mv-medicine-heading > div {
-  min-width:0;
-  flex:1;
-}
-.med-workspace .mv-medicine-heading h3 {
-  margin:0;
-  color:#204e2c;
-  font-size:18px;
-  font-weight:750;
-  overflow-wrap:anywhere;
-}
-.med-workspace .mv-medicine-heading p {
-  margin:5px 0 0;
-  color:#48634e;
-  font-size:12px;
-}
-.med-workspace .mv-medicine-number {
-  display:grid;
-  place-items:center;
-  flex:0 0 44px;
-  width:44px;
-  height:44px;
-  border-radius:12px;
-  background:#286639;
-  color:#fff;
-  font-weight:750;
-}
-.med-workspace .mv-medicine label {
-  color:#344a39;
-  font-weight:650;
-}
-.med-workspace .mv-medicine input,
-.med-workspace .mv-medicine select {
-  width:100%;
-  border:1px solid #b8cabb;
-  border-radius:10px;
-  background:#fff;
-  color:#292929;
-  box-shadow:none;
-}
-.med-workspace input:focus-visible,
-.med-workspace select:focus-visible,
-.med-workspace textarea:focus-visible,
-.med-workspace button:focus-visible {
-  outline:2px solid #35834a;
-  outline-offset:3px;
-}
-.med-workspace .mv-source-line {
-  margin-bottom:18px;
-  padding:12px 14px;
-  border:1px solid #d4ddd5;
-  border-radius:9px;
-  background:#e8eee9;
-  color:#4b554d;
-  overflow-wrap:anywhere;
-}
-.med-workspace .mv-source-line summary {
-  cursor:pointer;
-  font-size:12px;
-}
-.med-workspace .mv-remove {
-  margin-left:auto;
-  padding:7px 12px;
-  border:1px solid #b1c5b5;
-  border-radius:8px;
-  background:#fff;
-  color:#505050;
-}
-.med-workspace .mv-autofill-note {
-  display:inline-flex;
-  margin-top:10px;
-  padding:5px 10px;
-  border:1px solid #bdd8c4;
-  border-radius:7px;
-  background:#deeee2;
-  color:#245c34;
-  font-size:12px;
-}
-.med-workspace .mv-save-panel {
-  border-color:#bfd5c3;
-  background:#e7f1e8;
-}
-.med-workspace .mv-primary {
-  background:#287a43;
-  color:#fff;
-}
-.med-workspace .mv-primary:hover:not(:disabled) { background:#1d6033; }
-.med-workspace .mv-primary:disabled {
-  background:#ddd;
-  color:#666;
-}
-.med-workspace .mv-secondary {
-  background:#fff;
-  border-color:#bacbbd;
-  color:#34533b;
-}
-.med-workspace .mv-fields { min-width:0; }
-.med-workspace .mv-details pre {
-  white-space:pre-wrap;
-  overflow-wrap:anywhere;
-}
-.med-workspace .mv-actions {
-  display:flex;
-  flex-wrap:wrap;
-  gap:12px;
-}
-.med-workspace .mv-actions > button {
-  flex:1 1 180px;
-  width:auto;
-  margin-top:0;
-}
-.med-workspace .mv-count-only {
-  border:1px solid #b9cbbb;
-  border-top:5px solid #487b52;
-  background:#f1f6f2;
-}
-.med-workspace .mv-extraction-options {
-  margin-bottom:20px;
-  padding:18px;
-  border:1px solid #bfd4c3;
-  border-radius:12px;
-  background:#edf4ee;
-}
-@media(max-width:550px) {
-  .med-workspace .mv-medicine { padding:18px; }
-  .med-workspace .mv-medicine-heading {
-    margin:-18px -18px 18px;
-    padding:16px 18px;
-    gap:10px;
-    flex-wrap:wrap;
-  }
-}
-`;
+const STATUS_STYLES = {
+  match: {
+    color: "#216337",
+    backgroundColor: "#e6f4e9",
+    border: "1px solid #bfdcc7",
+  },
+  warning: {
+    color: "#815914",
+    backgroundColor: "#fff3d9",
+    border: "1px solid #ead29e",
+  },
+  difference: {
+    color: "#a23c30",
+    backgroundColor: "#fde8e4",
+    border: "1px solid #eac0b8",
+  },
+};
 
-function tone(status) {
-  if (status === "Counts match — review required") return "match";
-  if (status === "Count differences — review required") return "difference";
-  return "uncertain";
+function Icon({ name, size = 18 }) {
+  const paths = {
+    upload:
+      "M12 16V4m0 0l-4 4m4-4l4 4M4 16v3a1 1 0 001 1h14a1 1 0 001-1v-3",
+    check: "M5 12.5l4.5 4.5L19 7.5",
+    alert:
+      "M12 8v5m0 3.5h.01M10.3 4.2L2.6 17.5A2 2 0 004.3 20.5h15.4a2 2 0 001.7-3L13.7 4.2a2 2 0 00-3.4 0z",
+    pill:
+      "M10.5 20.5a5 5 0 01-7-7l10-10a5 5 0 017 7l-10 10zM8.5 8.5l7 7",
+    info: "M12 11v5m0-8.5h.01M12 21a9 9 0 100-18 9 9 0 000 18z",
+  };
+
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d={paths[name] || paths.info} />
+    </svg>
+  );
+}
+
+function StatusChip({ tone = "match", children }) {
+  return (
+    <span
+      className={`av-chip ${tone}`}
+      style={{
+        ...STATUS_STYLES[tone],
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 6,
+      }}
+    >
+      {children}
+    </span>
+  );
 }
 
 function quantityValid(value) {
@@ -217,66 +81,20 @@ function quantityValid(value) {
   );
 }
 
-function validCount(value) {
-  return Number.isInteger(value) && value >= 0;
-}
-
-function validRecognition(data) {
-  return (
-    data &&
-    Array.isArray(data.detections) &&
-    data.detections.every(
-      (item) =>
-        item &&
-        typeof item.label === "string" &&
-        Number.isFinite(item.confidence) &&
-        item.confidence >= 0 &&
-        item.confidence <= 1 &&
-        Array.isArray(item.bbox) &&
-        item.bbox.length === 4 &&
-        item.bbox.every(Number.isFinite) &&
-        item.bbox[2] > item.bbox[0] &&
-        item.bbox[3] > item.bbox[1]
-    ) &&
-    typeof data.annotatedImage === "string" &&
-    data.annotatedImage.startsWith("data:image/jpeg;base64,")
-  );
-}
-
-function validDraft(row) {
-  return (
-    row &&
-    typeof row.medicineName === "string" &&
-    typeof row.strength === "string" &&
-    typeof row.productId === "string" &&
-    Array.isArray(row.suggestions) &&
-    row.suggestions.every(
-      (item) =>
-        item &&
-        typeof item.productId === "string" &&
-        typeof item.name === "string"
-    ) &&
-    (row.quantity === null ||
-      (Number.isInteger(row.quantity) &&
-        row.quantity >= 1 &&
-        row.quantity <= 100))
-  );
-}
-
-function medicineIdentity(name = "", strength = "") {
+function identity(name = "", strength = "") {
   const text = `${name} ${strength}`
     .normalize("NFKC")
     .toLowerCase()
-    .replace(/[µμ]g/g, "mcg");
+    .replace(/[µμ]g/g, "mcg")
+    .replace(/_/g, " ");
 
   const pattern =
-    /(\d+(?:\.\d+)?)\s*(mcg|mg|g|ml|iu|%)(?![a-z])/g;
+    /(?<![\w./-])(\d+(?:\.\d+)?)\s*(mcg|ug|mg|g|ml|iu|%)(?![a-z])/g;
 
   const strengths = [
     ...new Set(
-      Array.from(
-        text.matchAll(pattern),
-        (match) => `${Number(match[1])}${match[2]}`
+      Array.from(text.matchAll(pattern), (match) =>
+        `${Number(match[1])}${match[2] === "ug" ? "mcg" : match[2]}`
       )
     ),
   ].sort();
@@ -292,102 +110,293 @@ function medicineIdentity(name = "", strength = "") {
   };
 }
 
-function findExactSupportedProduct(row, products) {
-  const target = medicineIdentity(row.medicineName, row.strength);
+function exactProduct(row, products) {
+  const wanted = identity(row.medicineName, row.strength);
 
-  if (!target.name || !target.strength || target.complex) return "";
+  if (!wanted.name || !wanted.strength || wanted.complex) return "";
 
   const matches = products.filter((product) => {
-    const candidate = medicineIdentity(
-      product.name,
-      product.strength || ""
-    );
+    const candidate = identity(product.name, product.strength || "");
 
     return (
       !candidate.complex &&
-      candidate.name === target.name &&
-      candidate.strength === target.strength
+      candidate.name === wanted.name &&
+      candidate.strength === wanted.strength
     );
   });
 
   return matches.length === 1 ? matches[0].id : "";
 }
 
-function Icon({ kind, size = 22 }) {
-  const paths = {
-    plus: <path d="M12 5v14M5 12h14" />,
-    check: <path d="m5 12 4 4L19 6" />,
-    arrow: <path d="M5 12h14m-6-6 6 6-6 6" />,
-    document: (
-      <>
-        <path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z" />
-        <path d="M14 3v6h6M8 13h8M8 17h5" />
-      </>
-    ),
-    image: (
-      <>
-        <rect x="3" y="3" width="18" height="18" rx="3" />
-        <circle cx="8" cy="8" r="1" />
-        <path d="m21 15-5-5L5 21" />
-      </>
-    ),
-    history: (
-      <>
-        <path d="M3 11a9 9 0 1 1 2.7 7M3 4v7h7" />
-        <path d="M12 7v5l3 2" />
-      </>
-    ),
-  };
-
+function validRecognition(data) {
   return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.7"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      {paths[kind] || paths.document}
-    </svg>
+    data &&
+    typeof data.annotatedImage === "string" &&
+    data.annotatedImage.startsWith("data:image/jpeg;base64,") &&
+    Array.isArray(data.detections) &&
+    data.detections.every(
+      (item) =>
+        typeof item?.label === "string" &&
+        Number.isFinite(item.confidence) &&
+        item.confidence >= 0 &&
+        item.confidence <= 1 &&
+        Array.isArray(item.bbox) &&
+        item.bbox.length === 4 &&
+        item.bbox.every(Number.isFinite) &&
+        item.bbox[2] > item.bbox[0] &&
+        item.bbox[3] > item.bbox[1]
+    )
   );
 }
 
-function Upload({ image, filename, title, onChange, disabled }) {
+function comparisonTone(record) {
+  if (record?.comparisonType === "total-count") {
+    if (record.lowConfidenceCount > 0) return "warning";
+    return record.difference === 0 ? "match" : "difference";
+  }
+
+  if (record?.uncertain?.length) return "warning";
+
+  if (record?.rows?.some((row) => row.expected !== row.found)) {
+    return "difference";
+  }
+
+  return "match";
+}
+
+function rowReview(row, result) {
+  const relevant = (result.uncertain || []).filter(
+    (item) =>
+      item.label === row.productId ||
+      item.productId === row.productId ||
+      item.alternatives?.some(
+        (alternative) => alternative.label === row.productId
+      )
+  );
+
+  const difference = row.found - row.expected;
+
+  // A definite surplus remains a count difference.
+  // Otherwise, uncertainty affects only its related product row.
+  const tone =
+    difference > 0
+      ? "difference"
+      : relevant.length
+      ? "warning"
+      : difference < 0
+      ? "difference"
+      : "match";
+
+  return { tone, relevant, difference };
+}
+
+function predictionTone(item, threshold) {
   return (
-    <div>
-      <label className={`mv-upload ${image ? "has-image" : ""}`}>
-        <input
-          type="file"
-          accept="image/jpeg,image/png,image/webp"
-          aria-label={title}
-          onChange={onChange}
-          disabled={disabled}
-        />
+    item.unmapped ||
+    item.identityUncertain ||
+    item.confidence < threshold
+  )
+    ? "warning"
+    : "match";
+}
 
-        {image ? (
-          <img src={image} alt={title} />
-        ) : (
-          <>
-            <span className="mv-upload-symbol">
-              <Icon kind="image" size={30} />
-            </span>
-            <strong>{title}</strong>
-            <span>Choose a clear JPG, PNG or WebP image</span>
-            <small>Maximum file size: 5 MB</small>
-          </>
-        )}
-      </label>
-
-      {filename && (
-        <p className="mv-help mv-filename">
-          {filename} · Click the image to replace
-        </p>
+function PhotoInput({ title, image, filename, onChange, disabled }) {
+  return (
+    <label
+      className={`av-drop ${image ? "has-image" : ""} ${
+        disabled ? "disabled" : ""
+      }`}
+    >
+      <input
+        className="av-sr"
+        type="file"
+        accept="image/jpeg,image/png,image/webp"
+        aria-label={title}
+        disabled={disabled}
+        onChange={onChange}
+      />
+      {image ? (
+        <img src={image} alt={title} />
+      ) : (
+        <span className="av-drop-icon">
+          <Icon name="upload" size={26} />
+        </span>
       )}
-    </div>
+      <strong>{image ? "Click to replace photo" : title}</strong>
+      <small>{filename || "JPG, PNG or WebP · maximum 5 MB"}</small>
+    </label>
+  );
+}
+
+function ComparisonResult({ result, productName }) {
+  if (!result) return null;
+
+  const totalOnly = result.comparisonType === "total-count";
+  const tone = comparisonTone(result);
+  const threshold = Number.isFinite(result.confidenceThreshold)
+    ? result.confidenceThreshold
+    : DEFAULT_REVIEW_THRESHOLD;
+
+  return (
+    <section className="av-card">
+      <div className="av-card-head">
+        <h2>
+          {totalOnly ? "Total count comparison" : "Medicine count comparison"}
+        </h2>
+      </div>
+
+      <div
+        className={`av-banner ${tone === "match" ? "" : tone}`}
+        style={STATUS_STYLES[tone]}
+      >
+        <Icon name={tone === "match" ? "check" : "alert"} size={22} />
+        <div>
+          <strong>{result.status}</strong>
+          <small>{result.notes}</small>
+        </div>
+      </div>
+
+      {totalOnly ? (
+        <div className="av-metrics">
+          <div>
+            <strong>{result.expectedTotal}</strong>
+            <small>Expected</small>
+          </div>
+          <div>
+            <strong>{result.detectedTotal}</strong>
+            <small>Detected objects</small>
+          </div>
+          <div className={result.lowConfidenceCount ? "warn" : ""}>
+            <strong>{result.lowConfidenceCount}</strong>
+            <small>Low-score detections included</small>
+          </div>
+        </div>
+      ) : (
+        <>
+          <p className="av-muted">
+            Counted predictions use a model-score threshold of{" "}
+            {(threshold * 100).toFixed(0)}%. Excluded predictions remain
+            available for review.
+          </p>
+
+          <div className="av-table">
+            <table>
+              <thead>
+                <tr>
+                  <th>Medicine</th>
+                  <th>Expected</th>
+                  <th>Counted predictions</th>
+                  <th>Difference</th>
+                  <th>Review status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(result.rows || []).map((row, index) => {
+                  const state = rowReview(row, result);
+
+                  return (
+                    <tr key={`${row.productId}-${index}`}>
+                      <td>
+                        <strong>
+                          {row.medicineName || productName(row.productId)}
+                        </strong>
+                        {row.strength && (
+                          <small style={{ display: "block" }}>
+                            Recorded: {row.strength}
+                          </small>
+                        )}
+                      </td>
+                      <td>{row.expected}</td>
+                      <td>
+                        {row.found}
+                        {!!state.relevant.length && (
+                          <small
+                            style={{
+                              display: "block",
+                              color: "#815914",
+                              marginTop: 5,
+                            }}
+                          >
+                            {state.relevant.length} uncertain prediction(s)
+                            associated with this medicine; excluded.
+                          </small>
+                        )}
+                      </td>
+                      <td>
+                        <StatusChip tone={state.tone}>
+                          {state.difference > 0 ? "+" : ""}
+                          {state.difference}
+                        </StatusChip>
+                      </td>
+                      <td>
+                        <StatusChip tone={state.tone}>
+                          {state.tone === "match"
+                            ? "Counts match"
+                            : state.tone === "warning"
+                            ? "Needs review"
+                            : "Count difference"}
+                        </StatusChip>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          {!!result.uncertain?.length && (
+            <div
+              className="av-alert av-warning"
+              style={{ marginTop: 16 }}
+            >
+              <Icon name="alert" />
+              <div>
+                <strong>Uncertain predictions excluded from counts</strong>
+                <ul>
+                  {result.uncertain.map((item, index) => {
+                    const alternatives = [
+                      ...new Set(
+                        (item.alternatives || [])
+                          .map((alternative) => alternative.label)
+                          .filter(Boolean)
+                      ),
+                    ];
+
+                    return (
+                      <li key={index}>
+                        {item.identityUncertain ||
+                        item.label === "__uncertain__"
+                          ? `Conflicting / ambiguous prediction${
+                              alternatives.length
+                                ? ": " +
+                                  alternatives.map(productName).join(" / ")
+                                : ""
+                            }`
+                          : productName(item.label)}
+                        {Number.isFinite(item.confidence) &&
+                          ` · model score ${(item.confidence * 100).toFixed(1)}%`}
+                        {" · "}
+                        {item.reason || "Review required"}
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            </div>
+          )}
+
+          <p className="av-muted">
+            Green: this product's counts match. Yellow: related predictions
+            need review. Red: counted predictions differ from the expected
+            quantity.
+          </p>
+        </>
+      )}
+
+      <p className="av-muted" style={{ marginTop: 14, marginBottom: 0 }}>
+        Matching counts do not confirm medicine identity or clinical suitability.
+      </p>
+    </section>
   );
 }
 
@@ -395,94 +404,62 @@ export default function TrayVerification() {
   const mounted = useRef(false);
   const controllers = useRef(new Set());
   const readers = useRef(new Set());
-  const nextId = useRef(2);
-  const operationLock = useRef(false);
+  const lock = useRef(false);
+  const nextId = useRef(1);
 
-  const [page, setPage] = useState("workspace");
-  const [step, setStep] = useState(0);
+  const [service, setService] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [connected, setConnected] = useState(false);
-  const [modelReady, setModelReady] = useState(false);
-  const [comparisonReady, setComparisonReady] = useState(false);
-  const [totalReady, setTotalReady] = useState(false);
-  const [llmConfigured, setLlmConfigured] = useState(false);
-  const [products, setProducts] = useState([]);
-  const [history, setHistory] = useState([]);
   const [operation, setOperation] = useState("");
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const [page, setPage] = useState("workspace");
+  const [step, setStep] = useState(0);
+  const [history, setHistory] = useState([]);
 
   const [prescriptionPhoto, setPrescriptionPhoto] = useState("");
   const [prescriptionFilename, setPrescriptionFilename] = useState("");
   const [ocrResult, setOcrResult] = useState(null);
   const [text, setText] = useState("");
-
-  const [reference, setReference] = useState("");
-  const [doseLabel, setDoseLabel] = useState("Prepared tray");
-  const [trayScope, setTrayScope] = useState("manual");
   const [useLLM, setUseLLM] = useState(true);
+  const [rows, setRows] = useState([]);
+  const [reference, setReference] = useState("");
   const [reviewed, setReviewed] = useState(false);
-  const [prescription, setPrescription] = useState(null);
+  const [saved, setSaved] = useState(null);
+  const [extraction, setExtraction] = useState(null);
 
   const [photo, setPhoto] = useState("");
   const [filename, setFilename] = useState("");
   const [recognition, setRecognition] = useState(null);
   const [result, setResult] = useState(null);
 
-  const [rows, setRows] = useState([
-    {
-      rowId: 1,
-      medicineName: "",
-      strength: "",
-      quantity: "",
-      quantitySource: "",
-      productId: "",
-      matchType: "unresolved",
-      suggestions: [],
-      sourceText: "",
-      doseText: "",
-      scheduleText: "",
-      durationText: "",
-      reviewNotes: [],
-    },
-  ]);
+  const busy = Boolean(operation);
+  const products = Array.isArray(service?.products) ? service.products : [];
+  const connected = service?.mode === "live";
 
-  const busy = operation !== "";
+  function productName(id) {
+    if (id === "__uncertain__") return "Unidentified — conflicting predictions";
+    return products.find((product) => product.id === id)?.name || id || "Unselected";
+  }
 
   async function api(path, body) {
     const controller = new AbortController();
     controllers.current.add(controller);
-
-    const timeout = setTimeout(
-      () => controller.abort(),
-      120000
-    );
+    const timeout = setTimeout(() => controller.abort(), 120000);
 
     try {
-      const response = await fetch(
-        `${API}/api/medicine${path}`,
-        {
-          method: body === undefined ? "GET" : "POST",
-          headers:
-            body === undefined
-              ? undefined
-              : { "Content-Type": "application/json" },
-          body:
-            body === undefined
-              ? undefined
-              : JSON.stringify(body),
-          signal: controller.signal,
-        }
-      );
+      const response = await fetch(`${API}/api/medicine${path}`, {
+        method: body === undefined ? "GET" : "POST",
+        headers:
+          body === undefined ? undefined : { "Content-Type": "application/json" },
+        body: body === undefined ? undefined : JSON.stringify(body),
+        signal: controller.signal,
+      });
 
       let data;
-
       try {
         data = await response.json();
       } catch {
-        throw new Error(
-          `Unreadable service response (HTTP ${response.status}).`
-        );
+        throw new Error(`Unreadable API response: HTTP ${response.status}.`);
       }
 
       if (!response.ok) {
@@ -491,24 +468,18 @@ export default function TrayVerification() {
             ? data.error
             : typeof data?.detail === "string"
             ? data.detail
-            : `Request failed (HTTP ${response.status}).`
+            : `Request failed: HTTP ${response.status}.`
         );
       }
 
       return data;
     } catch (err) {
       if (err.name === "AbortError") {
-        throw new Error(
-          "The request timed out or was cancelled."
-        );
+        throw new Error("The request timed out or was cancelled.");
       }
-
       if (err instanceof TypeError) {
-        throw new Error(
-          `Cannot reach the medicine API at ${API}.`
-        );
+        throw new Error(`Cannot reach the medicine API at ${API}.`);
       }
-
       throw err;
     } finally {
       clearTimeout(timeout);
@@ -523,51 +494,33 @@ export default function TrayVerification() {
     async function start() {
       try {
         const data = await api("/bootstrap");
-
         if (cancelled) return;
 
-        if (data?.mode !== "live") {
-          throw new Error(
-            "The live medicine service is unavailable."
-          );
+        if (data?.mode !== "live" || !Array.isArray(data.products)) {
+          throw new Error("Invalid medicine service response.");
+        }
+        if (
+          !data.products.every(
+            (product) =>
+              typeof product?.id === "string" &&
+              typeof product.name === "string"
+          )
+        ) {
+          throw new Error("Invalid medicine catalog.");
         }
 
-        setConnected(true);
-        setModelReady(data.modelReady === true);
-        setComparisonReady(
-          data.reviewedComparisonReady === true
-        );
-        setTotalReady(
-          data.totalCountComparisonReady === true
-        );
-        setLlmConfigured(data.llmConfigured === true);
-
-        setProducts(
-          Array.isArray(data.products)
-            ? data.products.filter(
-                (item) =>
-                  item &&
-                  typeof item.id === "string" &&
-                  typeof item.name === "string"
-              )
-            : []
-        );
+        setService(data);
 
         try {
           const records = await api("/history");
-
           if (!cancelled && Array.isArray(records)) {
             setHistory(
-              records
-                .filter((item) => item?.mode === "live")
-                .slice(0, 200)
+              records.filter((record) => record?.mode === "live").slice(0, 200)
             );
           }
         } catch {
           if (!cancelled) {
-            setNotice(
-              "Connected, but previous history could not be loaded."
-            );
+            setNotice("Connected. Previous history could not be loaded.");
           }
         }
       } catch (err) {
@@ -582,11 +535,7 @@ export default function TrayVerification() {
     return () => {
       cancelled = true;
       mounted.current = false;
-
-      controllers.current.forEach(
-        (controller) => controller.abort()
-      );
-
+      controllers.current.forEach((controller) => controller.abort());
       readers.current.forEach((reader) => {
         if (reader.readyState === 1) reader.abort();
       });
@@ -594,9 +543,9 @@ export default function TrayVerification() {
   }, []);
 
   async function run(label, action) {
-    if (operationLock.current || loading) return;
+    if (lock.current || loading) return;
 
-    operationLock.current = true;
+    lock.current = true;
     setOperation(label);
     setError("");
     setNotice("");
@@ -605,92 +554,224 @@ export default function TrayVerification() {
       await action();
     } catch (err) {
       if (mounted.current) {
-        setError(
-          err.message || "The operation failed."
-        );
+        setError(err.message || "The operation failed.");
       }
     } finally {
-      operationLock.current = false;
+      lock.current = false;
       if (mounted.current) setOperation("");
     }
   }
 
-  function freshRow() {
-    return {
-      rowId: nextId.current++,
-      medicineName: "",
-      strength: "",
-      quantity: "",
-      quantitySource: "",
-      productId: "",
-      matchType: "unresolved",
-      suggestions: [],
-      sourceText: "",
-      doseText: "",
-      scheduleText: "",
-      durationText: "",
-      reviewNotes: [],
-    };
-  }
-
   function invalidate() {
     setReviewed(false);
-    setPrescription(null);
+    setSaved(null);
     setResult(null);
   }
 
-  function updateRow(rowId, field, value) {
+  function normalizeRows(data) {
+    if (
+      !Array.isArray(data?.rows) ||
+      !data.rows.length ||
+      data.rows.length > 50
+    ) {
+      throw new Error("No valid medicine rows returned. Existing rows were kept.");
+    }
+
+    return data.rows.map((row) => {
+      if (
+        typeof row?.medicineName !== "string" ||
+        typeof row.strength !== "string" ||
+        typeof row.productId !== "string" ||
+        !Array.isArray(row.suggestions) ||
+        !(
+          row.quantity === null ||
+          (Number.isInteger(row.quantity) && quantityValid(row.quantity))
+        )
+      ) {
+        throw new Error("Invalid medicine draft response. Existing rows were kept.");
+      }
+
+      const matched = exactProduct(row, products);
+      const productId =
+        matched ||
+        (products.some((product) => product.id === row.productId)
+          ? row.productId
+          : "");
+
+      return {
+        ...row,
+        rowId: nextId.current++,
+        productId,
+        quantity: row.quantity ?? "",
+        sourceText: row.sourceText || "",
+        doseText: row.doseText || "",
+        scheduleText: row.scheduleText || "",
+        durationText: row.durationText || "",
+        quantityExplanation: row.quantityExplanation || "",
+        reviewNotes: Array.isArray(row.reviewNotes)
+          ? row.reviewNotes.filter((note) => typeof note === "string")
+          : [],
+        suggestions: row.suggestions.filter(
+          (suggestion) =>
+            typeof suggestion?.productId === "string" &&
+            products.some((product) => product.id === suggestion.productId)
+        ),
+      };
+    });
+  }
+
+  async function requestDraft(value) {
+    if (!value.trim() || value.length > 12000) {
+      throw new Error("Enter prescription text, up to 12,000 characters.");
+    }
+
+    return api("/prescription/draft", {
+      text: value,
+      useLLM,
+      trayScope: TRAY_SCOPE,
+    });
+  }
+
+  function applyDraft(data) {
+    const prepared = normalizeRows(data);
+    if (!mounted.current) return;
+
+    invalidate();
+    setRows(prepared);
+    setExtraction({
+      provider: data.provider || "local-parser",
+      fallbackUsed: data.fallbackUsed === true,
+      fallbackReason: data.fallbackReason || "",
+    });
+    setStep(1);
+    setNotice(
+      data.fallbackUsed
+        ? "Draft created using the local fallback. Check the extraction warning."
+        : "Draft created. Review the tablets per dose and matched products."
+    );
+  }
+
+  function createDraft() {
+    run("Creating medicine draft…", async () => {
+      applyDraft(await requestDraft(text));
+    });
+  }
+
+  function extractPhoto() {
+    if (!prescriptionPhoto || !connected) return;
+
+    run("Reading prescription and creating draft…", async () => {
+      const data = await api("/prescription/ocr", {
+        imageData: prescriptionPhoto,
+      });
+
+      if (typeof data?.text !== "string" || !Array.isArray(data.blocks)) {
+        throw new Error("Invalid OCR response.");
+      }
+      if (!mounted.current) return;
+
+      setOcrResult(data);
+      setText(data.text);
+
+      if (!data.text.trim()) {
+        throw new Error("No medicine text was read. Check the image or enter the text.");
+      }
+
+      applyDraft(await requestDraft(data.text));
+    });
+  }
+
+  function loadPhoto(event, prescriptionImage) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+
+    run("Loading photo…", async () => {
+      if (
+        !["image/jpeg", "image/png", "image/webp"].includes(file.type) ||
+        file.size === 0 ||
+        file.size > 5 * 1024 * 1024
+      ) {
+        throw new Error("Choose a non-empty JPG, PNG or WebP image under 5 MB.");
+      }
+
+      const value = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        readers.current.add(reader);
+
+        reader.onload = () => {
+          readers.current.delete(reader);
+          resolve(String(reader.result));
+        };
+        reader.onerror = () => {
+          readers.current.delete(reader);
+          reject(new Error("Could not read the photo."));
+        };
+        reader.onabort = () => {
+          readers.current.delete(reader);
+          reject(new Error("Photo loading cancelled."));
+        };
+
+        reader.readAsDataURL(file);
+      });
+
+      if (!mounted.current) return;
+
+      if (prescriptionImage) {
+        invalidate();
+        setPrescriptionPhoto(value);
+        setPrescriptionFilename(file.name);
+        setText("");
+        setRows([]);
+        setOcrResult(null);
+        setExtraction(null);
+      } else {
+        setPhoto(value);
+        setFilename(file.name);
+        setRecognition(null);
+        setResult(null);
+      }
+    });
+  }
+
+  function changeLLM(newLLM) {
+    setUseLLM(newLLM);
+    invalidate();
+    setRows((previous) =>
+      previous.map((row) => ({
+        ...row,
+        quantity: "",
+        quantityExplanation: "Option changed. Recreate the draft to recalculate.",
+      }))
+    );
+    setNotice("Option changed. Create the draft again to apply it.");
+  }
+
+  function editRow(rowId, field, value) {
     invalidate();
 
     setRows((previous) =>
       previous.map((row) => {
         if (row.rowId !== rowId) return row;
 
-        const updated = {
-          ...row,
-          [field]: value,
-        };
+        const updated = { ...row, [field]: value };
 
-        if (
-          field === "medicineName" ||
-          field === "strength"
-        ) {
-          updated.productId = findExactSupportedProduct(
-            updated,
-            products
-          );
-          updated.matchType = updated.productId
-            ? "exact-text"
-            : "unresolved";
+        if (field === "medicineName" || field === "strength") {
+          updated.productId = exactProduct(updated, products);
           updated.suggestions = [];
         }
 
-        if (field === "productId") {
-          updated.matchType = value
-            ? "manual"
-            : "unresolved";
+        if (field === "sourceText") {
+          updated.quantity = "";
+          updated.productId = "";
+          updated.quantityExplanation =
+            "Source edited. Click Re-read this instruction.";
         }
 
         if (field === "quantity") {
           updated.quantitySource = "manual";
           updated.quantityExplanation =
-            "Manually entered tray quantity.";
-        }
-
-        if (
-          [
-            "medicineName",
-            "strength",
-            "doseText",
-            "scheduleText",
-            "durationText",
-          ].includes(field)
-        ) {
-          updated.quantity = "";
-          updated.quantitySource = "";
-          updated.quantityExplanation =
-            "Medicine details or instructions changed. " +
-            "Check and enter the tray quantity.";
+            "Manual override — review against the source.";
         }
 
         return updated;
@@ -698,886 +779,489 @@ export default function TrayVerification() {
     );
   }
 
-  function matchSupportedProducts() {
-    invalidate();
+  function rereadRow(row) {
+    run("Re-reading medicine instruction…", async () => {
+      const data = await requestDraft(row.sourceText);
+      const prepared = normalizeRows(data);
 
-    setRows((previous) =>
-      previous.map((row) => {
-        if (row.productId) return row;
-
-        const productId = findExactSupportedProduct(
-          row,
-          products
-        );
-
-        return {
-          ...row,
-          productId,
-          matchType: productId
-            ? "exact-text"
-            : "unresolved",
-        };
-      })
-    );
-
-    setNotice(
-      "Checked for exact supported products. Quantities were kept."
-    );
-  }
-
-  function changeExtractionOption(setter, value) {
-    setter(value);
-    invalidate();
-
-    setRows((previous) =>
-      previous.map((row) => ({
-        ...row,
-        quantity: "",
-        quantitySource: "",
-        quantityExplanation:
-          "Scope or extraction mode changed. " +
-          "Create the draft again or enter quantity manually.",
-      }))
-    );
-
-    setNotice(
-      "Options changed. Create the draft again to apply them."
-    );
-  }
-
-  function productName(id) {
-    return (
-      products.find((item) => item.id === id)?.name ||
-      id ||
-      "Unidentified"
-    );
-  }
-
-  function loadImage(event, isPrescription) {
-    const file = event.target.files?.[0];
-    event.target.value = "";
-
-    if (!file || busy || loading) return;
-
-    if (
-      !["image/jpeg", "image/png", "image/webp"].includes(
-        file.type
-      ) ||
-      file.size === 0 ||
-      file.size > 5 * 1024 * 1024
-    ) {
-      setError(
-        "Choose a non-empty JPG, PNG or WebP image up to 5 MB."
-      );
-      return;
-    }
-
-    run(
-      "Loading image…",
-      () =>
-        new Promise((resolve, reject) => {
-          const reader = new FileReader();
-          readers.current.add(reader);
-
-          const finish = () =>
-            readers.current.delete(reader);
-
-          reader.onload = () => {
-            finish();
-
-            if (mounted.current) {
-              if (isPrescription) {
-                invalidate();
-                setPrescriptionPhoto(
-                  String(reader.result)
-                );
-                setPrescriptionFilename(file.name);
-                setOcrResult(null);
-                setText("");
-                setRows([freshRow()]);
-              } else {
-                setPhoto(String(reader.result));
-                setFilename(file.name);
-                setRecognition(null);
-                setResult(null);
-              }
-            }
-
-            resolve();
-          };
-
-          reader.onerror = () => {
-            finish();
-            reject(
-              new Error(
-                "Could not read the selected image."
-              )
-            );
-          };
-
-          reader.onabort = () => {
-            finish();
-            reject(
-              new Error("Image loading was cancelled.")
-            );
-          };
-
-          reader.readAsDataURL(file);
-        })
-    );
-  }
-
-  async function createDraft(value) {
-    if (!value.trim()) {
-      throw new Error(
-        "Add prescription text first."
-      );
-    }
-
-    if (
-      value.length > 12000 ||
-      value
-        .split(/\r?\n/)
-        .filter((line) => line.trim()).length > 50
-    ) {
-      throw new Error(
-        "Use at most 12,000 characters and 50 medicine lines."
-      );
-    }
-
-    const data = await api(
-      "/prescription/draft",
-      {
-        text: value,
-        useLLM,
-        trayScope,
+      if (prepared.length !== 1) {
+        throw new Error("Keep one medicine instruction in this row.");
       }
-    );
-
-    if (
-      !Array.isArray(data?.rows) ||
-      data.rows.length > 50 ||
-      !data.rows.every(validDraft)
-    ) {
-      throw new Error(
-        "Invalid draft response. Existing rows were kept."
-      );
-    }
-
-    if (!data.rows.length) {
-      throw new Error(
-        "No medicines extracted. Check the OCR text."
-      );
-    }
-
-    if (!mounted.current) return;
-
-    invalidate();
-
-    setRows(
-      data.rows.map((row) => ({
-        ...row,
-        rowId: nextId.current++,
-        quantity: row.quantity ?? "",
-        quantitySource:
-          row.quantitySource ||
-          (row.quantity !== null ? "explicit" : ""),
-        doseText: row.doseText || "",
-        scheduleText: row.scheduleText || "",
-        durationText: row.durationText || "",
-        reviewNotes: Array.isArray(row.reviewNotes)
-          ? row.reviewNotes
-          : [],
-      }))
-    );
-
-    setDoseLabel(
-      trayScope === "full-day"
-        ? "Full-day tray"
-        : trayScope === "single-dose"
-        ? "One scheduled dose"
-        : "Custom tray"
-    );
-
-    setStep(1);
-
-    setNotice(
-      useLLM
-        ? "LLM draft created. Review instructions and quantities before saving."
-        : "Local parser draft created. Enter or review tray quantities."
-    );
-  }
-
-  function extractPrescription() {
-    if (!prescriptionPhoto || !connected) return;
-
-    run("Reading prescription…", async () => {
-      const data = await api(
-        "/prescription/ocr",
-        { imageData: prescriptionPhoto }
-      );
-
-      if (
-        typeof data?.text !== "string" ||
-        !Array.isArray(data.blocks)
-      ) {
-        throw new Error("Invalid OCR response.");
-      }
-
       if (!mounted.current) return;
 
-      setOcrResult(data);
-      setText(data.text);
-
-      if (!data.text.trim()) {
-        throw new Error(
-          "No medicine text selected. Check All OCR text or type the lines."
-        );
-      }
-
-      await createDraft(data.text);
+      invalidate();
+      setRows((previous) =>
+        previous.map((item) =>
+          item.rowId === row.rowId
+            ? { ...prepared[0], rowId: row.rowId }
+            : item
+        )
+      );
+      setNotice(
+        data.fallbackUsed
+          ? `Local fallback used: ${data.fallbackReason || "Review all fields."}`
+          : "Instruction re-read. Review the updated count and product."
+      );
     });
   }
 
-  const selectedIds = rows
-    .map((row) => row.productId)
-    .filter(Boolean);
+  function chooseProduct(row, productId) {
+    invalidate();
+    setRows((previous) =>
+      previous.map((item) =>
+        item.rowId === row.rowId
+          ? {
+              ...item,
+              productId,
+              matchType: productId ? "manual" : "unresolved",
+            }
+          : item
+      )
+    );
+  }
 
-  const duplicateProducts =
-    new Set(selectedIds).size !== selectedIds.length;
+  function addMedicine() {
+    if (rows.length >= 50) return;
 
-  const incompleteRows = rows.filter(
-    (row) =>
-      !row.medicineName.trim() ||
-      !quantityValid(row.quantity)
+    invalidate();
+    setRows((previous) => [
+      ...previous,
+      {
+        rowId: nextId.current++,
+        medicineName: "",
+        strength: "",
+        productId: "",
+        quantity: "",
+        sourceText: "",
+        doseText: "",
+        scheduleText: "",
+        durationText: "",
+        reviewNotes: [],
+        suggestions: [],
+      },
+    ]);
+    setStep(1);
+  }
+
+  const incomplete = rows.filter(
+    (row) => !row.medicineName.trim() || !quantityValid(row.quantity)
   ).length;
-
-  const unmappedRows = rows.filter(
-    (row) => !row.productId
-  ).length;
-
-  const missingStrengths = rows.filter(
-    (row) => !row.strength.trim()
-  ).length;
+  const unmatched = rows.filter((row) => !row.productId).length;
+  const ids = rows.map((row) => row.productId).filter(Boolean);
+  const duplicates = new Set(ids).size !== ids.length;
 
   const saveReason = !connected
-    ? "The medicine service is offline."
-    : !comparisonReady
-    ? "The reviewed-prescription service is unavailable."
+    ? "The medicine API is unavailable."
+    : !service?.reviewedComparisonReady
+    ? "Reviewed-list service is unavailable."
     : !rows.length
-    ? "Add at least one medicine."
-    : !doseLabel.trim()
-    ? "Enter a tray label."
-    : incompleteRows
-    ? `${incompleteRows} row(s) need a name and a whole-number tray quantity from 1 to 100.`
-    : duplicateProducts
-    ? "Combine duplicate products into one row with their total tray quantity."
+    ? "Create a medicine draft first."
+    : incomplete
+    ? `${incomplete} row(s) need a clear medicine name or quantity. Open Review / edit.`
+    : duplicates
+    ? "Combine duplicate product rows before saving."
     : !reviewed
-    ? "Confirm that you reviewed the medicine list."
+    ? "Confirm that you reviewed the source, products and counts."
     : "";
 
-  const canSave =
-    !saveReason &&
-    rows.length <= 50 &&
-    !busy &&
-    !loading;
-
+  const canSave = !busy && !loading && !saveReason;
   const canDetect =
-    connected &&
-    modelReady &&
-    Boolean(photo) &&
-    !busy &&
-    !loading;
-
-  const canVerify =
+    connected && service?.modelReady && Boolean(photo) && !busy && !loading;
+  const canCompare =
     canDetect &&
-    comparisonReady &&
-    prescription?.comparisonReady === true;
-
-  const canCompareTotal =
+    service?.reviewedComparisonReady &&
+    saved?.comparisonReady === true;
+  const canTotal =
     canDetect &&
-    totalReady &&
-    prescription?.reviewed === true &&
-    Boolean(prescription?.id);
+    service?.totalCountComparisonReady &&
+    saved?.reviewed === true;
 
-  function savePrescription() {
+  function saveList() {
     if (!canSave) return;
 
     run("Saving reviewed list…", async () => {
-      const data = await api(
-        "/prescription/review",
-        {
-          reference: reference.trim(),
-          doseLabel: doseLabel.trim(),
-          reviewed: true,
-          items: rows.map((row) => ({
-            medicineName: row.medicineName.trim(),
-            strength: row.strength.trim(),
-            quantity: Number(row.quantity),
-            productId: row.productId,
-          })),
-        }
-      );
+      const data = await api("/prescription/review", {
+        reference: reference.trim(),
+        doseLabel: TRAY_LABEL,
+        reviewed: true,
+        items: rows.map((row) => ({
+          medicineName: row.medicineName.trim(),
+          strength: row.strength.trim(),
+          productId: row.productId,
+          quantity: Number(row.quantity),
+        })),
+      });
 
       if (
         typeof data?.id !== "string" ||
         data.reviewed !== true ||
         !Array.isArray(data.items)
       ) {
-        throw new Error(
-          "Invalid saved-prescription response."
-        );
+        throw new Error("Invalid saved-prescription response.");
+      }
+      if (!mounted.current) return;
+
+      setSaved(data);
+      setResult(null);
+      setStep(2);
+      setNotice("Reviewed list saved. Upload the prepared tray photo.");
+    });
+  }
+
+  function detect() {
+    if (!canDetect) return;
+
+    run("Detecting pills…", async () => {
+      setResult(null);
+      setRecognition(null);
+
+      const data = await api("/detect", { imageData: photo });
+      if (!validRecognition(data)) {
+        throw new Error("Invalid detection response.");
+      }
+      if (mounted.current) setRecognition(data);
+    });
+  }
+
+  function compare(totalOnly) {
+    if (totalOnly ? !canTotal : !canCompare) return;
+
+    run("Comparing prepared tray…", async () => {
+      setResult(null);
+      setRecognition(null);
+
+      const data = await api(
+        totalOnly ? "/verify-total-count" : "/verify-reviewed",
+        { prescriptionId: saved.id, imageData: photo }
+      );
+
+      const count = (value) => Number.isInteger(value) && value >= 0;
+
+      if (
+        data?.prescription?.id !== saved.id ||
+        typeof data.status !== "string" ||
+        !validRecognition(data.recognition)
+      ) {
+        throw new Error("Invalid comparison response.");
+      }
+
+      if (totalOnly) {
+        if (
+          data.comparisonType !== "total-count" ||
+          data.identitiesChecked !== false ||
+          !count(data.expectedTotal) ||
+          !count(data.detectedTotal) ||
+          !count(data.lowConfidenceCount) ||
+          data.lowConfidenceCount > data.detectedTotal ||
+          data.detectedTotal !== data.recognition.detections.length ||
+          data.difference !== data.detectedTotal - data.expectedTotal
+        ) {
+          throw new Error("Invalid total-count result.");
+        }
+      } else if (
+        data.comparisonType !== "product-count" ||
+        !Array.isArray(data.rows) ||
+        !data.rows.every(
+          (row) =>
+            typeof row?.productId === "string" &&
+            count(row.expected) &&
+            count(row.found)
+        ) ||
+        !Array.isArray(data.uncertain)
+      ) {
+        throw new Error("Invalid product-count result.");
       }
 
       if (!mounted.current) return;
 
-      setPrescription(data);
-      setResult(null);
-      setStep(2);
+      setResult(data);
+      setRecognition(data.recognition);
 
-      setNotice(
-        data.comparisonReady
-          ? "List saved. Upload a tray photo and choose a comparison."
-          : "List saved. Total-count comparison is available; product comparison requires supported medicines."
+      const record = { ...data };
+      delete record.recognition;
+      setHistory((previous) =>
+        [record, ...previous.filter((item) => item.id !== record.id)].slice(0, 200)
       );
     });
   }
 
-  function detectPills() {
-    if (!canDetect) return;
-
-    run("Detecting pills…", async () => {
-      setRecognition(null);
-      setResult(null);
-
-      const data = await api(
-        "/detect",
-        { imageData: photo }
-      );
-
-      if (
-        data?.mode !== "live" ||
-        !validRecognition(data)
-      ) {
-        throw new Error(
-          "Invalid pill-detection response."
-        );
-      }
-
-      if (mounted.current) {
-        setRecognition(data);
-      }
-    });
-  }
-
-  function compareTray(totalOnly = false) {
-    if (
-      totalOnly
-        ? !canCompareTotal
-        : !canVerify
-    ) {
-      return;
-    }
-
-    run(
-      totalOnly
-        ? "Comparing total pill count…"
-        : "Comparing medicines & counts…",
-      async () => {
-        setResult(null);
-        setRecognition(null);
-
-        const data = await api(
-          totalOnly
-            ? "/verify-total-count"
-            : "/verify-reviewed",
-          {
-            prescriptionId: prescription.id,
-            imageData: photo,
-          }
-        );
-
-        if (
-          data?.mode !== "live" ||
-          data.prescription?.id !== prescription.id ||
-          typeof data.status !== "string" ||
-          !validRecognition(data.recognition)
-        ) {
-          throw new Error(
-            "Invalid comparison response."
-          );
-        }
-
-        if (totalOnly) {
-          if (
-            data.comparisonType !== "total-count" ||
-            data.identitiesChecked !== false ||
-            !validCount(data.expectedTotal) ||
-            !validCount(data.detectedTotal) ||
-            !validCount(data.lowConfidenceCount) ||
-            data.lowConfidenceCount > data.detectedTotal ||
-            data.difference !==
-              data.detectedTotal - data.expectedTotal ||
-            data.detectedTotal !==
-              data.recognition.detections.length
-          ) {
-            throw new Error(
-              "Invalid total-count response."
-            );
-          }
-        } else if (
-          data.comparisonType !== "product-count" ||
-          !Array.isArray(data.rows) ||
-          !data.rows.every(
-            (row) =>
-              row &&
-              typeof row.productId === "string" &&
-              validCount(row.expected) &&
-              validCount(row.found)
-          ) ||
-          !Array.isArray(data.uncertain) ||
-          !data.uncertain.every(
-            (item) =>
-              item &&
-              typeof item.label === "string" &&
-              Number.isFinite(item.confidence) &&
-              item.confidence >= 0 &&
-              item.confidence <= 1
-          )
-        ) {
-          throw new Error(
-            "Invalid product comparison response."
-          );
-        }
-
-        if (!mounted.current) return;
-
-        setRecognition(data.recognition);
-        setResult(data);
-
-        const record = { ...data };
-        delete record.recognition;
-
-        setHistory((previous) =>
-          [record, ...previous].slice(0, 200)
-        );
-      }
-    );
-  }
-
-  const comparisonReason = !prescription
-    ? "Save a reviewed list in step 2 before comparing."
-    : !photo
-    ? "Choose a tray photo."
-    : !modelReady
-    ? "The pill model is unavailable."
-    : !prescription.comparisonReady
-    ? "Some medicines are unsupported. Use total-count comparison; medicine identities will not be checked."
-    : "Both comparison options are available. Review all predictions.";
+  const stepLabels = ["Prescription", "Review medicines", "Tray & results"];
+  const threshold = Number.isFinite(result?.confidenceThreshold)
+    ? result.confidenceThreshold
+    : DEFAULT_REVIEW_THRESHOLD;
 
   return (
-    <div className="med-workspace">
-      <style>{REVIEW_STYLES}</style>
-
-      <header className="mv-top">
-        <div className="mv-brand">
-          <span className="mv-brand-icon">
-            <Icon kind="plus" />
-          </span>
-          <div>
-            <strong>Hypertension Care</strong>
-            <small>Medicine review workspace</small>
-          </div>
-        </div>
-
-        <nav aria-label="Medicine workspace navigation">
-          <button
-            type="button"
-            className={
-              page === "workspace" ? "active" : ""
-            }
-            disabled={busy}
-            onClick={() => setPage("workspace")}
-            aria-current={
-              page === "workspace" ? "page" : undefined
-            }
-          >
-            <Icon kind="document" size={17} />
-            Workspace
-          </button>
-
-          <button
-            type="button"
-            className={
-              page === "history" ? "active" : ""
-            }
-            disabled={busy}
-            onClick={() => setPage("history")}
-            aria-current={
-              page === "history" ? "page" : undefined
-            }
-          >
-            <Icon kind="history" size={17} />
-            History
-          </button>
-        </nav>
-
-        <span
-          className={`mv-connection ${
-            connected ? "online" : ""
-          }`}
-        >
-          <i aria-hidden="true" />
-          {loading
-            ? "Connecting"
-            : connected
-            ? "API connected"
-            : "API offline"}
-        </span>
-      </header>
-
-      <main className="mv-main">
-        <div className="mv-heading">
-          <div>
-            <span className="mv-eyebrow">
-              CAREGIVER WORKSPACE
-            </span>
+    <div className="av-medicine">
+      <div className="av-inner">
+        <header className="av-toolbar">
+          <div className="av-title">
             <h1>
-              {page === "history"
-                ? "Review history"
-                : "Every medicine. Clearly reviewed."}
+              {page === "history" ? "Review history" : "Medicine verification"}
             </h1>
             <p>
               {page === "history"
-                ? "Saved comparisons with their comparison type."
-                : "Read the prescription, review the instructions, then inspect the prepared tray."}
+                ? "Previous tray comparisons."
+                : "Read the prescription, review the tablets per dose, then check the prepared tray."}
             </p>
           </div>
-
-          <span className="mv-tag">
-            Manual review required
-          </span>
-        </div>
+          <div className="av-toolbar-right">
+            <div className="av-seg" role="group" aria-label="Medicine navigation">
+              <button
+                className={page === "workspace" ? "active" : ""}
+                disabled={busy}
+                onClick={() => setPage("workspace")}
+              >
+                Workspace
+              </button>
+              <button
+                className={page === "history" ? "active" : ""}
+                disabled={busy}
+                onClick={() => setPage("history")}
+              >
+                History
+              </button>
+            </div>
+            <span className="av-status">
+              <i className={`av-dot ${connected ? "online" : ""}`} />
+              {loading
+                ? "Connecting…"
+                : connected
+                ? "API connected"
+                : "API offline"}
+            </span>
+          </div>
+        </header>
 
         {error && (
-          <div className="mv-alert error" role="alert">
-            {error}
+          <div className="av-alert av-error" role="alert">
+            <Icon name="alert" />
+            <div>{error}</div>
           </div>
         )}
-
         {notice && (
-          <div className="mv-alert info" role="status">
-            {notice}
+          <div className="av-alert" role="status">
+            <Icon name="info" />
+            <div>{notice}</div>
           </div>
         )}
-
         {busy && (
-          <div className="mv-progress" role="status">
-            {operation}
+          <div className="av-alert av-busy" role="status">
+            <span className="av-spinner" />
+            <div>{operation}</div>
           </div>
         )}
 
         {loading ? (
-          <div className="mv-empty">
-            Connecting to the medicine service…
-          </div>
+          <p className="av-muted">Connecting to the medicine service…</p>
         ) : page === "history" ? (
-          <section className="mv-panel">
-            <div className="mv-panel-heading">
-              <h2>Previous comparisons</h2>
-              <span className="mv-tag">
-                {history.length} records
-              </span>
-            </div>
-
-            {!history.length ? (
-              <div className="mv-empty">
-                No saved comparisons yet.
-              </div>
-            ) : (
-              <div className="mv-history">
-                {history.map((record, index) => (
-                  <article
-                    key={record.id || index}
-                    className="mv-history-row"
-                  >
-                    <span className="mv-history-icon">
-                      <Icon kind="history" />
-                    </span>
-
-                    <div>
-                      <strong>
-                        {record.reference ||
-                          record.prescription?.doseLabel ||
-                          "Prepared tray"}
-                      </strong>
-
-                      <p className="mv-help">
-                        {record.comparisonType === "total-count"
-                          ? "Total count only · identities not checked"
-                          : "Predicted products and counts · review required"}
-                      </p>
-
-                      {record.comparisonType === "total-count" && (
-                        <p className="mv-help">
-                          Expected: {record.expectedTotal}
-                          {" · "}
-                          Detected: {record.detectedTotal}
-                        </p>
-                      )}
-
-                      <p className="mv-help">
-                        {record.createdAt &&
-                        !Number.isNaN(Date.parse(record.createdAt))
-                          ? new Date(
-                              record.createdAt
-                            ).toLocaleString()
-                          : "Date unavailable"}
-                      </p>
-                    </div>
-
-                    <span
-                      className={`mv-badge ${tone(record.status)}`}
-                    >
-                      {record.status || "Review required"}
-                    </span>
-                  </article>
-                ))}
+          <section>
+            {!history.length && (
+              <div className="av-empty">
+                <span className="av-drop-icon">
+                  <Icon name="pill" size={26} />
+                </span>
+                <strong>No saved comparisons yet</strong>
+                <p>Completed tray comparisons will appear here.</p>
               </div>
             )}
+            {history.map((record, index) => (
+              <article className="av-card" key={record.id || index}>
+                <div
+                  className="av-row-head"
+                  style={{ padding: 0, border: 0 }}
+                >
+                  <div className="av-row-title">
+                    <h3>
+                      {record.reference ||
+                        record.prescription?.doseLabel ||
+                        "Prepared tray"}
+                    </h3>
+                    <small>
+                      {record.createdAt &&
+                      !Number.isNaN(Date.parse(record.createdAt))
+                        ? new Date(record.createdAt).toLocaleString()
+                        : "Date unavailable"}
+                    </small>
+                  </div>
+                  <StatusChip tone={comparisonTone(record)}>
+                    {record.status}
+                  </StatusChip>
+                </div>
+                <p className="av-muted" style={{ marginTop: 12 }}>
+                  {record.comparisonType === "total-count"
+                    ? `Total count only · expected ${record.expectedTotal}, detected ${record.detectedTotal}`
+                    : "Predicted products and counts · manual review required"}
+                </p>
+                <details>
+                  <summary>View comparison</summary>
+                  <div style={{ marginTop: 14 }}>
+                    <ComparisonResult
+                      result={record}
+                      productName={productName}
+                    />
+                  </div>
+                </details>
+              </article>
+            ))}
           </section>
         ) : (
           <>
-            <nav
-              className="mv-steps"
-              aria-label="Verification steps"
-            >
-              {STEPS.map((label, index) => (
+            <nav className="av-steps" aria-label="Review steps">
+              {stepLabels.map((label, index) => (
                 <button
-                  type="button"
                   key={label}
-                  className={
-                    step === index ? "active" : ""
-                  }
-                  onClick={() => setStep(index)}
                   disabled={busy}
-                  aria-current={
-                    step === index ? "step" : undefined
-                  }
+                  onClick={() => setStep(index)}
+                  className={`${step === index ? "active" : ""} ${
+                    index < step ? "done" : ""
+                  }`}
+                  aria-current={step === index ? "step" : undefined}
                 >
-                  <span className="mv-step-number">
-                    0{index + 1}
+                  <span className="av-step-num">
+                    {index < step ? (
+                      <Icon name="check" size={16} />
+                    ) : (
+                      index + 1
+                    )}
                   </span>
-                  <span>{label}</span>
-                  <Icon
-                    kind={
-                      ["document", "check", "image"][index]
-                    }
-                    size={18}
-                  />
+                  {label}
                 </button>
               ))}
             </nav>
 
             {step === 0 && (
-              <>
-                <section className="mv-extraction-options">
-                  <label htmlFor="mv-tray-scope">
-                    What does this tray contain?
-                  </label>
-
-                  <select
-                    id="mv-tray-scope"
-                    value={trayScope}
-                    disabled={busy}
-                    onChange={(event) =>
-                      changeExtractionOption(
-                        setTrayScope,
-                        event.target.value
-                      )
-                    }
-                  >
-                    <option value="manual">
-                      Custom tray — enter quantities manually
-                    </option>
-                    <option value="single-dose">
-                      One scheduled dose — confirm each medicine applies
-                    </option>
-                    <option value="full-day">
-                      Full day — all scheduled doses
-                    </option>
-                  </select>
-
-                  <label className="mv-checkbox">
+              <fieldset disabled={busy}>
+                <section className="av-card">
+                  <div className="av-card-head">
+                    <h2>Tray for one dose</h2>
+                    <p>Counts are calculated from clear extracted instructions.</p>
+                  </div>
+                  <div className="av-alert" style={{ marginBottom: 0 }}>
+                    <Icon name="info" />
+                    <div>
+                      Each tray is for <strong>one scheduled dose time</strong>.
+                      Using the configured shorthand convention, 1x3 means one
+                      tablet per dose and 2x3 means two tablets per dose.
+                      Confirm that each medicine belongs at this time.
+                    </div>
+                  </div>
+                  <label className="av-switch">
                     <input
+                      className="av-sr"
                       type="checkbox"
                       checked={useLLM}
-                      disabled={busy}
-                      onChange={(event) =>
-                        changeExtractionOption(
-                          setUseLLM,
-                          event.target.checked
-                        )
-                      }
+                      onChange={(event) => changeLLM(event.target.checked)}
                     />
+                    <span className="av-switch-track" />
                     <span>
-                      Use Groq LLM to extract dosage instructions
+                      <strong>Use Groq LLM for extraction</strong>
+                      <small>OCR text is sent to Groq to read instructions.</small>
                     </span>
                   </label>
-
-                  <p className="mv-help">
-                    With LLM enabled, medicine text is sent to Groq.
-                    Choose the tray scope before creating the draft.
-                    For a single-dose tray, confirm which medicines
-                    belong at that dose time.
-                  </p>
-
-                  {useLLM && !llmConfigured && (
-                    <p className="mv-inline-warning">
-                      Groq key is missing in the API process.
-                      Restart the API from the terminal where
-                      GROQ_API_KEY is set, or disable LLM mode
-                      to use the local parser.
-                    </p>
+                  {useLLM && !service?.llmConfigured && (
+                    <div
+                      className="av-alert av-warning"
+                      style={{ marginTop: 14, marginBottom: 0 }}
+                    >
+                      <Icon name="alert" />
+                      <div>
+                        The API has no Groq key. The backend may use a labelled
+                        local fallback.
+                      </div>
+                    </div>
                   )}
                 </section>
 
-                <div className="mv-source-grid">
-                  <section className="mv-panel">
-                    <span className="mv-eyebrow">
-                      01 / SOURCE IMAGE
-                    </span>
-                    <h2>Add the prescription</h2>
-
-                    <p className="mv-help">
-                      Use a sharp image with all medicine
-                      instructions visible.
-                    </p>
-
-                    <Upload
+                <div className="av-grid">
+                  <section className="av-card">
+                    <div className="av-card-head">
+                      <h2>Add the prescription</h2>
+                      <p>Upload a clear, well-lit photo.</p>
+                    </div>
+                    <PhotoInput
+                      title="Choose prescription photo"
                       image={prescriptionPhoto}
                       filename={prescriptionFilename}
-                      title="Choose prescription photo"
-                      onChange={(event) =>
-                        loadImage(event, true)
-                      }
                       disabled={busy}
+                      onChange={(event) => loadPhoto(event, true)}
                     />
-
-                    <button
-                      type="button"
-                      className="mv-primary"
-                      onClick={extractPrescription}
-                      disabled={
-                        busy ||
-                        !connected ||
-                        !prescriptionPhoto
-                      }
-                    >
-                      <Icon kind="document" size={18} />
-                      Read prescription & create draft
-                    </button>
+                    <div className="av-actions">
+                      <button
+                        className="av-button av-primary av-wide"
+                        disabled={!prescriptionPhoto || !connected}
+                        onClick={extractPhoto}
+                      >
+                        Read prescription & create draft
+                      </button>
+                    </div>
                   </section>
 
-                  <section className="mv-panel">
-                    <span className="mv-eyebrow">
-                      EXTRACTED TEXT
-                    </span>
-                    <h2>Check what was read</h2>
-
-                    <p className="mv-help">
-                      Correct OCR spelling or enter one medicine
-                      instruction per line.
-                    </p>
-
-                    <label htmlFor="mv-source-text">
+                  <section className="av-card">
+                    <div className="av-card-head">
+                      <h2>Check what was read</h2>
+                      <p>
+                        One medicine per line. Check decimal points and handwritten
+                        numbers.
+                      </p>
+                    </div>
+                    <label
+                      className="av-label"
+                      htmlFor="av-ocr"
+                      style={{ marginTop: 0 }}
+                    >
                       Prescription text
                     </label>
-
                     <textarea
-                      id="mv-source-text"
-                      rows={10}
-                      maxLength={12000}
+                      id="av-ocr"
                       value={text}
-                      disabled={busy}
-                      placeholder="Extracted medicine lines will appear here…"
+                      maxLength={12000}
+                      placeholder={
+                        "Tab. Amlodipine 2.5 mg 1x1\nTab. Atenolol 50 mg 1x2"
+                      }
                       onChange={(event) => {
                         setText(event.target.value);
                         invalidate();
+                        setRows([]);
+                        setExtraction(null);
                       }}
                     />
-
-                    <button
-                      type="button"
-                      className="mv-primary"
-                      disabled={
-                        busy ||
-                        !connected ||
-                        !text.trim()
-                      }
-                      onClick={() =>
-                        run(
-                          "Creating medicine draft…",
-                          () => createDraft(text)
-                        )
-                      }
-                    >
-                      Create / replace medicine draft
-                      <Icon kind="arrow" size={18} />
-                    </button>
-
-                    <p className="mv-help">
-                      Creating a draft replaces edited rows.
-                      It does not save a prescription.
+                    <div className="av-actions">
+                      <button
+                        className="av-button av-primary"
+                        disabled={!text.trim() || !connected}
+                        onClick={createDraft}
+                      >
+                        Create / replace draft
+                      </button>
+                      <button
+                        className="av-button"
+                        disabled={!connected}
+                        onClick={addMedicine}
+                      >
+                        Enter manually
+                      </button>
+                    </div>
+                    <p className="av-muted" style={{ marginBottom: 0 }}>
+                      Creating a draft replaces the existing rows.
                     </p>
-
-                    <button
-                      type="button"
-                      className="mv-text-button"
-                      disabled={busy}
-                      onClick={() => setStep(1)}
-                    >
-                      Enter medicines manually instead
-                    </button>
-
                     {ocrResult && (
-                      <details className="mv-details">
-                        <summary>
-                          All OCR text & reading notes
-                        </summary>
-
-                        <pre>
-                          {ocrResult.rawText ||
-                            ocrResult.text ||
-                            "No text returned."}
-                        </pre>
-
-                        {Array.isArray(ocrResult.warnings) &&
-                          ocrResult.warnings.map(
-                            (warning, index) => (
-                              <p
-                                className="mv-help"
-                                key={index}
-                              >
-                                {String(warning)}
-                              </p>
-                            )
-                          )}
+                      <details>
+                        <summary>OCR details</summary>
+                        <pre>{JSON.stringify(ocrResult, null, 2)}</pre>
                       </details>
                     )}
                   </section>
                 </div>
-              </>
+              </fieldset>
             )}
 
             {step === 1 && (
-              <div className="mv-review-layout">
-                <aside className="mv-panel mv-reference">
-                  <span className="mv-eyebrow">
-                    ORIGINAL PRESCRIPTION
-                  </span>
-                  <h2>Keep the source in view</h2>
-
+              <div className="av-grid av-review">
+                <aside className="av-card">
+                  <div className="av-card-head">
+                    <h2>Original prescription</h2>
+                    <p>{TRAY_LABEL}</p>
+                  </div>
                   {prescriptionPhoto ? (
                     <a
                       href={prescriptionPhoto}
@@ -1585,472 +1269,398 @@ export default function TrayVerification() {
                       rel="noreferrer"
                     >
                       <img
-                        className="mv-reference-image"
+                        className="av-photo"
                         src={prescriptionPhoto}
                         alt="Original prescription"
                       />
                     </a>
                   ) : (
-                    <div className="mv-empty">
-                      No prescription image selected.
-                    </div>
+                    <p className="av-muted">No prescription image uploaded.</p>
                   )}
-
-                  <p className="mv-help">
-                    Click the image for a closer view.
+                  <p className="av-muted" style={{ marginTop: 14 }}>
+                    Counts are draft calculations. Review against the source before
+                    saving.
                   </p>
-
                   <button
-                    type="button"
-                    className="mv-secondary"
+                    className="av-button av-wide"
                     disabled={busy}
                     onClick={() => setStep(0)}
                   >
-                    Back to source & extraction options
+                    Back to source & options
                   </button>
-
-                  <div className="mv-reference-note">
-                    <strong>Review the extracted instructions</strong>
-                    <p>
-                      Clear fixed instructions can fill quantities
-                      for the selected tray scope.
+                  {extraction && (
+                    <p
+                      className="av-muted"
+                      style={{ marginTop: 12, marginBottom: 0 }}
+                    >
+                      Extraction: <strong>{extraction.provider}</strong>
                     </p>
-                    <p>
-                      Ambiguous instructions remain manual.
-                      Changing a medicine or instruction clears
-                      its calculated quantity.
-                    </p>
-                    <p>
-                      Unsupported medicines can be saved for
-                      total-count comparison.
-                    </p>
-                  </div>
+                  )}
                 </aside>
 
                 <section>
-                  <div className="mv-review-title">
+                  <div className="av-metrics">
                     <div>
-                      <span className="mv-eyebrow">
-                        02 / REVIEW THE DRAFT
-                      </span>
-                      <h2>Your medicine list</h2>
-                    </div>
-
-                    <span className="mv-tag">
-                      {rows.length} medicines
-                    </span>
-                  </div>
-
-                  <div className="mv-metrics">
-                    <div>
-                      <strong>{selectedIds.length}</strong>
-                      <span>Products selected</span>
+                      <strong>{rows.length}</strong>
+                      <small>Medicine rows</small>
                     </div>
                     <div>
-                      <strong>{incompleteRows}</strong>
-                      <span>Incomplete rows</span>
+                      <strong>{rows.length - unmatched}</strong>
+                      <small>Products selected</small>
                     </div>
-                    <div>
-                      <strong>{missingStrengths}</strong>
-                      <span>Strengths to check</span>
+                    <div className={incomplete ? "warn" : ""}>
+                      <strong>{incomplete}</strong>
+                      <small>Need a count or name</small>
                     </div>
                   </div>
 
-                  <fieldset
-                    className="mv-fields"
-                    disabled={busy}
-                  >
-                    <legend className="mv-sr-only">
-                      Reviewed prescription details
-                    </legend>
-
-                    <div className="mv-panel mv-pair">
+                  {extraction?.fallbackUsed && (
+                    <div className="av-alert av-warning" role="status">
+                      <Icon name="alert" />
                       <div>
-                        <label htmlFor="mv-reference">
-                          Patient / tray reference
-                        </label>
-                        <input
-                          id="mv-reference"
-                          maxLength={200}
-                          value={reference}
-                          placeholder="Optional reference"
-                          onChange={(event) => {
-                            setReference(event.target.value);
-                            invalidate();
-                          }}
-                        />
-                      </div>
-
-                      <div>
-                        <label htmlFor="mv-dose">
-                          Tray label
-                        </label>
-                        <input
-                          id="mv-dose"
-                          maxLength={200}
-                          value={doseLabel}
-                          onChange={(event) => {
-                            setDoseLabel(event.target.value);
-                            invalidate();
-                          }}
-                        />
+                        <strong>Local fallback used.</strong>{" "}
+                        {extraction.fallbackReason}
                       </div>
                     </div>
+                  )}
 
-                    <div className="mv-panel-heading">
-                      <p className="mv-help">
-                        {products.length} supported products loaded
+                  <fieldset disabled={busy}>
+                    <div className="av-card">
+                      <label
+                        className="av-label"
+                        htmlFor="av-reference"
+                        style={{ marginTop: 0 }}
+                      >
+                        Patient / tray reference · optional
+                      </label>
+                      <input
+                        id="av-reference"
+                        value={reference}
+                        maxLength={200}
+                        onChange={(event) => {
+                          setReference(event.target.value);
+                          invalidate();
+                        }}
+                      />
+                      <p
+                        className="av-muted"
+                        style={{ marginTop: 10, marginBottom: 0 }}
+                      >
+                        {products.length} dataset products available · {TRAY_LABEL}
                       </p>
-
-                      <button
-                        type="button"
-                        className="mv-secondary"
-                        disabled={
-                          !connected || !rows.length
-                        }
-                        onClick={matchSupportedProducts}
-                      >
-                        Match supported products
-                      </button>
                     </div>
 
-                    {rows.map((row, index) => (
-                      <article
-                        className="mv-medicine"
-                        key={row.rowId}
-                      >
-                        <div className="mv-medicine-heading">
-                          <span className="mv-medicine-number">
-                            {String(index + 1).padStart(2, "0")}
-                          </span>
+                    {!rows.length && (
+                      <div className="av-empty">
+                        <span className="av-drop-icon">
+                          <Icon name="pill" size={26} />
+                        </span>
+                        <strong>No medicines yet</strong>
+                        <p>Create a draft, or add a medicine manually.</p>
+                      </div>
+                    )}
 
-                          <div>
-                            <h3>
-                              {row.medicineName.trim() ||
-                                `Medicine ${index + 1}`}
-                            </h3>
-                            <p>
-                              {row.productId
-                                ? row.matchType === "exact-text"
-                                  ? "Exact text match · confirm product"
-                                  : "Product selected manually"
-                                : "No supported product selected"}
-                            </p>
-                          </div>
+                    {rows.map((row, index) => {
+                      const productOk = Boolean(row.productId);
+                      const countOk = quantityValid(row.quantity);
+                      const needsReview = !productOk || !countOk;
 
-                          <button
-                            type="button"
-                            className="mv-remove"
-                            aria-label={`Remove medicine ${index + 1}`}
-                            onClick={() => {
-                              invalidate();
-                              setRows((previous) =>
-                                previous.filter(
-                                  (item) =>
-                                    item.rowId !== row.rowId
-                                )
-                              );
-                            }}
-                          >
-                            Remove
-                          </button>
-                        </div>
-
-                        {row.sourceText && (
-                          <details className="mv-source-line">
-                            <summary>
-                              Original OCR instruction
-                            </summary>
-                            <p>{row.sourceText}</p>
-                          </details>
-                        )}
-
-                        <label htmlFor={`name-${row.rowId}`}>
-                          Reviewed medicine name
-                        </label>
-                        <input
-                          id={`name-${row.rowId}`}
-                          value={row.medicineName}
-                          maxLength={200}
-                          placeholder="Enter medicine name"
-                          onChange={(event) =>
-                            updateRow(
-                              row.rowId,
-                              "medicineName",
-                              event.target.value
-                            )
-                          }
-                        />
-
-                        <div className="mv-pair">
-                          <div>
-                            <label htmlFor={`strength-${row.rowId}`}>
-                              Recorded strength · optional
-                            </label>
-                            <input
-                              id={`strength-${row.rowId}`}
-                              value={row.strength}
-                              maxLength={80}
-                              placeholder="Strength on prescription"
-                              onChange={(event) =>
-                                updateRow(
-                                  row.rowId,
-                                  "strength",
-                                  event.target.value
-                                )
-                              }
-                            />
-                            <p className="mv-field-note">
-                              The pill model does not verify strength.
-                            </p>
-                          </div>
-
-                          <div>
-                            <label htmlFor={`qty-${row.rowId}`}>
-                              Pills for this tray
-                            </label>
-                            <input
-                              id={`qty-${row.rowId}`}
-                              type="number"
-                              min="1"
-                              max="100"
-                              step="1"
-                              value={row.quantity}
-                              placeholder="Enter tray quantity"
-                              onChange={(event) =>
-                                updateRow(
-                                  row.rowId,
-                                  "quantity",
-                                  event.target.value
-                                )
-                              }
-                            />
-
-                            {[
-                              "explicit",
-                              "llm-fixed-schedule",
-                            ].includes(row.quantitySource) &&
-                              quantityValid(row.quantity) && (
-                                <span className="mv-autofill-note">
-                                  Auto-filled · editable
-                                </span>
-                              )}
-
-                            <p className="mv-field-note">
-                              Confirm the intended count for this tray.
-                            </p>
-                          </div>
-                        </div>
-
-                        <div className="mv-pair">
-                          <div>
-                            <label htmlFor={`dose-${row.rowId}`}>
-                              Dose instruction
-                            </label>
-                            <input
-                              id={`dose-${row.rowId}`}
-                              value={row.doseText || ""}
-                              maxLength={500}
-                              placeholder="Example: 1 tablet"
-                              onChange={(event) =>
-                                updateRow(
-                                  row.rowId,
-                                  "doseText",
-                                  event.target.value
-                                )
-                              }
-                            />
-                          </div>
-
-                          <div>
-                            <label htmlFor={`schedule-${row.rowId}`}>
-                              Schedule
-                            </label>
-                            <input
-                              id={`schedule-${row.rowId}`}
-                              value={row.scheduleText || ""}
-                              maxLength={500}
-                              placeholder="Example: twice daily"
-                              onChange={(event) =>
-                                updateRow(
-                                  row.rowId,
-                                  "scheduleText",
-                                  event.target.value
-                                )
-                              }
-                            />
-                          </div>
-                        </div>
-
-                        <label htmlFor={`duration-${row.rowId}`}>
-                          Duration instruction
-                        </label>
-                        <input
-                          id={`duration-${row.rowId}`}
-                          value={row.durationText || ""}
-                          maxLength={500}
-                          placeholder="Duration if stated"
-                          onChange={(event) =>
-                            updateRow(
-                              row.rowId,
-                              "durationText",
-                              event.target.value
-                            )
-                          }
-                        />
-
-                        {row.quantityExplanation && (
-                          <p className="mv-field-note">
-                            {row.quantityExplanation}
-                          </p>
-                        )}
-
-                        {row.reviewNotes?.length > 0 && (
-                          <details className="mv-source-line">
-                            <summary>
-                              Extraction review notes
-                            </summary>
-                            <ul>
-                              {row.reviewNotes.map(
-                                (note, noteIndex) => (
-                                  <li key={noteIndex}>
-                                    {note}
-                                  </li>
-                                )
-                              )}
-                            </ul>
-                          </details>
-                        )}
-
-                        <label htmlFor={`product-${row.rowId}`}>
-                          Exact supported product
-                        </label>
-                        <select
-                          id={`product-${row.rowId}`}
-                          value={row.productId}
-                          disabled={!connected}
-                          onChange={(event) =>
-                            updateRow(
-                              row.rowId,
-                              "productId",
-                              event.target.value
-                            )
-                          }
+                      return (
+                        <article
+                          className={`av-row ${needsReview ? "attention" : ""}`}
+                          key={row.rowId}
                         >
-                          <option value="">
-                            Not selected / unsupported
-                          </option>
-                          {products.map((product) => (
-                            <option
-                              key={product.id}
-                              value={product.id}
-                            >
-                              {product.name} · {product.id}
-                            </option>
-                          ))}
-                        </select>
-
-                        <p className="mv-field-note">
-                          {row.productId
-                            ? "Confirm the exact product against its packaging."
-                            : "Leave unsupported if no exact product exists. Total-count comparison remains available."}
-                        </p>
-
-                        {!row.productId &&
-                          row.suggestions?.length > 0 && (
-                            <div className="mv-suggestions">
+                          <div className="av-row-head">
+                            <span className="av-row-num">
+                              {String(index + 1).padStart(2, "0")}
+                            </span>
+                            <div className="av-row-title">
+                              <h3>{row.medicineName || "New medicine"}</h3>
                               <small>
-                                Possible matches — check before selecting
+                                {row.strength || "Strength not clearly read"}
                               </small>
+                            </div>
+                            <StatusChip tone={needsReview ? "warning" : "match"}>
+                              {needsReview ? "Needs review" : "Ready for review"}
+                            </StatusChip>
+                          </div>
 
-                              {row.suggestions
-                                .filter((suggestion) =>
-                                  products.some(
-                                    (product) =>
-                                      product.id ===
-                                      suggestion.productId
+                          <div className="av-row-body">
+                            <div className="av-summary">
+                              <div className={`av-tile ${productOk ? "" : "warn"}`}>
+                                <span className="av-tile-icon">
+                                  <Icon
+                                    name={productOk ? "check" : "alert"}
+                                    size={15}
+                                  />
+                                </span>
+                                <div>
+                                  <small>Matched dataset product</small>
+                                  <strong>
+                                    {productOk
+                                      ? productName(row.productId)
+                                      : "No unique exact match"}
+                                  </strong>
+                                </div>
+                              </div>
+                              <div className={`av-tile ${countOk ? "" : "warn"}`}>
+                                <span className="av-tile-icon">
+                                  <Icon
+                                    name={countOk ? "check" : "alert"}
+                                    size={15}
+                                  />
+                                </span>
+                                <div>
+                                  <small>Tablets per dose</small>
+                                  <strong>
+                                    {countOk
+                                      ? `${row.quantity} tablet${
+                                          Number(row.quantity) > 1 ? "s" : ""
+                                        }`
+                                      : "Instruction needs review"}
+                                  </strong>
+                                </div>
+                              </div>
+                            </div>
+
+                            <p className="av-instruction">
+                              <span>Read instruction</span>
+                              <code>
+                                {[row.doseText, row.scheduleText]
+                                  .filter(Boolean)
+                                  .join(" · ") || "Not clearly extracted"}
+                              </code>
+                            </p>
+                            {row.quantityExplanation && (
+                              <p className="av-muted" style={{ marginBottom: 0 }}>
+                                {row.quantityExplanation}
+                              </p>
+                            )}
+
+                            {!row.productId && row.suggestions.length > 0 && (
+                              <div className="av-suggest">
+                                <p className="av-muted" style={{ margin: 0 }}>
+                                  Possible matches. Select only after checking:
+                                </p>
+                                <div className="av-actions">
+                                  {row.suggestions.map((suggestion) => (
+                                    <button
+                                      className="av-button"
+                                      key={suggestion.productId}
+                                      onClick={() =>
+                                        chooseProduct(row, suggestion.productId)
+                                      }
+                                    >
+                                      {productName(suggestion.productId)}
+                                    </button>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+
+                            <details>
+                              <summary>
+                                Review / edit
+                                {needsReview ? " — attention required" : ""}
+                              </summary>
+
+                              <label
+                                className="av-label"
+                                htmlFor={`source-${row.rowId}`}
+                              >
+                                Original OCR instruction · editable
+                              </label>
+                              <textarea
+                                id={`source-${row.rowId}`}
+                                value={row.sourceText}
+                                maxLength={12000}
+                                style={{ minHeight: 80 }}
+                                onChange={(event) =>
+                                  editRow(
+                                    row.rowId,
+                                    "sourceText",
+                                    event.target.value
                                   )
-                                )
-                                .map((suggestion) => (
-                                  <button
-                                    type="button"
-                                    key={suggestion.productId}
-                                    onClick={() =>
-                                      updateRow(
+                                }
+                              />
+                              <div className="av-actions">
+                                <button
+                                  className="av-button av-primary"
+                                  disabled={!row.sourceText.trim() || !connected}
+                                  onClick={() => rereadRow(row)}
+                                >
+                                  Re-read this instruction
+                                </button>
+                              </div>
+                              <p className="av-muted">
+                                Correct the text against the image, then re-read to
+                                update the extracted fields and count.
+                              </p>
+
+                              <div className="av-grid" style={{ gap: 16 }}>
+                                <div>
+                                  <label
+                                    className="av-label"
+                                    htmlFor={`name-${row.rowId}`}
+                                  >
+                                    Reviewed medicine name
+                                  </label>
+                                  <input
+                                    id={`name-${row.rowId}`}
+                                    value={row.medicineName}
+                                    maxLength={200}
+                                    onChange={(event) =>
+                                      editRow(
                                         row.rowId,
-                                        "productId",
-                                        suggestion.productId
+                                        "medicineName",
+                                        event.target.value
                                       )
                                     }
+                                  />
+                                </div>
+                                <div>
+                                  <label
+                                    className="av-label"
+                                    htmlFor={`strength-${row.rowId}`}
                                   >
-                                    {suggestion.name}
-                                  </button>
-                                ))}
-                            </div>
-                          )}
-                      </article>
-                    ))}
+                                    Recorded strength
+                                  </label>
+                                  <input
+                                    id={`strength-${row.rowId}`}
+                                    value={row.strength}
+                                    maxLength={80}
+                                    onChange={(event) =>
+                                      editRow(
+                                        row.rowId,
+                                        "strength",
+                                        event.target.value
+                                      )
+                                    }
+                                  />
+                                </div>
+                                <div>
+                                  <label
+                                    className="av-label"
+                                    htmlFor={`product-${row.rowId}`}
+                                  >
+                                    Dataset product override
+                                  </label>
+                                  <select
+                                    id={`product-${row.rowId}`}
+                                    value={row.productId}
+                                    onChange={(event) =>
+                                      chooseProduct(row, event.target.value)
+                                    }
+                                  >
+                                    <option value="">
+                                      Needs review / no exact match
+                                    </option>
+                                    {products.map((product) => (
+                                      <option key={product.id} value={product.id}>
+                                        {product.name}
+                                      </option>
+                                    ))}
+                                  </select>
+                                </div>
+                                <div>
+                                  <label
+                                    className="av-label"
+                                    htmlFor={`quantity-${row.rowId}`}
+                                  >
+                                    Tablets per dose override · only if required
+                                  </label>
+                                  <input
+                                    id={`quantity-${row.rowId}`}
+                                    type="number"
+                                    min="1"
+                                    max="100"
+                                    step="1"
+                                    value={row.quantity}
+                                    onChange={(event) =>
+                                      editRow(
+                                        row.rowId,
+                                        "quantity",
+                                        event.target.value
+                                      )
+                                    }
+                                  />
+                                </div>
+                              </div>
+
+                              {!!row.reviewNotes.length && (
+                                <ul className="av-muted">
+                                  {row.reviewNotes.map((note, noteIndex) => (
+                                    <li key={noteIndex}>{note}</li>
+                                  ))}
+                                </ul>
+                              )}
+                              <div className="av-actions">
+                                <button
+                                  className="av-button av-danger"
+                                  onClick={() => {
+                                    invalidate();
+                                    setRows((previous) =>
+                                      previous.filter(
+                                        (item) => item.rowId !== row.rowId
+                                      )
+                                    );
+                                  }}
+                                >
+                                  Remove medicine
+                                </button>
+                              </div>
+                            </details>
+                          </div>
+                        </article>
+                      );
+                    })}
 
                     <button
-                      type="button"
-                      className="mv-add"
+                      className="av-button av-add"
                       disabled={rows.length >= 50}
-                      onClick={() => {
-                        invalidate();
-                        const newRow = freshRow();
-                        setRows((previous) => [
-                          ...previous,
-                          newRow,
-                        ]);
-                      }}
+                      onClick={addMedicine}
                     >
-                      <Icon kind="plus" size={18} />
-                      Add medicine
+                      + Add medicine
                     </button>
 
-                    <div className="mv-panel mv-save-panel">
-                      {unmappedRows > 0 && (
-                        <p className="mv-inline-warning">
-                          {unmappedRows} unsupported/unselected
-                          product(s). You can save this list and
-                          compare total counts.
+                    <section
+                      className="av-card av-save"
+                      style={{ marginTop: 22 }}
+                    >
+                      {!!unmatched && (
+                        <p className="av-muted">
+                          {unmatched} product(s) need review. A saved list without
+                          product matches supports total-count comparison only.
                         </p>
                       )}
-
-                      <label className="mv-checkbox">
+                      <label
+                        className="av-check"
+                        style={{ background: "#ffffff", marginTop: 0 }}
+                      >
                         <input
                           type="checkbox"
                           checked={reviewed}
                           onChange={(event) => {
                             setReviewed(event.target.checked);
-                            setPrescription(null);
+                            setSaved(null);
                             setResult(null);
                           }}
                         />
                         <span>
-                          I reviewed medicine names, instructions,
-                          recorded strengths and tray quantities.
-                          Any selected product matches its packaging;
-                          unsupported products remain unselected.
+                          I checked the original instructions, names, strengths,
+                          selected products and tablets per dose. I confirmed that
+                          every medicine listed belongs to this dose time.
                         </span>
                       </label>
-
-                      {saveReason && (
-                        <p className="mv-field-note">
-                          {saveReason}
-                        </p>
-                      )}
-
+                      {saveReason && <p className="av-muted">{saveReason}</p>}
                       <button
-                        type="button"
-                        className="mv-primary"
+                        className="av-button av-primary av-wide"
                         disabled={!canSave}
-                        onClick={savePrescription}
+                        onClick={saveList}
                       >
                         Save reviewed list & continue
-                        <Icon kind="arrow" size={18} />
                       </button>
-                    </div>
+                    </section>
                   </fieldset>
                 </section>
               </div>
@@ -2058,397 +1668,175 @@ export default function TrayVerification() {
 
             {step === 2 && (
               <>
-                <div className="mv-tray-layout">
-                  <section className="mv-panel">
-                    <span className="mv-eyebrow">
-                      03 / PREPARED TRAY
-                    </span>
-                    <h2>Add your tray photo</h2>
-
-                    <Upload
+                <div className="av-grid">
+                  <section className="av-card">
+                    <div className="av-card-head">
+                      <h2>Prepared tray</h2>
+                      <p>
+                        Tablets separate, visible and in focus, on a plain
+                        background.
+                      </p>
+                    </div>
+                    <PhotoInput
+                      title="Choose tray photo"
                       image={photo}
                       filename={filename}
-                      title="Choose tray photo"
-                      onChange={(event) =>
-                        loadImage(event, false)
-                      }
                       disabled={busy}
+                      onChange={(event) => loadPhoto(event, false)}
                     />
-
-                    <p className="mv-help">
-                      Keep pills separate, visible and in focus.
-                    </p>
-
-                    <div className="mv-actions">
+                    <div className="av-actions">
                       <button
-                        type="button"
-                        className="mv-secondary"
+                        className="av-button"
                         disabled={!canDetect}
-                        onClick={detectPills}
+                        onClick={detect}
                       >
                         Detect pills
                       </button>
-
                       <button
-                        type="button"
-                        className="mv-secondary"
-                        disabled={!canCompareTotal}
-                        onClick={() => compareTray(true)}
+                        className="av-button"
+                        disabled={!canTotal}
+                        onClick={() => compare(true)}
                       >
-                        Compare total pill count
+                        Compare total count
                       </button>
-
                       <button
-                        type="button"
-                        className="mv-primary"
-                        disabled={!canVerify}
-                        onClick={() => compareTray(false)}
+                        className="av-button av-primary"
+                        disabled={!canCompare}
+                        onClick={() => compare(false)}
                       >
                         Compare medicines & counts
                       </button>
                     </div>
-
-                    <p className="mv-field-note">
-                      {comparisonReason}
-                    </p>
-
-                    {!totalReady && (
-                      <p className="mv-field-note">
-                        Total-count service unavailable.
-                        Restart the API with the updated main.py.
+                    {!saved && (
+                      <p className="av-muted">
+                        Save a reviewed list before comparing.
                       </p>
                     )}
-
-                    <p className="mv-help">
-                      Total counting does not check medicine
-                      identities. Local recognition requires
-                      compatible trained classes.
-                    </p>
+                    {saved && !saved.comparisonReady && (
+                      <p className="av-muted">
+                        Some products remain unselected. Only total-count
+                        comparison is available.
+                      </p>
+                    )}
                   </section>
 
-                  <section className="mv-panel">
-                    <span className="mv-eyebrow">
-                      REVIEWED LIST
-                    </span>
-                    <h2>
-                      {prescription?.doseLabel ||
-                        doseLabel ||
-                        "Prepared tray"}
-                    </h2>
-
-                    {!prescription ? (
-                      <div className="mv-empty">
-                        No reviewed list saved yet.
-                      </div>
+                  <section className="av-card">
+                    <div className="av-card-head">
+                      <h2>{saved?.doseLabel || "Reviewed list"}</h2>
+                    </div>
+                    {!saved ? (
+                      <p className="av-muted">No reviewed list saved.</p>
                     ) : (
-                      <div className="mv-mini-list">
-                        {prescription.items.map(
-                          (item, index) => (
-                            <div key={index}>
-                              <span>
-                                <strong>
-                                  {item.medicineName ||
-                                    productName(item.productId)}
-                                </strong>
-                                <small>
-                                  {item.strength ||
-                                    "Strength not recorded"}
-                                </small>
-                                {!item.productId && (
-                                  <small>
-                                    Unsupported · total count only
-                                  </small>
-                                )}
-                              </span>
-                              <b>× {item.quantity}</b>
-                            </div>
-                          )
-                        )}
-                      </div>
+                      saved.items.map((item, index) => (
+                        <div className="av-detection" key={index}>
+                          <span>
+                            <strong>{item.medicineName}</strong>
+                            <small>
+                              {item.strength || "Strength not recorded"}
+                            </small>
+                            <small>
+                              {item.productId
+                                ? productName(item.productId)
+                                : "No product selected"}
+                            </small>
+                          </span>
+                          <strong>× {item.quantity}</strong>
+                        </div>
+                      ))
                     )}
-
-                    <button
-                      type="button"
-                      className="mv-text-button"
-                      disabled={busy}
-                      onClick={() => setStep(1)}
-                    >
-                      Edit reviewed medicine list
-                    </button>
+                    <div className="av-actions">
+                      <button
+                        className="av-button"
+                        disabled={busy}
+                        onClick={() => setStep(1)}
+                      >
+                        Review medicine list
+                      </button>
+                    </div>
                   </section>
                 </div>
 
-                {result?.comparisonType === "total-count" && (
-                  <section
-                    className="mv-panel mv-result mv-count-only"
-                    aria-live="polite"
-                  >
-                    <div className="mv-panel-heading">
-                      <div>
-                        <span className="mv-eyebrow">
-                          TOTAL COUNT ONLY
-                        </span>
-                        <h2>Tray count comparison</h2>
-                      </div>
-                      <span className="mv-badge uncertain">
-                        Identities not checked
-                      </span>
-                    </div>
+                <ComparisonResult
+                  result={result}
+                  productName={productName}
+                />
 
-                    <div className="mv-metrics">
-                      <div>
-                        <strong>{result.expectedTotal}</strong>
-                        <span>Expected total</span>
-                      </div>
-                      <div>
-                        <strong>{result.detectedTotal}</strong>
-                        <span>Detected objects</span>
-                      </div>
-                      <div>
-                        <strong>
-                          {result.difference > 0 ? "+" : ""}
-                          {result.difference}
-                        </strong>
-                        <span>Detected minus expected</span>
-                      </div>
-                    </div>
-
-                    <div className="mv-alert info">
-                      <strong>{result.status}</strong>
-                      <p>
-                        {result.difference === 0
-                          ? "The totals are equal. This does not confirm that the correct medicines are present."
-                          : result.difference < 0
-                          ? `${Math.abs(result.difference)} fewer objects were detected than expected. Inspect for missed pills.`
-                          : `${result.difference} more objects were detected than expected. Inspect for extra pills or incorrect detections.`}
-                      </p>
-                    </div>
-
-                    {result.lowConfidenceCount > 0 && (
-                      <div className="mv-alert warning">
-                        <strong>
-                          {result.lowConfidenceCount} low-confidence
-                          detection(s) included
-                        </strong>
-                        <p>
-                          These remain in the displayed total.
-                          Review every bounding box.
-                        </p>
-                      </div>
-                    )}
-
-                    <p className="mv-help">
-                      {result.notes}
-                    </p>
-                  </section>
-                )}
-
-                {result?.comparisonType === "product-count" && (
-                  <section
-                    className="mv-panel mv-result"
-                    aria-live="polite"
-                  >
-                    <div className="mv-panel-heading">
-                      <div>
-                        <span className="mv-eyebrow">
-                          PREDICTED PRODUCTS & COUNTS
-                        </span>
-                        <h2>Tray review results</h2>
-                      </div>
-                      <span
-                        className={`mv-badge ${tone(result.status)}`}
-                      >
-                        {result.status}
-                      </span>
-                    </div>
-
-                    <p className="mv-help">
-                      {result.notes}
-                    </p>
-
-                    <div className="mv-metrics">
-                      <div>
-                        <strong>
-                          {result.rows.reduce(
-                            (sum, row) => sum + row.expected,
-                            0
-                          )}
-                        </strong>
-                        <span>Expected pills</span>
-                      </div>
-                      <div>
-                        <strong>
-                          {result.rows.reduce(
-                            (sum, row) => sum + row.found,
-                            0
-                          )}
-                        </strong>
-                        <span>Counted predictions</span>
-                      </div>
-                      <div>
-                        <strong>
-                          {
-                            result.rows.filter(
-                              (row) =>
-                                row.expected !== row.found
-                            ).length
-                          }
-                        </strong>
-                        <span>Rows with differences</span>
-                      </div>
-                    </div>
-
-                    {result.uncertain.length > 0 && (
-                      <div className="mv-alert warning">
-                        <strong>
-                          Uncertain detections are excluded
-                          from product counts.
-                        </strong>
-                        <ul>
-                          {result.uncertain.map(
-                            (item, index) => (
-                              <li key={index}>
-                                {productName(item.label)}
-                                {" · "}
-                                {(item.confidence * 100).toFixed(1)}%
-                                {item.reason
-                                  ? ` · ${item.reason}`
-                                  : ""}
-                              </li>
-                            )
-                          )}
-                        </ul>
-                      </div>
-                    )}
-
-                    <div className="mv-result-grid">
-                      {result.rows.map((row, index) => {
-                        const difference =
-                          row.found - row.expected;
-
-                        const rowTone =
-                          difference !== 0
-                            ? "difference"
-                            : result.uncertain.length
-                            ? "uncertain"
-                            : "match";
-
-                        return (
-                          <article
-                            className={`mv-result-card ${rowTone}`}
-                            key={`${row.productId}-${index}`}
-                          >
-                            <span
-                              className={`mv-badge ${rowTone}`}
-                            >
-                              {difference < 0
-                                ? `${-difference} fewer predicted`
-                                : difference > 0
-                                ? `${difference} extra predicted`
-                                : "Counts equal · review required"}
-                            </span>
-
-                            <h3>
-                              {row.medicineName ||
-                                productName(row.productId)}
-                            </h3>
-
-                            <p className="mv-help">
-                              {productName(row.productId)}
-                            </p>
-
-                            {row.strength && (
-                              <p className="mv-help">
-                                Recorded strength: {row.strength}
-                                {" · "}not verified
-                              </p>
-                            )}
-
-                            <div className="mv-counts">
-                              <span>
-                                <small>Expected</small>
-                                <strong>{row.expected}</strong>
-                              </span>
-                              <span>
-                                <small>Predicted</small>
-                                <strong>{row.found}</strong>
-                              </span>
-                            </div>
-                          </article>
-                        );
-                      })}
-                    </div>
-                  </section>
-                )}
-
-                <section
-                  className="mv-panel"
-                  aria-live="polite"
-                  aria-busy={busy}
-                >
-                  <span className="mv-eyebrow">
-                    MODEL OUTPUT
-                  </span>
-                  <h2>
-                    {recognition
-                      ? `${recognition.detections.length} detections to review`
-                      : "Pill recognition"}
-                  </h2>
+                <section className="av-card">
+                  <div className="av-card-head">
+                    <h2>Model predictions</h2>
+                    <p>Model scores are not correctness guarantees.</p>
+                  </div>
 
                   {!recognition ? (
-                    <div className="mv-empty">
-                      Upload a tray photo and choose an action.
+                    <div className="av-empty" style={{ marginBottom: 0 }}>
+                      <span className="av-drop-icon">
+                        <Icon name="pill" size={26} />
+                      </span>
+                      <strong>No predictions yet</strong>
+                      <p>Upload a tray photo and choose an action.</p>
                     </div>
                   ) : (
                     <>
-                      <p className="mv-inline-warning">
-                        Predictions are not confirmed identities.
-                        Confidence is a model score, not a
-                        correctness guarantee.
-                        {!result &&
-                          " No prescription comparison has been performed."}
-                      </p>
-
                       <img
-                        className="mv-detection-image"
+                        className="av-photo"
                         src={recognition.annotatedImage}
-                        alt="Model predictions with bounding boxes"
+                        alt="Predicted tablets with bounding boxes"
                       />
-
-                      {!recognition.detections.length ? (
-                        <p className="mv-help">
-                          No detections returned. This does not
-                          confirm an empty tray.
-                        </p>
-                      ) : (
-                        <div className="mv-detections">
-                          {recognition.detections.map(
-                            (item, index) => (
-                              <div key={`${item.label}-${index}`}>
-                                <span className="mv-detection-number">
-                                  {index + 1}
-                                </span>
-                                <span>
-                                  <strong>
-                                    {item.productName ||
-                                      productName(item.label)}
-                                  </strong>
-                                  <small>
-                                    {item.label}
-                                    {" · "}
-                                    {item.unmapped
-                                      ? "Unsupported class"
-                                      : "Predicted identity"}
-                                  </small>
-                                </span>
-                                <b>
-                                  {(item.confidence * 100).toFixed(1)}%
-                                </b>
-                              </div>
-                            )
-                          )}
-                        </div>
+                      {!recognition.detections.length && (
+                        <p>No detections returned.</p>
                       )}
+
+                      <div style={{ marginTop: 14 }}>
+                        {recognition.detections.map((item, index) => {
+                          const uncertain =
+                            item.identityUncertain ||
+                            item.label === "__uncertain__";
+                          const lowScore = item.confidence < threshold;
+                          const itemTone = predictionTone(item, threshold);
+
+                          return (
+                            <div
+                              className="av-detection"
+                              key={`${item.label}-${index}`}
+                            >
+                              <span>
+                                <strong>
+                                  {index + 1}.{" "}
+                                  {uncertain
+                                    ? "Unidentified — conflicting / ambiguous prediction"
+                                    : item.productName || productName(item.label)}
+                                </strong>
+                                <small>
+                                  {uncertain
+                                    ? "Identity needs review"
+                                    : item.unmapped
+                                    ? "Unsupported class"
+                                    : lowScore
+                                    ? "Low model score — excluded from product counts"
+                                    : "Predicted identity — review required"}
+                                </small>
+                                {uncertain && !!item.alternatives?.length && (
+                                  <small>
+                                    Candidates:{" "}
+                                    {[
+                                      ...new Set(
+                                        item.alternatives.map(
+                                          (alternative) => alternative.label
+                                        )
+                                      ),
+                                    ]
+                                      .map(productName)
+                                      .join(" / ")}
+                                  </small>
+                                )}
+                              </span>
+                              <StatusChip tone={itemTone}>
+                                {(item.confidence * 100).toFixed(1)}%
+                              </StatusChip>
+                            </div>
+                          );
+                        })}
+                      </div>
                     </>
                   )}
                 </section>
@@ -2457,12 +1845,11 @@ export default function TrayVerification() {
           </>
         )}
 
-        <footer className="mv-footer">
-          Review medicine identity, strength and instructions
-          against the original prescription and packaging
-          before administration.
+        <footer>
+          Review against the original prescription and medicine packaging.
+          This research system does not confirm clinical suitability.
         </footer>
-      </main>
+      </div>
     </div>
   );
 }

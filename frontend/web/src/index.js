@@ -5,12 +5,14 @@ import MentalWellness from "./components/MentalWellness";
 import NutritionalIntelligence from "./components/NutritionalIntelligence";
 import TrayVerification from "./components/TrayVerification";
 import PatientMonitoring from "./components/PatientMonitoring";
+import PhysiologicalRecommendations from "./components/PhysiologicalRecommendations";
 
 const tabs = [
   { id: "mental", label: "Mental & Physiological Wellness" },
   { id: "nutrition", label: "Personalized Nutritional Intelligence" },
   { id: "medicine", label: "Medicine Intelligence & Verification" },
   { id: "monitoring", label: "Smart Patient Monitoring" },
+  { id: "physiological", label: "Physiological Recommendations (XAI)" },
 ];
 
 const App = () => {
@@ -113,6 +115,7 @@ const App = () => {
         {activeTab === "nutrition" && <NutritionalIntelligence />}
         {activeTab === "medicine" && <TrayVerification />}
         {activeTab === "monitoring" && <PatientMonitoring />}
+        {activeTab === "physiological" && <PhysiologicalRecommendations />}
       </div>
     </>
   );
