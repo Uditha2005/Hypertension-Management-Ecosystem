@@ -40,3 +40,11 @@ export function getApiErrorMessage(error) {
   }
   return error?.message || "An unexpected error occurred.";
 }
+
+export async function identifyFoodsFromImage(imageDataUrl, mealContext) {
+  const { data } = await client.post("/foods/identify-image", {
+    image_data_url: imageDataUrl,
+    meal_context: mealContext,
+  }, { timeout: 60000 });
+  return data;
+}

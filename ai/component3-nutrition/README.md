@@ -79,3 +79,8 @@ python -m pytest ai/component3-nutrition/tests ai/component3-nutrition/research/
 - The proxy classification task learns rule-derived daily reference alignment; it does not establish real-world meal suitability.
 - Performance is reported as observed and may be weak; no clinical validity is implied.
 - Live USDA lookup requires a valid USDA FoodData Central API key.
+
+
+## Photo-based meal entry
+
+The API exposes `POST /foods/identify-image` for photo-based food suggestions. Configure `GEMINI_API_KEY` in the API process environment (and optionally `GEMINI_VISION_MODEL`, default `gemini-2.5-flash`). Photo recognition uses the Gemini API; availability and free-tier quotas depend on your Google AI Studio account and current limits. The endpoint returns likely visible foods and approximate portion sizes. The frontend then searches USDA FoodData Central for each suggested name and asks the user to review the USDA match and edit the grams before nutrition analysis. This uses a separate pretrained vision-capable service; it does not replace or retrain the existing dietary ML models. Photos cannot reliably reveal hidden ingredients, cooking oil, salt, sauces, or exact weights.

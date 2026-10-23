@@ -103,12 +103,87 @@ def estimate_daily_alignment(summary:Any, age_years:float, sex_code:int|None)->d
         return {"status":"unavailable","reason":f"Model inference failed: {type(exc).__name__}"}
 def food_item(food:FoodSearchResult)->FoodSearchItem:
     return FoodSearchItem(fdc_id=food.fdc_id,description=food.description,data_type=food.data_type,serving_size=food.serving_size,serving_size_unit=food.serving_size_unit)
+class ImageFoodIdentificationRequest(BaseModel):
+    image_data_url: StrictStr = Field(min_length=100, max_length=12_000_000)
+    meal_context: str | None = Field(default=None, max_length=100)
+
+class IdentifiedFood(BaseModel):
+    food_name: str
+    estimated_quantity_g: float = Field(gt=0, le=5000)
+    confidence: str
+    notes: str | None = None
+
+class ImageFoodIdentificationResponse(BaseModel):
+    foods: list[IdentifiedFood]
+    message: str
+    limitation: str
+
+@app.post("/foods/identify-image", response_model=ImageFoodIdentificationResponse)
+def identify_foods_from_image(request: ImageFoodIdentificationRequest) -> ImageFoodIdentificationResponse:
+    """Use a separate vision-capable service to suggest foods; user must confirm before nutrition lookup."""
+    api_key = os.getenv("GEMINI_API_KEY")
+    if not api_key:
+        raise HTTPException(status_code=503, detail="Photo recognition is not configured. Add GEMINI_API_KEY to the API environment, or use manual food search below.")
+    image_data_url = request.image_data_url.strip()
+    if not image_data_url.startswith(("data:image/jpeg;base64,", "data:image/png;base64,", "data:image/webp;base64,")):
+        raise HTTPException(status_code=422, detail="Upload a JPG, PNG, or WEBP image.")
+    import base64, binascii, requests
+    try:
+        encoded = image_data_url.split(",", 1)[1]
+        raw = base64.b64decode(encoded, validate=True)
+    except (IndexError, binascii.Error, ValueError) as exc:
+        raise HTTPException(status_code=422, detail="The uploaded image could not be read.") from exc
+    if len(raw) > 8 * 1024 * 1024:
+        raise HTTPException(status_code=413, detail="Please upload an image smaller than 8 MB.")
+    prompt = ("Identify visible foods in this dish photo. Return JSON only with a foods array. "
+              "Each item must have food_name (plain recognizable food name), estimated_quantity_g (rough edible portion estimate in grams), "
+              "confidence (high, medium, or low), and notes (uncertainty such as hidden ingredients). "
+              "Do not claim to know hidden ingredients, oil, salt, sauces, or exact weight from the image. "
+              "If uncertain, give a conservative estimate and say so in notes. Maximum 12 visible food items. "
+              f"Meal context: {request.meal_context or 'not specified'}. "
+              "Use an empty foods array if no food is visible.")
+    try:
+        mime_type = image_data_url[5:].split(";", 1)[0].lower()
+        response = requests.post(
+            f"https://generativelanguage.googleapis.com/v1beta/models/{os.getenv('GEMINI_VISION_MODEL', 'gemini-2.5-flash')}:generateContent",
+            params={"key": api_key}, timeout=45,
+            headers={"Content-Type": "application/json"},
+            json={"contents": [{"role": "user", "parts": [
+                      {"text": prompt},
+                      {"inline_data": {"mime_type": mime_type, "data": encoded}}
+                  ]}],
+                  "generationConfig": {"temperature": 0, "responseMimeType": "application/json"}})
+        response.raise_for_status()
+        content = response.json()["candidates"][0]["content"]["parts"][0]["text"]
+        import json
+        parsed = json.loads(content)
+        raw_foods = parsed.get("foods", [])
+        foods = []
+        for item in raw_foods[:12]:
+            name = str(item.get("food_name", "")).strip()[:120]
+            try: grams = float(item.get("estimated_quantity_g", 100))
+            except (TypeError, ValueError): grams = 100.0
+            if name and grams > 0:
+                foods.append(IdentifiedFood(food_name=name, estimated_quantity_g=min(grams,5000),
+                    confidence=str(item.get("confidence", "low")).lower() if str(item.get("confidence", "low")).lower() in ("high","medium","low") else "low",
+                    notes=str(item.get("notes", "Photo-based estimate; please confirm portion and ingredients."))[:300] or None))
+        return ImageFoodIdentificationResponse(foods=foods,
+            message="Review the suggested foods and portions. Choose the closest USDA record for each item before calculating nutrition.",
+            limitation="Photo recognition and portion sizes are estimates. The image may not reveal hidden ingredients, oil, salt, sauces, or exact weight. Confirm and edit every item before nutrition is calculated.")
+    except requests.HTTPError as exc:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=502, detail="The photo-recognition service returned an error. Check the API key and try again.") from exc
+    except (requests.RequestException, KeyError, ValueError, TypeError) as exc:
+        raise HTTPException(status_code=502, detail="Could not identify foods from this image. Try another clear photo or use food search.") from exc
+
 @app.get("/health")
 def health()->dict[str,Any]:
     proxy_model = _Path(__file__).resolve().parent.parent / "models" / "daily_reference_alignment_proxy.joblib"
     dash_model = _Path(__file__).resolve().parent.parent / "research" / "dash_servings" / "results" / "training" / "selected_food_group_preference_model.joblib"
     return {"status":"ok","service":"component3-nutrition-api",
             "meal_assessment":"transparent_nutrient_reference_rules",
+            "photo_food_identification_available":bool(os.getenv("GEMINI_API_KEY")),
             "main_flow_ml_estimate":"optional_daily_reference_alignment_proxy_when_full_day_confirmed",
             "ml_research":{"daily_reference_alignment_proxy_model_available":proxy_model.exists(),
                            "daily_food_group_preference_model_available":dash_model.exists()}}

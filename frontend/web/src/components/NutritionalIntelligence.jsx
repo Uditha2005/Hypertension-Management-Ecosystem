@@ -10,6 +10,7 @@ import {
   checkNutritionApiHealth,
   getApiErrorMessage,
   searchFoods,
+  identifyFoodsFromImage,
 } from "../services/nutritionApi";
 import "./NutritionalIntelligence.css";
 
@@ -186,6 +187,11 @@ export default function NutritionalIntelligence() {
   const [searchError, setSearchError] = useState("");
   const [searchMessage, setSearchMessage] = useState("");
   const [searching, setSearching] = useState(false);
+  const [photoFile, setPhotoFile] = useState(null);
+  const [photoBusy, setPhotoBusy] = useState(false);
+  const [photoError, setPhotoError] = useState("");
+  const [photoMessage, setPhotoMessage] = useState("");
+  const [photoSuggestions, setPhotoSuggestions] = useState([]);
   const [analysis, setAnalysis] = useState(null);
   const [analysisError, setAnalysisError] = useState("");
   const [analyzing, setAnalyzing] = useState(false);
@@ -272,6 +278,52 @@ export default function NutritionalIntelligence() {
       if (requestId === searchSequence.current) setSearching(false);
     }
   };
+  const identifyPhoto = async () => {
+    setPhotoError(""); setPhotoMessage(""); setPhotoSuggestions([]);
+    if (!photoFile) { setPhotoError("Choose a dish photo first."); return; }
+    if (!/^image\/(jpeg|png|webp)$/.test(photoFile.type)) { setPhotoError("Please choose a JPG, PNG, or WEBP image."); return; }
+    if (photoFile.size > 8 * 1024 * 1024) { setPhotoError("Please choose an image smaller than 8 MB."); return; }
+    setPhotoBusy(true);
+    try {
+      const imageDataUrl = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = () => reject(new Error("Could not read this image."));
+        reader.readAsDataURL(photoFile);
+      });
+      const result = await identifyFoodsFromImage(imageDataUrl, activeMeal);
+      setPhotoSuggestions((result.foods || []).map((food, index) => ({...food, key: `${Date.now()}-${index}`, selected: true, editedName: food.food_name, editedGrams: String(Math.round(food.estimated_quantity_g || 100))})));
+      setPhotoMessage(result.message || "Review the suggested foods below.");
+      if (!(result.foods || []).length) setPhotoMessage("No foods were confidently identified. Try a clearer photo or use food search.");
+    } catch (error) { setPhotoError(getApiErrorMessage(error)); }
+    finally { setPhotoBusy(false); }
+  };
+  const updatePhotoSuggestion = (key, field, value) => setPhotoSuggestions(items => items.map(item => item.key === key ? {...item, [field]: value} : item));
+  const addPhotoFoods = async () => {
+    const chosen = photoSuggestions.filter(item => item.selected && item.editedName.trim());
+    if (!chosen.length) { setPhotoError("Select at least one food to add."); return; }
+    setPhotoBusy(true); setPhotoError("");
+    try {
+      const resolved = [];
+      for (const item of chosen) {
+        const grams = Number(item.editedGrams);
+        if (!Number.isFinite(grams) || grams <= 0) throw new Error(`Enter a valid portion for ${item.editedName}.`);
+        const result = await searchFoods(item.editedName.trim(), 5);
+        const food = (result.foods || [])[0];
+        if (!food) { resolved.push({item, food: null}); continue; }
+        resolved.push({item, food, grams});
+      }
+      const added = resolved.filter(row => row.food).map(({item,food,grams}) => ({...newEntry(activeDay,activeMeal), fdc_id:String(food.fdc_id), description:food.description, quantity:String(grams), unit:"g", servingNote:`Suggested from photo as “${item.editedName}”. Estimated portion: ${grams} g. Please verify the USDA match and portion.`}));
+      setEntries(current => [...current, ...added]); setAnalysis(null);
+      const unresolved = resolved.filter(row => !row.food).map(row => row.item.editedName);
+      setPhotoMessage(`${added.length} food(s) added using USDA matches. Check every name and portion below.${unresolved.length ? ` Could not find USDA matches for: ${unresolved.join(", ")}. Add these manually using search.` : ""}`);
+      if (unresolved.length) setPhotoError(`No USDA match found for: ${unresolved.join(", ")}.`);
+      else setPhotoError("");
+      setPhotoSuggestions([]); setPhotoFile(null);
+    } catch (error) { setPhotoError(getApiErrorMessage(error)); }
+    finally { setPhotoBusy(false); }
+  };
+
   const addFood = (food) => {
     const servingUnit = (food.serving_size_unit || "").toLowerCase();
     const usesServing = servingUnit === "serving";
@@ -530,6 +582,29 @@ export default function NutritionalIntelligence() {
                 </button>
               ))}
             </div>
+            <section className="ci3-photo-entry" aria-labelledby="ci3-photo-title">
+              <h3 id="ci3-photo-title">Add food from a photo</h3>
+              <p>Upload a clear picture of the dish. AI will suggest visible foods and rough portions; check everything before nutrition is calculated.</p>
+              <div className="ci3-photo-controls">
+                <input aria-label="Dish photo" type="file" accept="image/jpeg,image/png,image/webp" onChange={event => {setPhotoFile(event.target.files?.[0] || null); setPhotoError(""); setPhotoSuggestions([]);}} />
+                <button type="button" className="ci3-button" onClick={identifyPhoto} disabled={photoBusy || !photoFile}>{photoBusy ? "Identifying / matching..." : "Identify foods"}</button>
+              </div>
+              {photoFile && <p className="ci3-muted">Selected: {photoFile.name}</p>}
+              {photoMessage && <p className="ci3-live-region" role="status">{photoMessage}</p>}
+              {photoError && <p className="ci3-alert ci3-alert-error" role="alert">{photoError}</p>}
+              {photoSuggestions.length > 0 && <div className="ci3-photo-suggestions">
+                <h4>Review AI suggestions</h4>
+                <p className="ci3-muted">Estimated portions are approximate. Edit names and grams, then add the selected items.</p>
+                {photoSuggestions.map(item => <div className="ci3-photo-item" key={item.key}>
+                  <label className="ci3-photo-check"><input type="checkbox" checked={item.selected} onChange={e => updatePhotoSuggestion(item.key,"selected",e.target.checked)} /> Include</label>
+                  <label>Food name<input value={item.editedName} onChange={e => updatePhotoSuggestion(item.key,"editedName",e.target.value)} /></label>
+                  <label>Estimated portion (g)<input type="number" min="1" max="5000" value={item.editedGrams} onChange={e => updatePhotoSuggestion(item.key,"editedGrams",e.target.value)} /></label>
+                  <small>AI confidence: {item.confidence || "unknown"}. {item.notes || "Check ingredients and portion."}</small>
+                </div>)}
+                <button type="button" className="ci3-button" onClick={addPhotoFoods} disabled={photoBusy}>{photoBusy ? "Adding foods..." : "Confirm foods and find nutrition records"}</button>
+              </div>}
+              <p className="ci3-photo-disclaimer">Photo estimates can miss oil, salt, sauces and hidden ingredients. You can still add these manually using food search.</p>
+            </section>
             <form className="ci3-search-form" onSubmit={runFoodSearch}>
               <label htmlFor="ci3-food-query">
                 Find a food for {activeMeal.toLowerCase()}{" "}
@@ -706,8 +781,16 @@ export default function NutritionalIntelligence() {
           )}
           {analysis && (
             <>
+              <div className="ci3-result-block ci3-actual-meals">
+                <h3>What you entered</h3>
+                <p className="ci3-muted">Check that these foods and portions match the dish you ate.</p>
+                {selectedDays.map(day => <div className="ci3-daily-result" key={`entered-${day}`}>
+                  <h4>{formatDay(day)}</h4>
+                  {MEALS.map(meal => { const mealEntries = entries.filter(entry => entry.day === day && entry.meal === meal); if (!mealEntries.length) return null; return <div className="ci3-entered-meal" key={`${day}-${meal}`}><strong>{meal}</strong><ul>{mealEntries.map(entry => <li key={entry.rowId}>{entry.description} — {entry.quantity} {entry.unit}</li>)}</ul></div>; })}
+                </div>)}
+              </div>
               <div className="ci3-result-block">
-                <h3>Full selected-plan total</h3>
+                <h3>Nutrition at a glance</h3>
                 <p className="ci3-muted">
                   This is the total across all selected days, not a daily
                   average.
@@ -715,11 +798,8 @@ export default function NutritionalIntelligence() {
                 <NutrientGrid summary={analysis.complete_plan_total} />
               </div>
               <div className="ci3-result-block">
-                <h3>Daily summaries</h3>
-                <p className="ci3-muted">
-                  Each row is the total for that day. Meal-level nutrient totals
-                  are not returned by the current API.
-                </p>
+                <h3>Daily nutrition</h3>
+                <p className="ci3-muted">Totals for the foods entered on each day.</p>
                 {Object.entries(analysis.daily_nutrients || {}).map(
                   ([day, summary]) => (
                     <div className="ci3-daily-result" key={day}>
@@ -730,8 +810,8 @@ export default function NutritionalIntelligence() {
                 )}
               </div>
               <div className="ci3-result-block">
-                <h3>DASH-informed nutrient assessment</h3>
-                <p className="ci3-muted">Each meal is assessed using transparent nutrient calculations and documented dietary-reference context. Daily reference values are not meal-level clinical limits, and missing nutrient values remain unknown.</p>
+                <h3>What to know about your meal</h3>
+                <p className="ci3-muted">Simple findings from the nutrition references. These are guidance comparisons, not medical limits for a single meal.</p>
                 {Object.entries(analysis.meal_assessments || {}).map(([mealKey, assessment]) => (
                   <article className="ci3-daily-result" key={`assessment-${mealKey}`}>
                     <h4>{mealKey}</h4>
@@ -749,8 +829,8 @@ export default function NutritionalIntelligence() {
                 ))}
               </div>
               <div className="ci3-result-block">
-                <h3>Machine-learning estimate for complete daily intake</h3>
-                <p className="ci3-muted">When you confirm that all foods for the day are entered and the required nutrient data are available, the saved classifier estimates a rule-derived daily alignment category. This is an ML output inside the main analysis flow, but it is not a clinical meal-suitability score.</p>
+                <h3>Daily diet estimate (AI)</h3>
+                <p className="ci3-muted">Available only when you marked the entries as your full day. This estimates a research category, not medical suitability.</p>
                 {Object.entries(analysis.daily_ml_alignment_estimates || {}).map(([day, result]) => (
                   <article className="ci3-daily-result" key={`ml-${day}`}>
                     <h4>{formatDay(day)}</h4>
@@ -767,10 +847,7 @@ export default function NutritionalIntelligence() {
                   </article>
                 ))}
               </div>
-              <div className="ci3-alert ci3-alert-warning">
-                <strong>Separate daily DASH optimization</strong>
-                <p>The optimizer uses a different trained model to predict daily food-group servings and then adjusts the daily pattern against DASH constraints. These models do not diagnose hypertension or establish ground-truth meal suitability.</p>
-              </div>
+              <details className="ci3-technical-details"><summary>About the research model</summary><p>The daily AI estimate is trained on categories created from nutrition rules. It is not a doctor-labelled meal suitability prediction. Daily DASH optimization is a separate research tool.</p></details>
             </>
           )}
         </section>
