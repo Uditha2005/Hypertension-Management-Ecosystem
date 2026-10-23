@@ -23,7 +23,7 @@ SKELETON_EDGES = [
 def main():
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
-    for file_path in sorted(INPUT_DIR.glob("*.npz")):
+    for file_path in sorted(INPUT_DIR.glob("*-cam1.npz")):
         with np.load(file_path, allow_pickle=False) as data:
             keypoints = data["keypoints"].astype(np.float32)
             label = data["label"]

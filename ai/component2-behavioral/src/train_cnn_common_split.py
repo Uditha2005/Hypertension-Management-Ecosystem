@@ -29,9 +29,9 @@ DATA_FILE = (
     / "temporal_dataset.npz"
 )
 
-DEPTH_RESULTS_FILE = (
+SPLIT_FILE = (
     BASE_DIR / "data" / "processed" / "results"
-    / "depth_baseline_results.npz"
+    / "common_split_v2.npz"
 )
 
 MODEL_DIR = BASE_DIR / "models"
@@ -198,24 +198,29 @@ def main():
             f"Temporal dataset not found: {DATA_FILE}"
         )
 
-    if not DEPTH_RESULTS_FILE.exists():
+    
+    if not SPLIT_FILE.exists():
         raise FileNotFoundError(
-            f"Depth split file not found: {DEPTH_RESULTS_FILE}. "
-            "Run train_depth_baseline.py first."
+            f"Shared split file not found: {SPLIT_FILE}"
         )
 
-    # Load the same temporal dataset used by ST-GNN and LSTM.
+    # Load temporal dataset.
     with np.load(DATA_FILE, allow_pickle=False) as data:
         X = data["X"].astype(np.float32)
         y = data["y"].astype(np.int64)
         groups = data["groups"].astype(str)
 
-    # Reuse the established held-out sequence IDs.
-    with np.load(DEPTH_RESULTS_FILE, allow_pickle=False) as data:
+    # Load the new shared recording-level split.
+    with np.load(SPLIT_FILE, allow_pickle=False) as data:
+        train_sequences = {
+            normalize_sequence(s)
+            for s in data["train_sequences"].astype(str)
+        }
         test_sequences = {
             normalize_sequence(s)
-            for s in data["test_sequences"]
+            for s in data["test_sequences"].astype(str)
         }
+
 
     expected_shape = (
         WINDOW_SIZE,
@@ -237,12 +242,16 @@ def main():
         [normalize_sequence(group) for group in groups]
     )
 
+    train_mask = np.isin(
+        normalized_groups,
+        list(train_sequences),
+    )
     test_mask = np.isin(
         normalized_groups,
         list(test_sequences),
     )
 
-    train_idx = np.flatnonzero(~test_mask)
+    train_idx = np.flatnonzero(train_mask)
     test_idx = np.flatnonzero(test_mask)
 
     if len(train_idx) == 0 or len(test_idx) == 0:
@@ -250,6 +259,23 @@ def main():
 
     train_groups = set(normalized_groups[train_idx])
     actual_test_groups = set(normalized_groups[test_idx])
+
+    
+    if not train_groups.isdisjoint(actual_test_groups):
+        raise ValueError("Sequence leakage detected between train and test.")
+
+    missing_train = train_sequences - train_groups
+    if missing_train:
+        raise ValueError(
+            f"Training sequences missing from dataset: {sorted(missing_train)}"
+        )
+
+    missing_test = test_sequences - actual_test_groups
+    if missing_test:
+        raise ValueError(
+            f"Test sequences missing from dataset: {sorted(missing_test)}"
+        )
+
 
     if not train_groups.isdisjoint(actual_test_groups):
         raise ValueError(
