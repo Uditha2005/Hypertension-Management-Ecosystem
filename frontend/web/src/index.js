@@ -5,6 +5,7 @@ import MentalWellness from "./components/MentalWellness";
 import NutritionalIntelligence from "./components/NutritionalIntelligence";
 import TrayVerification from "./components/TrayVerification";
 import PatientMonitoring from "./components/PatientMonitoring";
+import PhysiologicalRecommendations from "./components/PhysiologicalRecommendations";
 
 import HomePage, {
   CARE_MODULES,
@@ -19,6 +20,12 @@ const tabs = [
     icon: "home",
   },
   ...CARE_MODULES,
+  {
+    id: "physiological",
+    navLabel: "Recommendations",
+    title: "Physiological Recommendations (XAI)",
+    icon: "wellness",
+  },
 ];
 
 const App = () => {
@@ -28,7 +35,7 @@ const App = () => {
 
   useEffect(() => {
     const current = tabs.find((tab) => tab.id === activeTab);
-    document.title = `${current.title} | HyperCare`;
+    document.title = `${current?.title || "Home"} | HyperCare`;
 
     if (firstRender.current) {
       firstRender.current = false;
@@ -108,10 +115,17 @@ const App = () => {
         {activeTab === "medicine" && <TrayVerification />}
 
         {activeTab === "monitoring" && <PatientMonitoring />}
+
+        {activeTab === "physiological" && (
+          <PhysiologicalRecommendations />
+        )}
       </div>
     </div>
   );
 };
 
-const root = ReactDOM.createRoot(document.getElementById("root"));
+const root = ReactDOM.createRoot(
+  document.getElementById("root")
+);
+
 root.render(<App />);

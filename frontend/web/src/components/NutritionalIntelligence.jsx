@@ -1,313 +1,817 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import {
+  analyzeMealPlan,
+  checkNutritionApiHealth,
+  getApiErrorMessage,
+  searchFoods,
+} from "../services/nutritionApi";
+import "./NutritionalIntelligence.css";
 
-const acceptedTypes = "image/jpeg,image/png,image/webp";
-
-const detectedFoods = [
-  { name: "Grilled Chicken", portion: "120 g", color: "#e56b5d", top: "18%", left: "12%", width: "35%", height: "38%" },
-  { name: "Steamed Rice", portion: "180 g", color: "#e0a12f", top: "36%", left: "52%", width: "37%", height: "34%" },
-  { name: "Salad", portion: "95 g", color: "#3c9b70", top: "10%", left: "58%", width: "27%", height: "22%" },
+const MEALS = ["Breakfast", "Lunch", "Dinner", "Snacks"];
+const UNITS = [
+  { value: "g", label: "grams (g)" },
+  { value: "kg", label: "kilograms (kg)" },
+  { value: "serving", label: "serving(s) as defined by USDA" },
 ];
 
-function NutritionalIntelligence() {
-  const [previewUrl, setPreviewUrl] = useState("");
-  const [fileName, setFileName] = useState("");
-  const [isDragging, setIsDragging] = useState(false);
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [status, setStatus] = useState("Add a clear photo of your meal to begin");
-  const [analysis, setAnalysis] = useState(null);
-  const fileInputRef = useRef(null);
+const dateString = (date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+const today = dateString(new Date());
+const newEntry = (day, meal = "Breakfast") => ({
+  rowId: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+  day,
+  meal,
+  fdc_id: "",
+  description: "",
+  quantity: "",
+  unit: "g",
+  servingNote: "",
+});
 
-  useEffect(() => {
-    return () => {
-      if (previewUrl) {
-        URL.revokeObjectURL(previewUrl);
-      }
-    };
-  }, [previewUrl]);
+const nutrients = [
+  ["sodium_mg", "Sodium", "mg"],
+  ["potassium_mg", "Potassium", "mg"],
+  ["energy_kcal", "Energy", "kcal"],
+  ["sat_fat_g", "Saturated fat", "g"],
+  ["na_k_ratio", "Sodium : potassium", "ratio"],
+];
 
-  const useImage = (file) => {
-    if (!file || !file.type.startsWith("image/")) {
-      setStatus("Please choose a JPG, PNG, or WebP image");
-      return;
-    }
+function displayValue(value, key) {
+  if (value === null || value === undefined || !Number.isFinite(Number(value)))
+    return "Unknown";
+  return Number(value).toLocaleString(undefined, {
+    maximumFractionDigits: key === "na_k_ratio" ? 3 : 1,
+  });
+}
 
-    if (previewUrl) {
-      URL.revokeObjectURL(previewUrl);
-    }
-
-    setPreviewUrl(URL.createObjectURL(file));
-    setFileName(file.name);
-    setAnalysis(null);
-    setStatus("Meal photo ready to analyze");
-  };
-
-  const handleFileChange = (event) => {
-    useImage(event.target.files[0]);
-    event.target.value = "";
-  };
-
-  const handleDrop = (event) => {
-    event.preventDefault();
-    setIsDragging(false);
-    useImage(event.dataTransfer.files[0]);
-  };
-
-  const analyzeMeal = () => {
-    if (!previewUrl) {
-      setStatus("Upload a meal photo before analyzing");
-      fileInputRef.current?.focus();
-      return;
-    }
-
-    setIsAnalyzing(true);
-    setStatus("Analyzing meal...");
-
-    window.setTimeout(() => {
-      setAnalysis({
-        calories: "520 kcal",
-        protein: "28 g",
-        carbs: "48 g",
-        fats: "18 g",
-        sodium: "610 mg",
-        sugar: "9 g",
-      });
-      setIsAnalyzing(false);
-      setStatus("Meal analysis complete");
-    }, 700);
-  };
-
+function NutrientGrid({ summary }) {
   return (
-    <main className="nutritional-intelligence">
-      <style>{`
-        .nutritional-intelligence {
-          --ink: #18342f;
-          --muted: #667a75;
-          --line: #d7e5df;
-          --canvas: #f4f8f3;
-          --leaf: #28745b;
-          --leaf-dark: #1d5744;
-          --sun: #f0b55c;
-          min-height: 100vh;
-          padding: clamp(24px, 5vw, 72px);
-          color: var(--ink);
-          background: linear-gradient(135deg, #eef7ef 0%, var(--canvas) 52%, #fff7e8 100%);
-          font-family: Georgia, "Times New Roman", serif;
-        }
-        .nutritional-intelligence * { box-sizing: border-box; }
-        .nutrition-shell { max-width: 980px; margin: 0 auto; }
-        .nutrition-kicker {
-          margin: 0 0 10px;
-          color: var(--leaf);
-          font: 700 0.72rem/1.2 Arial, sans-serif;
-          letter-spacing: 0.14em;
-          text-transform: uppercase;
-        }
-        .nutrition-title { max-width: 650px; margin: 0; font-size: clamp(2.3rem, 6vw, 4.5rem); line-height: 0.98; }
-        .nutrition-intro { max-width: 570px; margin: 18px 0 34px; color: var(--muted); font: 1rem/1.6 Arial, sans-serif; }
-        .nutrition-grid { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(280px, 0.8fr); gap: 22px; align-items: start; }
-        .upload-panel, .results-panel { border: 1px solid var(--line); background: rgba(255, 255, 255, 0.82); box-shadow: 0 16px 40px rgba(40, 78, 62, 0.08); }
-        .upload-panel { padding: clamp(20px, 4vw, 38px); }
-        .drop-zone {
-          min-height: 340px;
-          display: grid;
-          place-items: center;
-          padding: 24px;
-          border: 1.5px dashed #8ab5a0;
-          background: #f8fcf8;
-          text-align: center;
-          transition: border-color 160ms ease, background 160ms ease;
-        }
-        .drop-zone.dragging, .drop-zone:hover { border-color: var(--leaf); background: #eef8f0; }
-        .preview-stage { position: relative; width: 100%; height: 290px; overflow: hidden; background: #dfeae1; }
-        .preview { width: 100%; height: 100%; object-fit: cover; display: block; }
-        .food-box { position: absolute; border: 2px solid var(--box-color); background: color-mix(in srgb, var(--box-color) 12%, transparent); pointer-events: none; }
-        .food-label { position: absolute; top: -2px; left: -2px; max-width: 100%; padding: 5px 7px; color: #fff; background: var(--box-color); font: 700 0.68rem/1.1 Arial, sans-serif; white-space: nowrap; }
-        .food-portion { display: block; margin-top: 2px; font-weight: 400; opacity: 0.9; }
-        .detection-legend { display: flex; flex-wrap: wrap; gap: 8px 14px; margin: 12px 0 0; color: var(--muted); font: 0.72rem Arial, sans-serif; }
-        .legend-item { display: inline-flex; align-items: center; gap: 5px; }
-        .legend-dot { width: 8px; height: 8px; background: var(--dot-color); }
-        .upload-mark { width: 58px; height: 58px; display: grid; place-items: center; margin: 0 auto 16px; border-radius: 50%; color: var(--leaf-dark); background: #dcefe1; font: 700 1.8rem/1 Arial, sans-serif; }
-        .drop-title { margin: 0; font-size: 1.45rem; }
-        .drop-copy { margin: 9px 0 18px; color: var(--muted); font: 0.86rem/1.5 Arial, sans-serif; }
-        .choose-button, .analyze-button { border: 0; cursor: pointer; font: 700 0.83rem Arial, sans-serif; }
-        .choose-button { padding: 12px 18px; color: #fff; background: var(--leaf); }
-        .choose-button:hover { background: var(--leaf-dark); }
-        .file-name { margin: 14px 0 0; overflow: hidden; color: var(--muted); font: 0.78rem Arial, sans-serif; text-overflow: ellipsis; white-space: nowrap; }
-        .upload-actions { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-top: 20px; }
-        .status { margin: 0; color: var(--muted); font: 0.8rem/1.4 Arial, sans-serif; }
-        .analyze-button { min-height: 46px; padding: 0 22px; color: #fff; background: var(--leaf-dark); }
-        .analyze-button:hover:not(:disabled) { background: #143e31; }
-        .analyze-button:disabled { cursor: wait; opacity: 0.55; }
-        .results-panel { padding: 26px; }
-        .results-label { margin: 0 0 8px; color: var(--leaf); font: 700 0.7rem Arial, sans-serif; letter-spacing: 0.12em; text-transform: uppercase; }
-        .results-title { margin: 0 0 22px; font-size: 1.7rem; }
-        .empty-results { margin: 0; color: var(--muted); font: 0.9rem/1.55 Arial, sans-serif; }
-        .calorie-total { margin: 0 0 24px; padding-bottom: 20px; border-bottom: 1px solid var(--line); }
-        .calorie-value { display: block; margin-top: 3px; color: var(--leaf-dark); font-size: 2.55rem; line-height: 1; }
-        .calorie-caption { display: block; margin-top: 7px; color: var(--muted); font: 0.78rem Arial, sans-serif; }
-        .macro-list { display: grid; gap: 17px; margin: 0; }
-        .macro-heading { display: flex; justify-content: space-between; gap: 12px; margin-bottom: 7px; font: 700 0.82rem Arial, sans-serif; }
-        .macro-heading span:last-child { color: var(--leaf-dark); }
-        .macro-track { height: 8px; overflow: hidden; background: #e6eee8; }
-        .macro-bar { height: 100%; background: var(--macro-color); transition: width 300ms ease; }
-        .sodium-note { margin: 22px 0 0; padding: 13px; border-left: 3px solid var(--sun); color: #6a522e; background: #fff7e8; font: 0.78rem/1.45 Arial, sans-serif; }
-        .insight-grid { display: grid; grid-template-columns: 1.15fr 0.85fr; gap: 22px; margin-top: 22px; }
-        .insight-section { padding: 26px; border: 1px solid var(--line); background: rgba(255, 255, 255, 0.82); box-shadow: 0 16px 40px rgba(40, 78, 62, 0.08); }
-        .insight-heading { margin: 0 0 7px; font-size: 1.45rem; }
-        .insight-copy { margin: 0 0 20px; color: var(--muted); font: 0.82rem/1.5 Arial, sans-serif; }
-        .profile-strip { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px; }
-        .profile-item { padding: 8px 10px; color: var(--leaf-dark); background: #eaf4ec; font: 700 0.72rem Arial, sans-serif; }
-        .recommendation-list { display: grid; gap: 12px; margin: 0; padding: 0; list-style: none; }
-        .recommendation-item { display: grid; grid-template-columns: 24px 1fr; gap: 10px; align-items: start; font: 0.83rem/1.45 Arial, sans-serif; }
-        .recommendation-icon { display: grid; place-items: center; width: 24px; height: 24px; color: #fff; background: var(--leaf); font-size: 0.75rem; }
-        .behavior-panel { border-color: #e9d6b7; background: #fffaf0; }
-        .warning-title { display: flex; gap: 9px; align-items: center; margin: 0 0 12px; color: #855c24; font-size: 1.45rem; }
-        .warning-icon { display: grid; place-items: center; width: 27px; height: 27px; color: #fff; background: var(--sun); font: 700 0.9rem Arial, sans-serif; }
-        .trend-list { display: grid; gap: 14px; margin: 0; padding: 0; list-style: none; }
-        .trend-item { padding-bottom: 13px; border-bottom: 1px solid #eddcbe; font: 0.8rem/1.45 Arial, sans-serif; }
-        .trend-item:last-child { padding-bottom: 0; border-bottom: 0; }
-        .trend-label { display: block; margin-bottom: 3px; color: #855c24; font-weight: 700; }
-        .trend-detail { color: #735f43; }
-        @media (max-width: 720px) {
-          .nutrition-grid { grid-template-columns: 1fr; }
-          .insight-grid { grid-template-columns: 1fr; }
-          .drop-zone { min-height: 280px; }
-          .upload-actions { align-items: stretch; flex-direction: column; }
-          .analyze-button { width: 100%; }
-        }
-      `}</style>
-
-      <section className="nutrition-shell" aria-labelledby="nutrition-title">
-        <p className="nutrition-kicker">Nutrition intelligence</p>
-        <h1 className="nutrition-title" id="nutrition-title">See what is on your plate.</h1>
-        <p className="nutrition-intro">Upload a meal photo to receive a quick nutrition snapshot that can support healthier blood-pressure choices.</p>
-
-        <div className="nutrition-grid">
-          <section className="upload-panel" aria-label="Meal image upload">
-            <div
-              className={`drop-zone${isDragging ? " dragging" : ""}`}
-              onDragEnter={(event) => { event.preventDefault(); setIsDragging(true); }}
-              onDragOver={(event) => event.preventDefault()}
-              onDragLeave={(event) => { if (event.currentTarget === event.target) setIsDragging(false); }}
-              onDrop={handleDrop}
-            >
-              {previewUrl ? (
-                <div className="preview-stage">
-                  <img className="preview" src={previewUrl} alt={`Selected meal: ${fileName}`} />
-                  {detectedFoods.map((food) => (
-                    <div
-                      className="food-box"
-                      key={food.name}
-                      style={{
-                        "--box-color": food.color,
-                        top: food.top,
-                        left: food.left,
-                        width: food.width,
-                        height: food.height,
-                      }}
-                    >
-                      <span className="food-label">
-                        {food.name}
-                        <span className="food-portion">{food.portion}</span>
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div>
-                  <div className="upload-mark" aria-hidden="true">+</div>
-                  <h2 className="drop-title">Drop your meal photo here</h2>
-                  <p className="drop-copy">JPG, PNG, or WebP up to 10 MB</p>
-                  <button className="choose-button" type="button" onClick={() => fileInputRef.current?.click()}>
-                    Choose image
-                  </button>
-                </div>
-              )}
-            </div>
-            <input ref={fileInputRef} type="file" accept={acceptedTypes} onChange={handleFileChange} hidden />
-            {fileName && <p className="file-name" title={fileName}>{fileName}</p>}
-            {previewUrl && (
-              <div className="detection-legend" aria-label="Detected food items">
-                {detectedFoods.map((food) => (
-                  <span className="legend-item" key={food.name}>
-                    <span className="legend-dot" style={{ "--dot-color": food.color }} aria-hidden="true" />
-                    {food.name}: {food.portion}
-                  </span>
-                ))}
-              </div>
-            )}
-            <div className="upload-actions">
-              <p className="status" role="status">{status}</p>
-              <button className="analyze-button" type="button" onClick={analyzeMeal} disabled={isAnalyzing}>
-                {isAnalyzing ? "Analyzing..." : "Analyze Meal"}
-              </button>
-            </div>
-          </section>
-
-          <aside className="results-panel" aria-live="polite">
-            <p className="results-label">Meal snapshot</p>
-            <h2 className="results-title">Nutrition at a glance</h2>
-            {analysis ? (
-              <>
-                <div className="calorie-total">
-                  <span className="calorie-value">{analysis.calories}</span>
-                  <span className="calorie-caption">Total estimated calories</span>
-                </div>
-                <dl className="macro-list">
-                  {[
-                    { label: "Protein", value: analysis.protein, progress: "56%", color: "#3c9b70" },
-                    { label: "Carbs", value: analysis.carbs, progress: "68%", color: "#e0a12f" },
-                    { label: "Fats", value: analysis.fats, progress: "42%", color: "#e56b5d" },
-                    { label: "Sodium", value: analysis.sodium, progress: "61%", color: "#7c78b8" },
-                    { label: "Sugar", value: analysis.sugar, progress: "24%", color: "#c67c9a" },
-                  ].map((macro) => (
-                    <div key={macro.label}>
-                      <div className="macro-heading"><span>{macro.label}</span><span>{macro.value}</span></div>
-                      <div className="macro-track" aria-label={`${macro.label}: ${macro.value}`}>
-                        <div className="macro-bar" style={{ "--macro-color": macro.color, width: macro.progress }} />
-                      </div>
-                    </div>
-                  ))}
-                </dl>
-                <p className="sodium-note">Sodium is highlighted because keeping an eye on salt intake can support blood-pressure management.</p>
-              </>
-            ) : (
-              <p className="empty-results">Your meal breakdown will appear here after you upload an image and analyze it.</p>
-            )}
-          </aside>
+    <div className="ci3-metric-grid">
+      {nutrients.map(([key, label, unit]) => (
+        <div className="ci3-metric" key={key}>
+          <span>{label}</span>
+          <strong>{displayValue(summary?.[key], key)}</strong>
+          <small>{unit}</small>
         </div>
-
-        <div className="insight-grid">
-          <section className="insight-section" aria-labelledby="recommendations-title">
-            <p className="results-label">Personalized guidance</p>
-            <h2 className="insight-heading" id="recommendations-title">Recommendations for your health profile</h2>
-            <p className="insight-copy">Suggestions are based on your recorded BMI and hypertension profile.</p>
-            <div className="profile-strip" aria-label="Health profile summary">
-              <span className="profile-item">BMI 27.4</span>
-              <span className="profile-item">Hypertension stage 1</span>
-              <span className="profile-item">Sodium goal &lt; 1,500 mg</span>
-            </div>
-            <ul className="recommendation-list">
-              <li className="recommendation-item"><span className="recommendation-icon" aria-hidden="true">1</span><span>Choose grilled or steamed proteins more often to support gradual weight reduction.</span></li>
-              <li className="recommendation-item"><span className="recommendation-icon" aria-hidden="true">2</span><span>Add another serving of leafy vegetables and keep half your plate produce.</span></li>
-              <li className="recommendation-item"><span className="recommendation-icon" aria-hidden="true">3</span><span>Swap salty sauces for herbs, citrus, or low-sodium alternatives.</span></li>
-            </ul>
-          </section>
-
-          <section className="insight-section behavior-panel" aria-labelledby="behavior-title">
-            <p className="results-label">Behavior watch</p>
-            <h2 className="warning-title" id="behavior-title"><span className="warning-icon" aria-hidden="true">!</span>Eating pattern alert</h2>
-            <p className="insight-copy">Recent meal history suggests a few patterns worth noticing early.</p>
-            <ul className="trend-list">
-              <li className="trend-item"><span className="trend-label">Overeating pattern</span><span className="trend-detail">3 meals this week were above your estimated calorie target.</span></li>
-              <li className="trend-item"><span className="trend-label">Fast-food dependency</span><span className="trend-detail">Fast food appeared 4 times in the last 7 days, often at dinner.</span></li>
-              <li className="trend-item"><span className="trend-label">Next small step</span><span className="trend-detail">Plan one quick home-cooked dinner before your busiest evening.</span></li>
-            </ul>
-          </section>
-        </div>
-      </section>
-    </main>
+      ))}
+    </div>
   );
 }
 
-export default NutritionalIntelligence;
+function Stepper({ step }) {
+  return (
+    <nav className="ci3-stepper" aria-label="Nutrition plan progress">
+      {["Plan dates", "Build meals", "Review nutrition"].map((label, index) => {
+        const number = index + 1;
+        return (
+          <React.Fragment key={label}>
+            <span
+              className={`ci3-step-item ${step === number ? "active" : ""} ${step > number ? "complete" : ""}`}
+            >
+              <b>{step > number ? "✓" : number}</b>
+              <span>{label}</span>
+            </span>
+            {number < 3 && (
+              <span
+                className={`ci3-step-line ${step > number ? "complete" : ""}`}
+                aria-hidden="true"
+              />
+            )}
+          </React.Fragment>
+        );
+      })}
+    </nav>
+  );
+}
+
+function formatDay(day) {
+  return new Date(`${day}T12:00:00`).toLocaleDateString(undefined, {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+  });
+}
+
+function EntryEditor({ entry, onChange, onRemove }) {
+  return (
+    <article className="ci3-entry">
+      <div className="ci3-entry-top">
+        <div>
+          <strong>{entry.description || "New food"}</strong>
+          {entry.fdc_id && <small>USDA record {entry.fdc_id}</small>}
+        </div>
+        <button
+          type="button"
+          className="ci3-remove-button"
+          onClick={() => onRemove(entry.rowId)}
+        >
+          Remove
+        </button>
+      </div>
+      <div className="ci3-entry-grid">
+        <label>
+          Food name
+          <input
+            value={entry.description}
+            onChange={(event) =>
+              onChange(entry.rowId, "description", event.target.value)
+            }
+            placeholder="Search or describe this food"
+          />
+        </label>
+        <label>
+          Quantity
+          <input
+            aria-label={`Quantity for ${entry.description || "food"}`}
+            type="number"
+            min="0.01"
+            max="100000"
+            step="any"
+            value={entry.quantity}
+            onChange={(event) =>
+              onChange(entry.rowId, "quantity", event.target.value)
+            }
+            placeholder="e.g. 100"
+          />
+        </label>
+        <label>
+          Unit
+          <select
+            value={entry.unit}
+            onChange={(event) =>
+              onChange(entry.rowId, "unit", event.target.value)
+            }
+          >
+            {UNITS.map((unit) => (
+              <option value={unit.value} key={unit.value}>
+                {unit.label}
+              </option>
+            ))}
+          </select>
+        </label>
+        {entry.servingNote && (
+          <p className="ci3-serving-note">{entry.servingNote}</p>
+        )}
+      </div>
+    </article>
+  );
+}
+
+export default function NutritionalIntelligence() {
+  const [step, setStep] = useState(1);
+  const [apiState, setApiState] = useState("checking");
+  const [apiMessage, setApiMessage] = useState("Checking API connection...");
+  const [selectedDays, setSelectedDays] = useState([today]);
+  const [newDay, setNewDay] = useState(today);
+  const [activeDay, setActiveDay] = useState(today);
+  const [activeMeal, setActiveMeal] = useState("Breakfast");
+  const [entries, setEntries] = useState([]);
+  const [ageYears, setAgeYears] = useState("60");
+  const [bmi, setBmi] = useState("");
+  const [sexCode, setSexCode] = useState("");
+  const [fullDayIntake, setFullDayIntake] = useState(false);
+  const [dietaryRequirements, setDietaryRequirements] = useState("");
+  const [query, setQuery] = useState("");
+  const [foodResults, setFoodResults] = useState([]);
+  const [searchError, setSearchError] = useState("");
+  const [searchMessage, setSearchMessage] = useState("");
+  const [searching, setSearching] = useState(false);
+  const [analysis, setAnalysis] = useState(null);
+  const [analysisError, setAnalysisError] = useState("");
+  const [analyzing, setAnalyzing] = useState(false);
+  const searchSequence = useRef(0);
+
+  const checkHealth = useCallback(async () => {
+    setApiState("checking");
+    try {
+      const data = await checkNutritionApiHealth();
+      setApiState("online");
+      setApiMessage(`${data.service || "Nutrition API"} connected`);
+    } catch (error) {
+      setApiState("offline");
+      setApiMessage(getApiErrorMessage(error));
+    }
+  }, []);
+  useEffect(() => {
+    checkHealth();
+  }, [checkHealth]);
+
+  const activeEntries = useMemo(
+    () =>
+      entries.filter(
+        (entry) => entry.day === activeDay && entry.meal === activeMeal,
+      ),
+    [entries, activeDay, activeMeal],
+  );
+
+  const changeEntry = (rowId, field, value) => {
+    setEntries((current) =>
+      current.map((entry) =>
+        entry.rowId === rowId ? { ...entry, [field]: value } : entry,
+      ),
+    );
+    setAnalysis(null);
+  };
+  const addDay = () => {
+    if (!newDay || selectedDays.includes(newDay)) return;
+    setSelectedDays((current) => [...current, newDay].sort());
+    setActiveDay(newDay);
+    setAnalysis(null);
+  };
+  const removeDay = (day) => {
+    if (selectedDays.length === 1) return;
+    setSelectedDays((current) => current.filter((item) => item !== day));
+    setEntries((current) => current.filter((entry) => entry.day !== day));
+    if (activeDay === day)
+      setActiveDay(selectedDays.find((item) => item !== day) || today);
+    setAnalysis(null);
+  };
+  const removeEntry = (rowId) => {
+    setEntries((current) => current.filter((entry) => entry.rowId !== rowId));
+    setAnalysis(null);
+  };
+
+  const runFoodSearch = async (event) => {
+    event.preventDefault();
+    const trimmed = query.trim();
+    setSearchError("");
+    setSearchMessage("");
+    setFoodResults([]);
+    if (!trimmed) {
+      setSearchError(
+        "Enter a food to search, such as oats, rice, eggs, vegetables, or lentils.",
+      );
+      return;
+    }
+    const requestId = ++searchSequence.current;
+    setSearching(true);
+    try {
+      const result = await searchFoods(trimmed, 10);
+      if (requestId !== searchSequence.current) return;
+      const foods = result.foods || [];
+      setFoodResults(foods);
+      setSearchMessage(
+        foods.length
+          ? `${foods.length} USDA records found. Choose the closest description.`
+          : "No matching foods found. Try a broader search.",
+      );
+    } catch (error) {
+      if (requestId === searchSequence.current)
+        setSearchError(getApiErrorMessage(error));
+    } finally {
+      if (requestId === searchSequence.current) setSearching(false);
+    }
+  };
+  const addFood = (food) => {
+    const servingUnit = (food.serving_size_unit || "").toLowerCase();
+    const usesServing = servingUnit === "serving";
+    const usesGrams = servingUnit === "g";
+    setEntries((current) => [
+      ...current,
+      {
+        ...newEntry(activeDay, activeMeal),
+        fdc_id: String(food.fdc_id),
+        description: food.description,
+        quantity: food.serving_size ? String(food.serving_size) : "",
+        unit: usesServing ? "serving" : "g",
+        servingNote: food.serving_size
+          ? `USDA lists a reference serving of ${food.serving_size} ${food.serving_size_unit || "units"}. ${usesGrams ? "This entry starts in grams because the record is mass-based." : "Confirm the unit before submitting."}`
+          : "No serving size was provided; enter a quantity in grams or kilograms.",
+      },
+    ]);
+    setAnalysis(null);
+    setSearchError("");
+  };
+
+  const validateMeals = () => {
+    if (!entries.length) return "Add at least one food to the meal plan.";
+    for (const [index, entry] of entries.entries()) {
+      if (!entry.fdc_id)
+        return `Food ${index + 1} needs a USDA search result before analysis.`;
+      const quantity = Number(entry.quantity);
+      if (
+        !entry.quantity ||
+        !Number.isFinite(quantity) ||
+        quantity <= 0 ||
+        quantity > 100000
+      )
+        return `${entry.description || `Food ${index + 1}`} needs a quantity greater than 0 and no more than 100,000.`;
+      if (!["g", "kg", "serving"].includes(entry.unit))
+        return `${entry.description || `Food ${index + 1}`} needs a supported unit.`;
+    }
+    return "";
+  };
+  const goToBuild = () => {
+    setAnalysisError("");
+    setStep(2);
+  };
+  const submitAnalysis = async (event) => {
+    event.preventDefault();
+    const error = validateMeals();
+    if (error) {
+      setAnalysisError(error);
+      return;
+    }
+    setAnalysis(null);
+    setAnalysisError("");
+    setAnalyzing(true);
+    setStep(3);
+    try {
+      const payload = {
+        entries: entries.map(({ day, meal, fdc_id, quantity, unit }) => ({
+          day,
+          meal,
+          fdc_id: Number(fdc_id),
+          quantity: Number(quantity),
+          unit,
+        })),
+        selected_days: selectedDays,
+        personal_profile: {
+          age_years: Number(ageYears),
+          bmi: bmi.trim() ? Number(bmi) : null,
+          dietary_requirements: dietaryRequirements.split(",").map((item) => item.trim()).filter(Boolean),
+        },
+      };
+      setAnalysis(await analyzeMealPlan(payload));
+    } catch (errorResponse) {
+      setAnalysisError(getApiErrorMessage(errorResponse));
+    } finally {
+      setAnalyzing(false);
+    }
+  };
+
+  return (
+    <main className="ci3-page">
+      <header className="ci3-hero">
+        <div>
+          <p className="ci3-eyebrow">COMPONENT 3 · CAREGIVER WORKSPACE</p>
+          <h1>DASH-Informed Personalized Meal Assessment</h1>
+          <p className="ci3-subtitle">
+            Build meals from USDA food records, calculate nutrient totals, assess dietary references, and—when you confirm a complete day's intake—see an ML estimate of daily reference alignment. The estimate is a rule-derived research proxy, not a clinical meal-suitability score.
+          </p>
+        </div>
+        <div className={`ci3-api-status ci3-api-${apiState}`} role="status">
+          <span className="ci3-status-dot" />
+          <span>
+            {apiState === "online"
+              ? "Nutrition service connected"
+              : apiState === "checking"
+                ? "Checking nutrition service"
+                : "Nutrition service unavailable"}
+          </span>
+          <button
+            type="button"
+            className="ci3-text-button"
+            onClick={checkHealth}
+          >
+            Retry
+          </button>
+          <small>{apiMessage}</small>
+        </div>
+      </header>
+      <Stepper step={step} />
+      {step === 1 && (
+        <section
+          className="ci3-panel ci3-step-panel"
+          aria-labelledby="setup-title"
+        >
+          <div className="ci3-section-heading">
+            <span className="ci3-step">1</span>
+            <div>
+              <p className="ci3-eyebrow">MEAL PLAN SETUP</p>
+              <h2 id="setup-title">Choose the dates to assess</h2>
+              <p>
+                Add one or more dates, then enter foods, quantities and serving units. Add relevant personal information to support the intended personalized assessment.
+              </p>
+            </div>
+          </div>
+          <div className="ci3-plan-choice">
+            <h3>Personal profile</h3>
+            <p>Enter only information relevant to meal assessment. These fields do not diagnose hypertension or replace professional advice.</p>
+            <div className="ci3-entry-grid">
+              <label>Age (years)
+                <input type="number" min="19" max="119" value={ageYears} onChange={(event) => setAgeYears(event.target.value)} required />
+              </label>
+              <label>BMI (optional)
+                <input type="number" min="10" max="100" step="0.1" value={bmi} onChange={(event) => setBmi(event.target.value)} placeholder="e.g. 26.5" />
+              </label>
+              <label>Sex code for optional ML estimate (optional)
+                <select value={sexCode} onChange={(event) => setSexCode(event.target.value)}>
+                  <option value="">Not provided</option>
+                  <option value="1">Code 1</option>
+                  <option value="2">Code 2</option>
+                </select>
+              </label>
+              <label>Dietary requirements (optional, comma-separated)
+                <input value={dietaryRequirements} onChange={(event) => setDietaryRequirements(event.target.value)} placeholder="e.g. lower sodium, vegetarian" />
+              </label>
+            </div>
+            <label className="ci3-full-day-option">
+              <input type="checkbox" checked={fullDayIntake} onChange={(event) => setFullDayIntake(event.target.checked)} />
+              <span>
+                <strong>These entries represent the complete day's food intake</strong>
+                <small>Only select this if you have entered all foods for each selected day. This enables the optional daily ML estimate; it does not make the model a meal-suitability predictor.</small>
+              </span>
+            </label>
+            <h3>How many days are you planning?</h3>
+            <p>
+              Start with one day, or add dates for a multi-day plan. You can
+              change this later.
+            </p>
+            <div className="ci3-day-chips">
+              {selectedDays.map((day) => (
+                <span className="ci3-day-chip" key={day}>
+                  {formatDay(day)}
+                  <button
+                    type="button"
+                    aria-label={`Remove ${formatDay(day)}`}
+                    onClick={() => removeDay(day)}
+                    disabled={selectedDays.length === 1}
+                  >
+                    ×
+                  </button>
+                </span>
+              ))}
+            </div>
+            <div className="ci3-add-day">
+              <label htmlFor="ci3-new-day">
+                Add another day
+                <input
+                  id="ci3-new-day"
+                  type="date"
+                  value={newDay}
+                  onChange={(event) => setNewDay(event.target.value)}
+                />
+              </label>
+              <button
+                type="button"
+                className="ci3-button ci3-button-secondary"
+                onClick={addDay}
+                disabled={!newDay || selectedDays.includes(newDay)}
+              >
+                Add day
+              </button>
+            </div>
+          </div>
+          {analysisError && (
+            <p className="ci3-alert ci3-alert-error" role="alert">
+              {analysisError}
+            </p>
+          )}
+          <div className="ci3-navigation">
+            <span>Next: choose foods and portions for each meal.</span>
+            <button type="button" className="ci3-button" onClick={goToBuild}>
+              Continue to build meals
+            </button>
+          </div>
+        </section>
+      )}
+      {step === 2 && (
+        <section className="ci3-build-layout" aria-labelledby="build-title">
+          <div className="ci3-panel ci3-build-main">
+            <div className="ci3-section-heading">
+              <span className="ci3-step">2</span>
+              <div>
+                <p className="ci3-eyebrow">BUILD MEALS AND PORTIONS</p>
+                <h2 id="build-title">What will the resident eat?</h2>
+                <p>
+                  Choose a day and meal, then add foods from USDA search or
+                  build the meal manually.
+                </p>
+              </div>
+            </div>
+            <div className="ci3-day-tabs" role="tablist" aria-label="Plan days">
+              {selectedDays.map((day) => (
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={activeDay === day}
+                  className={activeDay === day ? "active" : ""}
+                  key={day}
+                  onClick={() => setActiveDay(day)}
+                >
+                  {formatDay(day)}
+                </button>
+              ))}
+            </div>
+            <div
+              className="ci3-meal-tabs"
+              role="tablist"
+              aria-label="Meals for selected day"
+            >
+              {MEALS.map((meal) => (
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={activeMeal === meal}
+                  className={activeMeal === meal ? "active" : ""}
+                  key={meal}
+                  onClick={() => setActiveMeal(meal)}
+                >
+                  {meal}
+                  <span>
+                    {
+                      entries.filter(
+                        (entry) =>
+                          entry.day === activeDay && entry.meal === meal,
+                      ).length
+                    }
+                  </span>
+                </button>
+              ))}
+            </div>
+            <form className="ci3-search-form" onSubmit={runFoodSearch}>
+              <label htmlFor="ci3-food-query">
+                Find a food for {activeMeal.toLowerCase()}{" "}
+                <span>Try oats, rice, eggs, vegetables, or lentils</span>
+              </label>
+              <div className="ci3-search-row">
+                <input
+                  id="ci3-food-query"
+                  value={query}
+                  onChange={(event) => setQuery(event.target.value)}
+                  placeholder="Search USDA foods"
+                  maxLength={200}
+                />
+                <button
+                  className="ci3-button"
+                  type="submit"
+                  disabled={searching}
+                >
+                  {searching ? "Searching..." : "Search"}
+                </button>
+              </div>
+            </form>
+            <div className="ci3-live-region" aria-live="polite">
+              {searching ? "Searching USDA food records..." : searchMessage}
+            </div>
+            {searchError && (
+              <p className="ci3-alert ci3-alert-error" role="alert">
+                {searchError}
+              </p>
+            )}
+            {foodResults.length > 0 && (
+              <div className="ci3-food-results">
+                <h3>Choose a food record</h3>
+                {foodResults.map((food) => (
+                  <div className="ci3-food-result" key={food.fdc_id}>
+                    <div>
+                      <strong>{food.description}</strong>
+                      <small>
+                        {food.data_type} · USDA record {food.fdc_id}
+                        {food.serving_size
+                          ? ` · ${food.serving_size} ${food.serving_size_unit || "per serving"}`
+                          : " · No serving size listed"}
+                      </small>
+                    </div>
+                    <button
+                      type="button"
+                      className="ci3-button ci3-button-small"
+                      onClick={() => addFood(food)}
+                    >
+                      Add to {activeMeal.toLowerCase()}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div className="ci3-current-meal">
+              <div className="ci3-current-meal-heading">
+                <div>
+                  <p className="ci3-eyebrow">
+                    {formatDay(activeDay)} · {activeMeal.toUpperCase()}
+                  </p>
+                  <h3>{activeMeal} foods</h3>
+                </div>
+              </div>
+              {activeEntries.length ? (
+                activeEntries.map((entry) => (
+                  <EntryEditor
+                    key={entry.rowId}
+                    entry={entry}
+                    onChange={changeEntry}
+                    onRemove={removeEntry}
+                  />
+                ))
+              ) : (
+                <div className="ci3-empty-state">
+                  <strong>No foods in this meal yet</strong>
+                  <span>
+                    Search above and add a verified USDA food record to begin.
+                  </span>
+                </div>
+              )}
+            </div>
+            {analysisError && (
+              <p className="ci3-alert ci3-alert-error" role="alert">
+                {analysisError}
+              </p>
+            )}
+            <div className="ci3-navigation">
+              <button
+                type="button"
+                className="ci3-button ci3-button-secondary"
+                onClick={() => setStep(1)}
+              >
+                Back to setup
+              </button>
+              <button
+                type="button"
+                className="ci3-button"
+                onClick={() => {
+                  const error = validateMeals();
+                  if (error) setAnalysisError(error);
+                  else {
+                    setAnalysisError("");
+                    setStep(3);
+                  }
+                }}
+              >
+                Review nutrition
+              </button>
+            </div>
+          </div>
+          <aside
+            className="ci3-panel ci3-plan-summary"
+            aria-label="Current plan summary"
+          >
+            <p className="ci3-eyebrow">PLAN SUMMARY</p>
+            <h2>
+              {selectedDays.length} {selectedDays.length === 1 ? "day" : "days"}
+            </h2>
+            <p className="ci3-muted">
+              {entries.length} food {entries.length === 1 ? "entry" : "entries"}{" "}
+              across the plan
+            </p>
+            {selectedDays.map((day) => (
+              <div className="ci3-summary-day" key={day}>
+                <strong>{formatDay(day)}</strong>
+                {MEALS.map((meal) => {
+                  const count = entries.filter(
+                    (entry) => entry.day === day && entry.meal === meal,
+                  ).length;
+                  return (
+                    <span key={meal}>
+                      {meal}
+                      <b>{count}</b>
+                    </span>
+                  );
+                })}
+              </div>
+            ))}
+          </aside>
+        </section>
+      )}
+      {step === 3 && (
+        <section className="ci3-results" aria-labelledby="results-title">
+          <div className="ci3-results-heading">
+            <div>
+              <p className="ci3-eyebrow">3 · REVIEW NUTRITION</p>
+              <h2 id="results-title">Your plan summary</h2>
+              <p className="ci3-muted">
+                {selectedDays.length}{" "}
+                {selectedDays.length === 1 ? "day" : "days"} · {entries.length}{" "}
+                food entries submitted
+              </p>
+            </div>
+            <span className="ci3-results-tag">
+              {analyzing
+                ? "Analysis in progress"
+                : analysis
+                  ? "Analysis complete"
+                  : "Ready to analyze"}
+            </span>
+          </div>
+          {analyzing && (
+            <div className="ci3-loading" role="status">
+              <span className="ci3-spinner" /> Reviewing the plan with the
+              nutrition service...
+            </div>
+          )}
+          {analysisError && (
+            <div className="ci3-alert ci3-alert-error" role="alert">
+              <strong>We could not complete this analysis.</strong>
+              <p>{analysisError}</p>
+            </div>
+          )}
+          {analysis && (
+            <>
+              <div className="ci3-result-block">
+                <h3>Full selected-plan total</h3>
+                <p className="ci3-muted">
+                  This is the total across all selected days, not a daily
+                  average.
+                </p>
+                <NutrientGrid summary={analysis.complete_plan_total} />
+              </div>
+              <div className="ci3-result-block">
+                <h3>Daily summaries</h3>
+                <p className="ci3-muted">
+                  Each row is the total for that day. Meal-level nutrient totals
+                  are not returned by the current API.
+                </p>
+                {Object.entries(analysis.daily_nutrients || {}).map(
+                  ([day, summary]) => (
+                    <div className="ci3-daily-result" key={day}>
+                      <h4>{formatDay(day)}</h4>
+                      <NutrientGrid summary={summary} />
+                    </div>
+                  ),
+                )}
+              </div>
+              <div className="ci3-result-block">
+                <h3>DASH-informed nutrient assessment</h3>
+                <p className="ci3-muted">Each meal is assessed using transparent nutrient calculations and documented dietary-reference context. Daily reference values are not meal-level clinical limits, and missing nutrient values remain unknown.</p>
+                {Object.entries(analysis.meal_assessments || {}).map(([mealKey, assessment]) => (
+                  <article className="ci3-daily-result" key={`assessment-${mealKey}`}>
+                    <h4>{mealKey}</h4>
+                    <p><strong>{assessment.label || "Nutrient-reference assessment"}</strong></p>
+                    {(assessment.items || []).map((item) => (
+                      <p key={`${mealKey}-${item.nutrient}`}><strong>{item.nutrient}:</strong> {item.message}</p>
+                    ))}
+                    {(assessment.suggestions || []).map((suggestion, index) => (
+                      <p key={`${mealKey}-suggestion-${index}`}>Suggestion: {suggestion}</p>
+                    ))}
+                    {(assessment.notes || []).map((note, index) => (
+                      <p key={`${mealKey}-note-${index}`} className="ci3-muted">{note}</p>
+                    ))}
+                  </article>
+                ))}
+              </div>
+              <div className="ci3-result-block">
+                <h3>Machine-learning estimate for complete daily intake</h3>
+                <p className="ci3-muted">When you confirm that all foods for the day are entered and the required nutrient data are available, the saved classifier estimates a rule-derived daily alignment category. This is an ML output inside the main analysis flow, but it is not a clinical meal-suitability score.</p>
+                {Object.entries(analysis.daily_ml_alignment_estimates || {}).map(([day, result]) => (
+                  <article className="ci3-daily-result" key={`ml-${day}`}>
+                    <h4>{formatDay(day)}</h4>
+                    {result.status === "estimated" ? (
+                      <>
+                        <p><strong>Estimated category:</strong> {result.predicted_daily_alignment_proxy === "reference_aligned_proxy" ? "Reference-aligned proxy" : "Needs review proxy"}</p>
+                        <p><strong>Model:</strong> {result.model}</p>
+                        {result.confidence !== null && result.confidence !== undefined && <p><strong>Model confidence:</strong> {(result.confidence * 100).toFixed(1)}% (not clinical certainty)</p>}
+                        <p className="ci3-muted">{result.explanation}</p>
+                      </>
+                    ) : (
+                      <p className="ci3-muted">{result.reason || "ML estimate unavailable."} {result.missing_features?.length ? `Missing: ${result.missing_features.join(", ")}.` : ""}</p>
+                    )}
+                  </article>
+                ))}
+              </div>
+              <div className="ci3-alert ci3-alert-warning">
+                <strong>Separate daily DASH optimization</strong>
+                <p>The optimizer uses a different trained model to predict daily food-group servings and then adjusts the daily pattern against DASH constraints. These models do not diagnose hypertension or establish ground-truth meal suitability.</p>
+              </div>
+            </>
+          )}
+        </section>
+      )}
+      {step === 3 && (
+        <div className="ci3-result-actions">
+          <button
+            type="button"
+            className="ci3-button ci3-button-secondary"
+            onClick={() => {
+              setAnalysisError("");
+              setStep(2);
+            }}
+          >
+            Back to edit meals
+          </button>
+          {!analysis && !analyzing && (
+            <button
+              type="button"
+              className="ci3-button"
+              onClick={submitAnalysis}
+            >
+              Analyze plan
+            </button>
+          )}
+          {analysis && (
+            <button
+              type="button"
+              className="ci3-button"
+              onClick={submitAnalysis}
+              disabled={analyzing}
+            >
+              Recalculate nutrition
+            </button>
+          )}
+        </div>
+      )}
+      <footer className="ci3-footer">
+        Component 3 · Hypertension Dietary Risk Assessment System · Research
+        prototype
+      </footer>
+    </main>
+  );
+}

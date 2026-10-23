@@ -25,6 +25,12 @@ _NUTRIENT_IDS = {
     "potassium_mg": {1092},
     "energy_kcal": {1008},
     "sat_fat_g": {1258},
+    "protein_g": {1003},
+    "carbs_g": {1005},
+    "fiber_g": {1079},
+    "calcium_mg": {1087},
+    "magnesium_mg": {1090},
+    "vitamin_c_mg": {1162},
 }
 _ENERGY_KJ_ID = 1062
 _NUTRIENT_NAME_ALIASES = {
@@ -36,6 +42,12 @@ _NUTRIENT_NAME_ALIASES = {
         "saturated fat",
         "saturated fatty acids",
     },
+    "protein_g": {"protein"},
+    "carbs_g": {"carbohydrate, by difference", "carbohydrate"},
+    "fiber_g": {"fiber, total dietary", "dietary fiber"},
+    "calcium_mg": {"calcium, ca", "calcium"},
+    "magnesium_mg": {"magnesium, mg", "magnesium"},
+    "vitamin_c_mg": {"vitamin c, total ascorbic acid", "vitamin c"},
 }
 
 
@@ -140,15 +152,34 @@ def _canonical_name(value: object) -> str:
     return " ".join(str(value).casefold().strip().split())
 
 
+def _nutrient_fields(record: Mapping[str, object]) -> tuple[object, object, object, object]:
+    nested_nutrient = record.get("nutrient")
+    if nested_nutrient is not None:
+        if not isinstance(nested_nutrient, dict):
+            raise USDAResponseError("USDA nutrient field must be an object")
+        return (
+            nested_nutrient.get("id"),
+            nested_nutrient.get("name"),
+            nested_nutrient.get("unitName"),
+            record.get("amount"),
+        )
+    return (
+        record.get("nutrientId"),
+        record.get("nutrientName"),
+        record.get("unitName"),
+        record.get("value"),
+    )
+
+
 def _nutrient_target(record: Mapping[str, object]) -> str | None:
-    nutrient_id = record.get("nutrientId")
+    nutrient_id, nutrient_name, _, _ = _nutrient_fields(record)
     for target, ids in _NUTRIENT_IDS.items():
         if nutrient_id in ids:
             return target
     if nutrient_id == _ENERGY_KJ_ID:
         return "energy_kcal"
 
-    name = _canonical_name(record.get("nutrientName", ""))
+    name = _canonical_name(nutrient_name or "")
     for target, aliases in _NUTRIENT_NAME_ALIASES.items():
         if name in aliases:
             return target
@@ -162,7 +193,7 @@ def _normalize_nutrient(target: str, value: object, unit: object) -> float | Non
     if not isinstance(unit, str) or not unit.strip():
         raise USDAUnsupportedUnitError(f"Missing source unit for {target}")
     normalized_unit = unit.casefold().replace(" ", "")
-    if target in {"sodium_mg", "potassium_mg"}:
+    if target in {"sodium_mg", "potassium_mg", "calcium_mg", "magnesium_mg", "vitamin_c_mg"}:
         if normalized_unit != "mg":
             raise USDAUnsupportedUnitError(f"Unsupported source unit for {target}: {unit}")
         return amount
@@ -179,21 +210,46 @@ def _normalize_nutrient(target: str, value: object, unit: object) -> float | Non
     raise USDAUnsupportedUnitError(f"Unsupported source unit for {target}: {unit}")
 
 
+
 def _parse_food_nutrients(records: object) -> dict[str, float | None]:
     if not isinstance(records, list):
         raise USDAResponseError("USDA response foodNutrients must be a list")
 
     values: dict[str, float | None] = {field: None for field in _NUTRIENT_IDS}
     seen: set[str] = set()
+    energy_ids_seen: set[int] = set()
     for record in records:
         if not isinstance(record, dict):
             raise USDAResponseError("USDA nutrient records must be objects")
         target = _nutrient_target(record)
         if target is None:
             continue
+        nutrient_id, _, unit, amount = _nutrient_fields(record)
+        if target == "energy_kcal":
+            if nutrient_id not in {1008, _ENERGY_KJ_ID}:
+                raise USDAResponseError(
+                    "USDA energy record has an unrecognized nutrient ID"
+                )
+            if nutrient_id in energy_ids_seen:
+                raise USDAResponseError(
+                    "USDA response contains duplicate energy_kcal records"
+                )
+            normalized = _normalize_nutrient(target, amount, unit)
+            if energy_ids_seen and not math.isclose(
+                values[target], normalized, rel_tol=0.05, abs_tol=1.0
+            ):
+                raise USDAResponseError(
+                    "USDA response contains duplicate energy_kcal records with conflicting values"
+                )
+            energy_ids_seen.add(nutrient_id)
+            if nutrient_id == 1008 or not energy_ids_seen - {nutrient_id}:
+                values[target] = normalized
+            continue
         if target in seen:
-            raise USDAResponseError(f"USDA response contains duplicate {target} records")
-        values[target] = _normalize_nutrient(target, record.get("value"), record.get("unitName"))
+            raise USDAResponseError(
+                f"USDA response contains duplicate {target} records"
+            )
+        values[target] = _normalize_nutrient(target, amount, unit)
         seen.add(target)
     return values
 

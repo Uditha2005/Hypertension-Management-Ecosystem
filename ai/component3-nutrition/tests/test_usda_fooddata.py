@@ -17,6 +17,7 @@ from usda_fooddata import (  # noqa: E402
     USDAResponseError,
     USDAUnsupportedUnitError,
 )
+from meal_plan_service import PlannedFoodSelection, resolve_meal_plan  # noqa: E402
 
 
 class FakeResponse:
@@ -69,6 +70,29 @@ def per_100g_payload(**overrides):
     return payload
 
 
+def nested_per_100g_payload(**overrides):
+    payload = {
+        "fdcId": 123,
+        "description": "Oats, raw",
+        "dataType": "Survey (FNDDS)",
+        "foodNutrients": [
+            {"nutrient": {"id": 1093, "name": "Sodium, Na", "unitName": "mg"}, "amount": 6.0},
+            {"nutrient": {"id": 1092, "name": "Potassium, K", "unitName": "mg"}, "amount": 362.0},
+            {"nutrient": {"id": 1008, "name": "Energy", "unitName": "kcal"}, "amount": 379.0},
+            {
+                "nutrient": {
+                    "id": 1258,
+                    "name": "Fatty acids, total saturated",
+                    "unitName": "g",
+                },
+                "amount": 1.11,
+            },
+        ],
+    }
+    payload.update(overrides)
+    return payload
+
+
 def test_search_maps_multiple_candidates_and_request_parameters(monkeypatch):
     session = FakeSession(
         FakeResponse(
@@ -111,6 +135,37 @@ def test_get_food_uses_explicit_id_and_preserves_per_100g_reference(monkeypatch)
     assert record.nutrients.sat_fat_g == 2.5
 
 
+def test_get_food_parses_current_nested_fdc_nutrients(monkeypatch):
+    record = client(FakeSession(FakeResponse(nested_per_100g_payload())), monkeypatch).get_food(123)
+
+    assert (record.reference_quantity, record.reference_unit) == (100, "g")
+    assert record.nutrients.sodium_mg == 6
+    assert record.nutrients.potassium_mg == 362
+    assert record.nutrients.energy_kcal == 379
+    assert record.nutrients.sat_fat_g == pytest.approx(1.11)
+
+
+def test_nested_fdc_nutrients_scale_through_meal_plan_resolution(monkeypatch):
+    api = client(FakeSession(FakeResponse(nested_per_100g_payload())), monkeypatch)
+    result = resolve_meal_plan(
+        [PlannedFoodSelection(day="2026-10-12", fdc_id=123, quantity=200, unit="g")],
+        api,
+    )
+
+    assert result.total.sodium_mg == 12
+    assert result.total.potassium_mg == 724
+    assert result.total.energy_kcal == 758
+    assert result.total.sat_fat_g == pytest.approx(2.22)
+
+
+def test_malformed_nested_nutrient_record_is_rejected(monkeypatch):
+    payload = nested_per_100g_payload()
+    payload["foodNutrients"][0]["nutrient"] = "not an object"
+
+    with pytest.raises(USDAResponseError, match="nutrient field must be an object"):
+        client(FakeSession(FakeResponse(payload)), monkeypatch).get_food(123)
+
+
 def test_get_food_parses_serving_values_without_guessing_mass(monkeypatch):
     session = FakeSession(
         FakeResponse(
@@ -145,6 +200,24 @@ def test_supported_energy_and_saturated_fat_conversions(monkeypatch):
 
     assert record.nutrients.energy_kcal == pytest.approx(100)
     assert record.nutrients.sat_fat_g == pytest.approx(2.5)
+
+
+def test_duplicate_energy_records_in_kcal_and_kj_are_handled_safely(monkeypatch):
+    payload = per_100g_payload()
+    payload["foodNutrients"].append(
+        {
+            "nutrientId": 1062,
+            "nutrientName": "Energy",
+            "unitName": "kJ",
+            "value": 418.4,
+        }
+    )
+
+    api = client(FakeSession(FakeResponse(payload)), monkeypatch)
+
+    # Current behavior is expected to reject ambiguous duplicate energy records.
+    with pytest.raises(USDAResponseError, match="duplicate energy_kcal"):
+        api.get_food(123)
 
 
 def test_missing_individual_nutrients_remain_none(monkeypatch):

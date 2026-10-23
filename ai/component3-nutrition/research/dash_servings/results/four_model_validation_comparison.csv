@@ -1,0 +1,5 @@
+model,validation_mae_servings_per_food_group,validation_variance_weighted_r2,selection_metric,fit_seconds
+DummyMedian,0.35242707910501664,-0.11005602220811218,validation_mae_servings_per_food_group,0.02
+HistGradientBoosting,0.42493649104029757,0.00044105111306513514,validation_mae_servings_per_food_group,3.74
+RandomForest,0.43086608012449285,-0.028959233012320687,validation_mae_servings_per_food_group,0.27
+ExtraTrees,0.4312131479532171,-0.030665883438526793,validation_mae_servings_per_food_group,0.31

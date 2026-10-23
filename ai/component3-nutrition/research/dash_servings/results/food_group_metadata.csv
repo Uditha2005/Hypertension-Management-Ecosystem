@@ -1,0 +1,51 @@
+food_code,food_name,serving_grams,scale_for_optimization
+11,milk,244.0,0.8368186475409836
+12,Cream,32.0,0.25
+13,Ice Cream,130.0,0.25
+14,Cheese,32.0,0.58859375
+20,Meat (baby Food),32.0,0.25
+21,Beef,65.0,0.25
+22,Pork,84.0,0.25
+23,Lamb/Goat/Veal/Venison,85.0,0.25
+24,Chicken/Turkey,110.0,0.6136363636363636
+25,Sussages,100.0,0.28
+26,Fish,85.0,0.25
+27,Stew (meat/rice/vegetable),140.0,0.9285714285714286
+28,frozen meal (containing meat and vegetables),312.0,0.25
+31,egg,50.0,0.25
+32,egg omelet,61.0,0.25
+33,egg omelet substitute,61.0,0.25
+41,Beans,28.35,0.5952380952380952
+42,Nuts,28.35,0.25
+43,Seeds,30.0,0.25
+44,Carob Chips,28.35,0.25
+51,Bread,25.0,2.28
+52,Biscuits,49.0,0.2857142857142857
+53,Cakes/cookies/pies,28.35,1.4814814814814814
+54,Crackers,30.0,0.48333333333333334
+55,Pancakes/waffles,140.0,0.25
+56,Macaroni/Noodle/pasta/rice,176.0,0.4630681818181818
+57,Cereal,55.0,0.25
+58,Burrito/Taco/Enchilada/Pizza/lasanga,198.0,1.2626262626262625
+59,"Meat substitute, cereal- and vegetable protein-based, fried",100.0,0.25
+61,grapefruit/lemon/orange,236.0,0.25
+62,dried fruit,28.35,0.25
+63,raw apple/apricot/avocado/banana/cantaloupe/cherries/fig/grapes/mango/pear/pineapple/,182.0,0.6848901098901099
+64,fruit juice,249.0,0.25
+67,fruit based baby food,28.35,0.25
+71,potato,369.0,0.25
+72,beet greens/collards/cress/romaine/greens/spinach,38.0,0.25
+73,carrots/pumpkin/squash/sweet potato/,72.0,0.25
+74,tomato/salsa/,123.0,0.25
+75,raw vegetables,163.0,0.5130291411042944
+76,vegetable (baby food),50.0,0.25
+77,puerto rican style food,250.0,0.25
+78,fruit and vegetable smoothie,233.0,0.25
+81,butter,14.2,0.25
+82,oil,14.0,0.25
+83,salad dressing,14.0,0.5246428571428571
+91,sugar/desserts,200.0,0.25
+92,coffee/soda drink/iced tea,240.0,3.8140625000000004
+93,beer/alcohol,354.0,0.25
+94,water,236.7,6.875792141951838
+95,shakes/drink mixes,166.0,0.25
