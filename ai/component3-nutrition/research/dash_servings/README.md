@@ -1,41 +1,46 @@
-# DASH daily food-group serving research
+# DASH optimizer and ML preference model
 
-## Defined prediction target
+## Current implementation
 
-Predict **average observed servings per food group across NHANES dietary Day 1 and Day 2** from age, sex, and self-reported hypertension. This target is available from the supplied dietary dataset and does not require fabricated labels.
+The live `POST /dash/optimize-current-day` workflow uses two components:
 
-It is a behavioural regression target, not personalized meal suitability, clinical risk, or a recommendation label. The meal-suitability classifier pipeline remains separate and blocked until genuine labelled meals with provenance are supplied.
+1. **New ML component:** a trained Ridge multi-output regression model predicts Day 2 food-group servings from Day 1 food-group servings in paired NHANES dietary records. At inference, its predicted profile is blended at 30% with the user's mapped current-day profile.
+2. **Existing DASH optimizer:** projects that blended profile against the supplied aggregate food-group nutrient constraints. The optimizer remains in place and returns optional serving changes.
 
-## Four-model comparison
+The ML target is *observed next-day dietary behaviour*. It is not a meal-suitability label, a measure of diet quality, a causal preference, or a clinical outcome. This model is experimental and must not be presented as clinically validated.
 
-Run from repository root:
+## Dataset and training
+
+Dataset: `data_source/Dietary-Behavior-Dataset-master.zip`, supplied Dietary Behavior Dataset based on NHANES Day 1 and Day 2 food-consumption records. Training uses paired participants with food-group servings on both days. No synthetic patient records are created.
+
+Reproduce comparison and training from the repository root:
 
 ```bash
-python ai/component3-nutrition/research/dash_servings/src/train_compare_servings.py
+python ai/component3-nutrition/research/dash_servings/src/train_ml_preference_model.py
 ```
 
-The script builds participant-level records from the original dataset, uses a fixed 70/15/15 train/validation/test split, chooses the candidate by lowest validation MAE, refits the selected model on train+validation, and evaluates once on the held-out test set. The four candidates are DummyMedian, RandomForest, ExtraTrees, and HistGradientBoosting (multi-output). No synthetic data are generated.
+The script compares Ridge, Random Forest and Extra Trees using a participant-level 70/15/15 train/validation/test split (`random_state=42`). Selection uses validation variance-weighted R² among the ML candidates; the test set is held out until after selection. Results are in `results/new_ml_training/`; the fitted artifact is in `models/dash_next_day_preference_ridge.joblib`.
 
-## Current recorded results
+## Current evaluation
 
-Validation MAE (servings per food group):
-- DummyMedian: **0.352427** (selected)
-- HistGradientBoosting: 0.424936
-- RandomForest: 0.430866
-- ExtraTrees: 0.431213
+- Paired participants: 4,650
+- Outputs: 50 food-group serving targets
+- Selected model: Ridge multi-output regression
+- Validation MAE: 0.4333 servings per food group
+- Validation variance-weighted R²: 0.1713
+- Held-out test MAE: 0.4344 servings per food group
+- Held-out test variance-weighted R²: 0.1751
 
-Held-out test for the selected median baseline:
-- MAE: **0.344729 servings per food group**
-- Variance-weighted R²: **-0.102117**
+These results indicate limited predictive signal. The model was selected as the strongest R² among the three tested ML candidates, not because it is proven to generate healthy recommendations. Compare model metrics before relying on this output.
 
-Negative variance-weighted R² means the selected model does not explain held-out variation better than a mean-like baseline under this metric. Do not describe these results as strong predictive performance. The target is sparse and many food-group targets are zero for many participants.
+## Removed legacy experiment
 
-Participant counts, exact split, model columns, and target definition are in `results/training/training_manifest.json`; per-model metrics are in `results/training/four_model_validation_comparison.csv`; held-out metrics are in `results/training/heldout_test_summary.csv`.
+The previous demographic-to-average-serving regression experiment compared DummyMedian, HistGradientBoosting, Random Forest and Extra Trees. It was removed from active code and its detailed result files were deleted because it performed poorly and did not directly model meal suitability. Its existence and purpose are recorded here for project history. The new model above is a separate Day-1-to-Day-2 dietary-pattern experiment.
 
-## Daily DASH optimization
+## Limitations
 
-`src/dash_optimizer.py` implements a feasibility-checked constrained projection. Coefficients and bounds are copied from the supplied Dietary Behavior Dataset research package. The optimizer is intended for daily food-group serving profiles. It does not optimize a single meal and does not establish clinical suitability. See the included optimization evaluation report in `reports/`.
-
-## Source and use
-
-The original dataset archive is preserved in `data_source/Dietary-Behavior-Dataset-master.zip`. Cite Ahmadi, Ganjkhanloo, and Ghobadi (2020), *An Open-Source Dataset on Dietary Behaviors and DASH Eating Plan Optimization Constraints*, arXiv:2010.07531. Review original dataset license/terms before redistribution or external reuse.
+- The dataset reflects observed intake; it does not label ideal or healthier replacement meals.
+- The 30% prediction blend is a conservative integration choice, not a learned or clinically validated parameter.
+- Food-to-group mapping is keyword-based and may misclassify foods.
+- Nutrient coefficients and bounds are aggregate research constraints, not personalized clinical prescriptions.
+- The model/optimizer combination requires broader evaluation and dietitian review before any health claims.

@@ -1,0 +1,16 @@
+{
+  "status": "partial_coverage_only",
+  "catalogue_labels": 22,
+  "labels_with_candidate_ingredient": 18,
+  "labels_with_at_least_one_local_rule": 10,
+  "labels_unresolved": 4,
+  "local_rule_count": 9,
+  "registry_last_reviewed": "2026-10-23",
+  "important_limitations": [
+    "Catalogue labels are not a confirmed patient's prescription list.",
+    "Candidate active ingredients still require verification against packaging or a reviewed prescription.",
+    "The local registry is intentionally partial and currently contains selected food-triggered reminders only.",
+    "No match is not evidence that a medicine has no food interactions.",
+    "This report counts local rules, not all DDID records or clinically validated interactions."
+  ]
+}

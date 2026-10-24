@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import math
+import logging
+import re
 from dataclasses import dataclass, replace
 from datetime import date
 from numbers import Real
@@ -24,6 +26,11 @@ except ModuleNotFoundError:
         aggregate_meal_plan,
     )
     from .usda_fooddata import USDAFoodDataClient, USDAFoodRecord
+
+
+logger = logging.getLogger("nutrition.nutrient_fallback")
+
+TARGET_NUTRIENTS = ("sodium_mg", "potassium_mg", "energy_kcal", "sat_fat_g")
 
 
 class MealPlanValidationError(ValueError):
@@ -76,12 +83,19 @@ def _validate_day(day: object) -> str:
     return day
 
 
-def _validate_quantity(quantity: object) -> float:
+_MAX_QUANTITY_BY_UNIT = {"g": 5000.0, "kg": 5.0, "serving": 50.0}
+
+
+def _validate_quantity(quantity: object, unit: str) -> float:
     if isinstance(quantity, bool) or not isinstance(quantity, Real):
-        raise MealPlanValidationError("quantity must be a finite non-negative number")
+        raise MealPlanValidationError("quantity must be a finite positive number")
     value = float(quantity)
-    if not math.isfinite(value) or value < 0:
-        raise MealPlanValidationError("quantity must be a finite non-negative number")
+    maximum = _MAX_QUANTITY_BY_UNIT.get(unit)
+    if maximum is None:
+        raise MealPlanValidationError(f"unsupported quantity unit: {unit}")
+    if not math.isfinite(value) or value <= 0 or value > maximum:
+        limit_text = f"{maximum:g} {unit}"
+        raise MealPlanValidationError(f"quantity must be greater than 0 and no more than {limit_text}")
     return value
 
 
@@ -175,6 +189,87 @@ def _validate_record(record: object, requested_id: int) -> USDAFoodRecord:
     return record
 
 
+
+def _food_tokens(description: str) -> set[str]:
+    ignored = {"and", "or", "with", "without", "the", "of", "for", "in", "raw", "plain"}
+    return {token for token in re.findall(r"[a-z0-9]+", description.casefold()) if len(token) > 1 and token not in ignored}
+
+
+def _fallback_value_for_reference(candidate: USDAFoodRecord, original: USDAFoodRecord, nutrient: str) -> float | None:
+    """Convert a candidate nutrient to the original record's reference basis only when explicit units support it."""
+    value = getattr(candidate.nutrients, nutrient)
+    if value is None:
+        return None
+    if candidate.reference_unit == original.reference_unit == "g":
+        return float(value)  # both records are per 100 g
+    if candidate.reference_unit == original.reference_unit == "serving":
+        c_unit = (candidate.serving_size_unit or "").casefold().strip()
+        o_unit = (original.serving_size_unit or "").casefold().strip()
+        c_size, o_size = candidate.serving_size, original.serving_size
+        if c_unit == o_unit and c_size and o_size and math.isclose(float(c_size), float(o_size), rel_tol=0.01):
+            return float(value)
+        # Convert only explicit gram servings, never assume a volume-to-mass density.
+        if c_unit in {"g", "grm", "gram", "grams"} and o_unit in {"g", "grm", "gram", "grams"} and c_size and o_size:
+            return float(value) * float(o_size) / float(c_size)
+    if candidate.reference_unit == "g" and original.reference_unit == "serving":
+        o_unit = (original.serving_size_unit or "").casefold().strip()
+        if o_unit in {"g", "grm", "gram", "grams"} and original.serving_size:
+            return float(value) * float(original.serving_size) / 100.0
+    if candidate.reference_unit == "serving" and original.reference_unit == "g":
+        c_unit = (candidate.serving_size_unit or "").casefold().strip()
+        if c_unit in {"g", "grm", "gram", "grams"} and candidate.serving_size:
+            return float(value) * 100.0 / float(candidate.serving_size)
+    return None
+
+
+def _resolve_missing_nutrients(original: USDAFoodRecord, client: USDAFoodDataClient) -> USDAFoodRecord:
+    """Fill missing target nutrients from a close USDA match, then explicitly default unresolved gaps to 0."""
+    values = {field: getattr(original.nutrients, field) for field in TARGET_NUTRIENTS}
+    missing = [field for field in TARGET_NUTRIENTS if values[field] is None]
+    if not missing:
+        return original
+
+    logger.warning("NUTRIENT DATA MISSING: USDA FDC %s (%s): %s; searching USDA alternatives automatically.",
+                   original.fdc_id, original.description, ", ".join(missing))
+    try:
+        candidates = client.search_foods(original.description, page_size=25)
+    except Exception as exc:
+        logger.warning("USDA fallback search failed for FDC %s: %s", original.fdc_id, exc)
+        candidates = []
+
+    original_tokens = _food_tokens(original.description)
+    seen = {original.fdc_id}
+    for result in candidates:
+        if result.fdc_id in seen:
+            continue
+        seen.add(result.fdc_id)
+        candidate_tokens = _food_tokens(result.description)
+        similarity = len(original_tokens & candidate_tokens) / len(original_tokens) if original_tokens else 0
+        if similarity < 0.75:
+            continue
+        try:
+            candidate = client.get_food(result.fdc_id)
+        except Exception as exc:
+            logger.warning("Could not read fallback candidate FDC %s: %s", result.fdc_id, exc)
+            continue
+        for nutrient in list(missing):
+            candidate_value = _fallback_value_for_reference(candidate, original, nutrient)
+            if candidate_value is not None:
+                values[nutrient] = candidate_value
+                missing.remove(nutrient)
+                logger.warning("NUTRIENT FALLBACK: %s for %s filled from FDC %s (%s), converted to original reference basis.",
+                               nutrient, original.description, candidate.fdc_id, candidate.description)
+        if not missing:
+            break
+
+    for nutrient in missing:
+        values[nutrient] = 0.0
+        logger.error("NUTRIENT FALLBACK EXHAUSTED: %s for FDC %s (%s) not found with a compatible basis; using 0 as requested.",
+                     nutrient, original.fdc_id, original.description)
+
+    return replace(original, nutrients=replace(original.nutrients, **values))
+
+
 def resolve_meal_plan(
     entries: Iterable[PlannedFoodSelection],
     client: USDAFoodDataClient,
@@ -198,12 +293,12 @@ def resolve_meal_plan(
             raise MealPlanValidationError("entries must contain PlannedFoodSelection values")
         day = _validate_day(selection.day)
         fdc_id = _normalize_id(selection.fdc_id)
-        quantity = _validate_quantity(selection.quantity)
         unit = _normalize_unit(selection.unit)
+        quantity = _validate_quantity(selection.quantity, unit)
 
         if fdc_id not in cache:
             fetched_record = client.get_food(fdc_id)
-            cache[fdc_id] = _validate_record(fetched_record, fdc_id)
+            cache[fdc_id] = _resolve_missing_nutrients(_validate_record(fetched_record, fdc_id), client)
         record = cache[fdc_id]
         converted_quantity = _convert_quantity(quantity, unit, record)
         resolved_entries.append(

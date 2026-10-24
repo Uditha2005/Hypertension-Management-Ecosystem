@@ -218,13 +218,13 @@ def test_invalid_nutrient_value_in_record_is_rejected(field):
         resolve_meal_plan([selection()], client)
 
 
-def test_missing_nutrients_remain_unknown_after_resolution():
+def test_missing_nutrients_default_to_zero_when_no_compatible_fallback_exists():
     client = FakeUSDAClient({123: record(sodium_mg=None, potassium_mg=200, energy_kcal=300, sat_fat_g=4)})
 
     result = resolve_meal_plan([selection()], client)
 
-    assert result.total.sodium_mg is None
-    assert result.total.na_k_ratio is None
+    assert result.total.sodium_mg == 0
+    assert result.total.na_k_ratio == 0
     assert result.total.potassium_mg == 200
     assert result.total.energy_kcal == 300
 
@@ -234,7 +234,7 @@ def test_unsupported_unit_conversion_is_rejected(unit):
     client = FakeUSDAClient({123: record(reference_unit="g")})
 
     with pytest.raises(MealPlanValidationError, match="unsupported|convert"):
-        resolve_meal_plan([selection(unit=unit)], client)
+        resolve_meal_plan([selection(unit=unit, quantity=1)], client)
 
 
 def test_volume_conversion_is_not_used_for_mass_record():
@@ -279,3 +279,15 @@ def test_usda_errors_are_propagated_clearly():
 
     with pytest.raises(USDAFoodDataError, match="USDA request failed"):
         resolve_meal_plan([selection()], client)
+
+def test_zero_and_unit_specific_excessive_quantities_are_rejected_before_lookup():
+    client = FakeUSDAClient({123: record()})
+    with pytest.raises(MealPlanValidationError, match="greater than 0"):
+        resolve_meal_plan([selection(quantity=0)], client)
+    with pytest.raises(MealPlanValidationError, match="no more than 5000 g"):
+        resolve_meal_plan([selection(quantity=5001, unit="g")], client)
+    with pytest.raises(MealPlanValidationError, match="no more than 5 kg"):
+        resolve_meal_plan([selection(quantity=5.1, unit="kg")], client)
+    with pytest.raises(MealPlanValidationError, match="no more than 50 serving"):
+        resolve_meal_plan([selection(quantity=51, unit="serving")], client)
+    assert client.calls == []

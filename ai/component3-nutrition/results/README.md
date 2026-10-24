@@ -9,3 +9,6 @@ No metrics or selected model are fabricated. `comparisons/candidate_model_status
 - model artifact and metadata under `models/`
 
 Until those outputs exist, the API reports `training_pending`.
+
+
+Legacy alignment-proxy and food-goal-suitability experiment code/results were removed during cleanup. Their existence and removal are documented in the project README. The active DASH Ridge preference model and its current comparison/evaluation reports remain under research/dash_servings/.

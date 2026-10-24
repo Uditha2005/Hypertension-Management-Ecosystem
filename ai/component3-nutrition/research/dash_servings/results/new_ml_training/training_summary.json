@@ -1,0 +1,25 @@
+{
+  "task": "Predict Day 2 observed food-group servings from Day 1 food-group servings",
+  "dataset": "Dietary Behavior Dataset (NHANES paired Day 1 and Day 2 records)",
+  "paired_participants": 4650,
+  "food_group_targets": 50,
+  "features": 50,
+  "split": "70/15/15 participant-level train/validation/test; random_state=42",
+  "selected_model": "Ridge multi-output regression",
+  "selection_reason": "Highest validation variance-weighted R2 among the three non-baseline ML candidates; selection is exploratory and not evidence of clinical recommendation quality.",
+  "validation": {
+    "mae_servings_per_food_group": 0.43332143263437684,
+    "variance_weighted_r2": 0.17132712177700724
+  },
+  "heldout_test": {
+    "mae_servings_per_food_group": 0.4344145641332577,
+    "variance_weighted_r2": 0.17514383920871035
+  },
+  "integration": "At inference, blend 30% predicted next-day profile with 70% current food-group profile, then pass blended profile to existing DASH constrained optimizer.",
+  "limitations": [
+    "Prediction of observed next-day intake is not a healthiness or meal-suitability label.",
+    "Negative or zero servings are clipped to zero.",
+    "The model is experimental; recommendations require user research and dietitian validation.",
+    "DASH optimizer constraints are aggregate research constraints, not individualized clinical prescriptions."
+  ]
+}
