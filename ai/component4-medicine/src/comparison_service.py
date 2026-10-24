@@ -1,8 +1,8 @@
+from medicine_mongo import get_database
 """Reviewed prescriptions and explicitly scoped tray comparisons."""
 
 import json
 import math
-import sqlite3
 from collections import Counter
 from datetime import datetime, timezone
 from pathlib import Path
@@ -17,18 +17,8 @@ def now():
 
 
 def connect(database):
-    database = Path(database)
-    database.parent.mkdir(parents=True, exist_ok=True)
-    connection = sqlite3.connect(str(database), timeout=10)
-    connection.execute(
-        "CREATE TABLE IF NOT EXISTS reviewed_prescriptions "
-        "(id TEXT PRIMARY KEY, created_at TEXT NOT NULL, payload TEXT NOT NULL)"
-    )
-    connection.execute(
-        "CREATE TABLE IF NOT EXISTS comparisons "
-        "(id TEXT PRIMARY KEY, created_at TEXT NOT NULL, payload TEXT NOT NULL)"
-    )
-    return connection
+    """Keep the existing API call signature; storage is now MongoDB."""
+    return get_database()
 
 
 def clean_text(value, field, required=False, limit=200):
@@ -160,30 +150,20 @@ def save_prescription(database, payload, products):
         "doctorApproved": False,
     }
 
-    connection = connect(database)
-    try:
-        with connection:
-            connection.execute(
-                "INSERT INTO reviewed_prescriptions VALUES (?, ?, ?)",
-                (record["id"], record["createdAt"], json.dumps(record)),
-            )
-    finally:
-        connection.close()
-
+    connect(database)["reviewed_prescriptions"].insert_one({
+        "_id": record["id"],
+        "created_at": record["createdAt"],
+        "payload": record,
+    })
     return record
 
 
 def get_prescription(database, prescription_id):
-    connection = connect(database)
-    try:
-        row = connection.execute(
-            "SELECT payload FROM reviewed_prescriptions WHERE id = ?",
-            (prescription_id,),
-        ).fetchone()
-    finally:
-        connection.close()
-
-    return json.loads(row[0]) if row else None
+    row = connect(database)["reviewed_prescriptions"].find_one(
+        {"_id": prescription_id},
+        {"payload": 1},
+    )
+    return row["payload"] if row else None
 
 
 def base_result(prescription, comparison_type):
@@ -326,25 +306,18 @@ def build_total_count_comparison(prescription, detections):
 
 
 def save_comparison(database, result):
-    connection = connect(database)
-    try:
-        with connection:
-            connection.execute(
-                "INSERT INTO comparisons VALUES (?, ?, ?)",
-                (result["id"], result["createdAt"], json.dumps(result)),
-            )
-    finally:
-        connection.close()
+    connect(database)["comparisons"].insert_one({
+        "_id": result["id"],
+        "created_at": result["createdAt"],
+        "payload": result,
+    })
 
 
 def list_history(database):
-    connection = connect(database)
-    try:
-        rows = connection.execute(
-            "SELECT payload FROM comparisons "
-            "ORDER BY created_at DESC LIMIT 200"
-        ).fetchall()
-    finally:
-        connection.close()
-
-    return [json.loads(row[0]) for row in rows]
+    rows = (
+        connect(database)["comparisons"]
+        .find({}, {"payload": 1})
+        .sort([("created_at", -1), ("_id", -1)])
+        .limit(200)
+    )
+    return [row["payload"] for row in rows]
