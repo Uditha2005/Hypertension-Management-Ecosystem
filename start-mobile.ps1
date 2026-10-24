@@ -1,79 +1,62 @@
 ﻿$ErrorActionPreference = "Stop"
+Set-Location $PSScriptRoot
 
-$projectRoot = $PSScriptRoot
-$pythonPath = Join-Path $projectRoot "ai\component4-medicine\.venv\Scripts\python.exe"
-$apiDirectory = Join-Path $projectRoot "ai\component4-medicine\src"
-$mobileDirectory = Join-Path $projectRoot "frontend\mobile-rn"
+$python = Join-Path $PSScriptRoot "ai\component4-medicine\.venv\Scripts\python.exe"
+$mobile = Join-Path $PSScriptRoot "frontend\mobile-rn"
 
-if (-not (Test-Path -LiteralPath $pythonPath)) {
+if (-not (Test-Path $python)) {
     throw "Medicine Python environment was not found."
 }
-
-if (-not (Test-Path -LiteralPath (Join-Path $mobileDirectory "node_modules\expo"))) {
+if (-not (Test-Path "$mobile\node_modules\expo")) {
     throw "Mobile dependencies are missing. Run npm install inside frontend/mobile-rn."
 }
 
-if (-not (Get-Command npm.cmd -ErrorAction SilentlyContinue)) {
-    throw "npm was not found. Install Node.js or reopen the terminal."
+function Test-Listening($port) {
+    return [bool](Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction SilentlyContinue)
 }
 
-$occupiedPorts = @(
-    foreach ($port in @(8000, 8081)) {
-        if (Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction SilentlyContinue) {
-            $port
-        }
+# Ask for the key only when starting a new medicine API.
+if (-not (Test-Listening 8000)) {
+    if ([string]::IsNullOrWhiteSpace($env:GROQ_API_KEY)) {
+        $secret = Read-Host -Prompt "Paste Groq API key and press Enter" -AsSecureString
+        $env:GROQ_API_KEY = ([System.Net.NetworkCredential]::new("", $secret).Password).Trim()
+        Remove-Variable secret
     }
-)
 
-if ($occupiedPorts.Count -gt 0) {
-    Write-Host "Already running on port(s): $($occupiedPorts -join ', ')" -ForegroundColor Yellow
-    Write-Host "Stop the existing medicine API / Expo terminals with Ctrl+C, then run this script again."
-    exit 1
+    if ([string]::IsNullOrWhiteSpace($env:GROQ_API_KEY)) {
+        throw "Key is empty. Nothing was started."
+    }
 }
 
 $env:GROQ_MODEL = "openai/gpt-oss-20b"
 $env:RX_SHORTHAND_CONVENTION = "tablets-per-dose_x_doses-per-day"
 
-if ([string]::IsNullOrWhiteSpace($env:GROQ_API_KEY)) {
-    $secret = Read-Host "Paste Groq API key and press Enter" -AsSecureString
-    $env:GROQ_API_KEY = ([System.Net.NetworkCredential]::new("", $secret).Password).Trim()
-    Remove-Variable secret
-}
-
-if ([string]::IsNullOrWhiteSpace($env:GROQ_API_KEY)) {
-    throw "Groq API key is empty. Nothing was started."
-}
-
-function Quote-PowerShellPath([string]$value) {
-    return "'" + $value.Replace("'", "''") + "'"
-}
-
-$apiCommand = @"
-Set-Location -LiteralPath $(Quote-PowerShellPath $projectRoot)
-& $(Quote-PowerShellPath $pythonPath) -m uvicorn main:app --app-dir $(Quote-PowerShellPath $apiDirectory) --host 0.0.0.0 --port 8000
-"@
-
-$mobileCommand = @"
-Set-Location -LiteralPath $(Quote-PowerShellPath $mobileDirectory)
-& npm.cmd start
-"@
-
-foreach ($command in @($apiCommand, $mobileCommand)) {
-    $encoded = [Convert]::ToBase64String(
-        [System.Text.Encoding]::Unicode.GetBytes($command)
+if (-not (Test-Listening 5000)) {
+    Start-Process powershell.exe -WorkingDirectory $PSScriptRoot -ArgumentList @(
+        "-NoExit", "-Command", "npm --prefix backend start"
     )
+} else {
+    Write-Host "Port 5000 is already running; skipped."
+}
 
-    Start-Process powershell.exe -ArgumentList @(
-        "-NoProfile",
-        "-NoExit",
-        "-EncodedCommand",
-        $encoded
-    ) | Out-Null
+if (-not (Test-Listening 8000)) {
+    Start-Process powershell.exe -WorkingDirectory $PSScriptRoot -ArgumentList @(
+        "-NoExit", "-Command",
+        "& '.\ai\component4-medicine\.venv\Scripts\python.exe' -m uvicorn main:app --app-dir ai/component4-medicine/src --host 0.0.0.0 --port 8000"
+    )
+} else {
+    Write-Host "Port 8000 is already running; skipped."
+}
+
+if (-not (Test-Listening 8081)) {
+    Start-Process powershell.exe -WorkingDirectory $mobile -ArgumentList @(
+        "-NoExit", "-Command", "npx expo start --clear --port 8081"
+    )
+} else {
+    Write-Host "Expo port 8081 is already running; skipped."
 }
 
 Write-Host ""
-Write-Host "Started medicine API and Expo in two terminal windows." -ForegroundColor Green
-Write-Host "Keep both windows open."
-Write-Host "Open the app using Expo Go."
-Write-Host "Phone and laptop must be connected to the same Wi-Fi."
-Write-Host "App Settings: use the laptop Wi-Fi IPv4 address with port 8000."
+Write-Host "Scan the Expo QR code using Expo Go."
+Write-Host "Keep the server windows open."
+Write-Host "Phone and laptop must use the same Wi-Fi."
