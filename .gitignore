@@ -86,3 +86,6 @@ logs/
 !ai/component1-physiological/
 !ai/component1-physiological/models/
 !ai/component1-physiological/models/model1_random_forest.joblib
+
+# Local SQLite account database
+backend/data/

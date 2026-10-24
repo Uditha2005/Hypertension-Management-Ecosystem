@@ -8,6 +8,7 @@ const app = express();
 
 app.use(cors());
 app.use(express.json());
+app.use("/api/auth", require("./auth"));
 
 const AI_SERVICE_URL = (
   process.env.COMPONENT1_AI_URL || "http://127.0.0.1:8000"
