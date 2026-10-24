@@ -1,0 +1,571 @@
+.av-medicine .ms-intro {
+  display: grid;
+  grid-template-columns: 58px minmax(0, 1fr) 210px;
+  align-items: start;
+  gap: 22px;
+  margin: 0 0 26px;
+  padding: 26px;
+  border: 1px solid #cddfd3;
+  border-left: 5px solid #217447;
+  border-radius: 18px;
+  background: linear-gradient(120deg, #eaf4ed, #f6f8f5);
+}
+.av-medicine .ms-intro-symbol {
+  display: grid;
+  place-items: center;
+  width: 58px;
+  height: 58px;
+  border: 1px solid #d0e3d5;
+  border-radius: 17px;
+  background: #fff;
+  color: #21633f;
+}
+.av-medicine .ms-intro-symbol svg { width: 33px; height: 33px; }
+.av-medicine .ms-eyebrow {
+  display: block;
+  margin-bottom: 7px;
+  color: #41624d;
+  font-size: 10px;
+  font-weight: 750;
+  letter-spacing: 1.3px;
+}
+.av-medicine .ms-intro h2 {
+  margin: 0 0 9px;
+  color: #173c28;
+  font-size: clamp(19px, 2vw, 24px);
+  line-height: 1.3;
+}
+.av-medicine .ms-intro p {
+  max-width: 750px;
+  margin: 0;
+  color: #526459;
+  font-size: 13px;
+  line-height: 1.8;
+}
+.av-medicine .ms-checks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 15px;
+}
+.av-medicine .ms-checks span {
+  padding: 5px 10px;
+  border: 1px solid #d7e4da;
+  border-radius: 7px;
+  background: rgba(255, 255, 255, .8);
+  color: #36533f;
+  font-size: 11px;
+  font-weight: 600;
+}
+.av-medicine .ms-audio {
+  display: grid;
+  gap: 9px;
+  padding-left: 18px;
+  border-left: 1px solid #d5e1d8;
+}
+.av-medicine .ms-audio .av-button {
+  width: 100%;
+  padding: 9px 12px;
+  font-size: 12px;
+}
+.av-medicine .ms-audio small {
+  color: #66786b;
+  font-size: 11px;
+  line-height: 1.6;
+}
+.av-medicine .ms-dialog {
+  width: min(580px, calc(100vw - 32px));
+  max-height: calc(100dvh - 48px);
+  margin: auto;
+  padding: 28px;
+  overflow: auto;
+  border: 1px solid #e5cf9d;
+  border-top: 5px solid #b77a18;
+  border-radius: 20px;
+  background: #fff;
+  color: #29372f;
+  box-shadow: 0 24px 80px rgba(15, 30, 22, .25);
+}
+.av-medicine .ms-dialog::backdrop {
+  background: rgba(15, 28, 21, .58);
+}
+.av-medicine .ms-dialog.danger {
+  border-color: #ecc7c1;
+  border-top-color: #b42318;
+}
+.av-medicine .ms-dialog-heading {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 18px;
+}
+.av-medicine .ms-dialog-symbol {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 46px;
+  height: 46px;
+  border-radius: 13px;
+  background: #fff2d8;
+  color: #895908;
+  font-size: 25px;
+  font-weight: 800;
+}
+.av-medicine .ms-dialog.danger .ms-dialog-symbol {
+  background: #fde9e6;
+  color: #b42318;
+}
+.av-medicine .ms-dialog h2 {
+  margin: 0;
+  font-size: 21px;
+  line-height: 1.35;
+}
+.av-medicine .ms-alert-list {
+  display: grid;
+  gap: 10px;
+  margin: 18px 0;
+  padding-left: 23px;
+  font-size: 13px;
+  line-height: 1.7;
+}
+.av-medicine .ms-disclaimer {
+  padding: 13px 15px;
+  border: 1px solid #e3e8e4;
+  border-radius: 10px;
+  background: #f5f7f5;
+  color: #637067;
+  font-size: 12px;
+  line-height: 1.7;
+}
+.av-medicine .ms-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 22px;
+}
+@media (max-width: 900px) {
+  .av-medicine .ms-intro {
+    grid-template-columns: 48px minmax(0, 1fr);
+    gap: 16px;
+    padding: 22px;
+  }
+  .av-medicine .ms-intro-symbol { width: 48px; height: 48px; }
+  .av-medicine .ms-audio {
+    grid-column: 2;
+    max-width: 300px;
+    padding-left: 0;
+    border-left: 0;
+  }
+}
+@media (max-width: 540px) {
+  .av-medicine .ms-intro {
+    grid-template-columns: minmax(0, 1fr);
+    padding: 20px;
+  }
+  .av-medicine .ms-audio { grid-column: 1; max-width: none; }
+  .av-medicine .ms-dialog { padding: 22px; }
+  .av-medicine .ms-dialog-actions .av-button { width: 100%; }
+}
+
+
+/* COMPARISON_FLAGS_V2 */
+.av-medicine .ms-dialog.warning {
+  border: 2px solid #d99b08;
+  border-top: 8px solid #d99b08;
+  background: #fffbea;
+}
+.av-medicine .ms-dialog.danger {
+  border: 2px solid #cf3029;
+  border-top: 8px solid #cf3029;
+  background: #fff5f4;
+}
+.av-medicine .ms-dialog.warning h2 {
+  color: #785000;
+}
+.av-medicine .ms-dialog.danger h2 {
+  color: #a91e19;
+}
+.av-medicine .ms-dialog-symbol {
+  width: 58px;
+  height: 58px;
+  background: #ffe08a;
+  color: #795000;
+}
+.av-medicine .ms-dialog-symbol svg {
+  width: 32px;
+  height: 32px;
+}
+.av-medicine .ms-dialog.danger .ms-dialog-symbol {
+  background: #cf3029;
+  color: #fff;
+}
+.av-medicine .ms-dialog.warning .ms-alert-list {
+  color: #684900;
+}
+.av-medicine .ms-dialog.danger .ms-alert-list {
+  color: #8e241d;
+}
+.av-medicine .ms-result-flag {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  margin: 0 0 24px;
+  padding: 18px 20px;
+  border: 1px solid #e0b036;
+  border-left: 6px solid #d99b08;
+  border-radius: 13px;
+  background: #fff5cc;
+  color: #705000;
+}
+.av-medicine .ms-result-flag.danger {
+  border-color: #efb4ad;
+  border-left-color: #cf3029;
+  background: #ffebe8;
+  color: #9c241c;
+}
+.av-medicine .ms-result-flag-icon {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border: 2px solid currentColor;
+  border-radius: 50%;
+  font-size: 20px;
+  font-weight: 800;
+}
+.av-medicine .ms-result-flag strong {
+  display: block;
+  font-size: 15px;
+}
+.av-medicine .ms-result-flag p {
+  margin: 4px 0 0;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+
+/* MEDICINE_HERO_V3 */
+.av-medicine .ms-hero {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) minmax(250px, .8fr);
+  align-items: center;
+  gap: 30px;
+  padding: 30px 36px;
+  border: 1px solid #d5e2d7;
+  border-radius: 22px;
+  background: linear-gradient(110deg, #eef5ed 0%, #f9fbf7 70%, #edf4ea 100%);
+  overflow: hidden;
+}
+.av-medicine .ms-hero-copy { min-width: 0; }
+.av-medicine .ms-hero .ms-eyebrow {
+  max-width: 450px;
+  margin-bottom: 13px;
+  color: #4c7056;
+  font-size: 10px;
+  letter-spacing: 1.5px;
+}
+.av-medicine .ms-hero h2 {
+  margin: 0 0 15px;
+  color: #183e2a;
+  font-size: clamp(28px, 3vw, 41px);
+  line-height: 1.15;
+  letter-spacing: -1.2px;
+}
+.av-medicine .ms-hero p {
+  max-width: 610px;
+  color: #607064;
+  font-size: 13px;
+  line-height: 1.85;
+}
+.av-medicine .ms-hero-steps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px;
+  margin-top: 20px;
+}
+.av-medicine .ms-hero-steps span {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: #365440;
+  font-size: 12px;
+  font-weight: 650;
+}
+.av-medicine .ms-hero-steps b {
+  display: grid;
+  place-items: center;
+  width: 25px;
+  height: 25px;
+  border-radius: 8px;
+  background: #dcebdc;
+  color: #397047;
+  font-size: 10px;
+}
+.av-medicine .ms-hero-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin-top: 22px;
+}
+.av-medicine .ms-sound-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 36px;
+  padding: 7px 11px;
+  border: 1px solid #cbdccf;
+  border-radius: 9px;
+  background: rgba(255,255,255,.75);
+  color: #355b40;
+  font-size: 11px;
+  font-weight: 650;
+}
+.av-medicine .ms-sound-control:hover { background: #fff; }
+.av-medicine .ms-sound-control svg { width: 16px; height: 16px; }
+.av-medicine .ms-hero-reminder {
+  color: #758078;
+  font-size: 10px;
+}
+.av-medicine .ms-hero-art {
+  display: grid;
+  justify-items: center;
+  min-width: 0;
+}
+.av-medicine .ms-hero-art > svg {
+  display: block;
+  width: 100%;
+  max-width: 360px;
+}
+.av-medicine .ms-hero-art > span {
+  margin-top: -3px;
+  color: #6a806e;
+  font-size: 10px;
+  letter-spacing: .4px;
+}
+.av-medicine .ms-provider {
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
+  margin-top: 18px;
+  padding: 13px 15px;
+  border: 1px solid #d9e7dc;
+  border-radius: 12px;
+  background: #f3f8f3;
+}
+.av-medicine .ms-provider-dot {
+  flex-shrink: 0;
+  width: 8px;
+  height: 8px;
+  margin-top: 6px;
+  border-radius: 50%;
+  background: #2e8c4d;
+  box-shadow: 0 0 0 4px #e0efe3;
+}
+.av-medicine .ms-provider strong {
+  display: block;
+  color: #285c39;
+  font-size: 12px;
+}
+.av-medicine .ms-provider small {
+  display: block;
+  margin-top: 2px;
+  color: #708075;
+  font-size: 11px;
+}
+.av-medicine .ms-provider.unavailable {
+  border-color: #ead7a7;
+  background: #fff9e8;
+}
+.av-medicine .ms-provider.unavailable strong { color: #805b13; }
+.av-medicine .ms-provider.unavailable .ms-provider-dot {
+  background: #bb861d;
+  box-shadow: 0 0 0 4px #f9edce;
+}
+@media (max-width: 720px) {
+  .av-medicine .ms-hero {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 12px;
+    padding: 25px;
+  }
+  .av-medicine .ms-hero-art { grid-row: 1; }
+  .av-medicine .ms-hero-art > svg { max-width: 240px; }
+  .av-medicine .ms-hero-art > span { display: none; }
+  .av-medicine .ms-hero h2 { font-size: 30px; }
+}
+
+
+/* MEDICINE_HERO_DEEPER_GREEN */
+.av-medicine .ms-hero {
+  background: linear-gradient(
+    115deg,
+    #dcebdc 0%,
+    #e7f0e3 55%,
+    #d4e5d4 100%
+  );
+  border-color: #b4ceb8;
+  box-shadow: 0 8px 24px rgba(28, 68, 40, 0.06);
+}
+
+.av-medicine .ms-hero h2 {
+  color: #143d27;
+}
+
+.av-medicine .ms-hero .ms-eyebrow {
+  color: #365f40;
+}
+
+.av-medicine .ms-hero p {
+  color: #4b6252;
+}
+
+.av-medicine .ms-hero-steps b {
+  background: #c0d9c2;
+  color: #245733;
+}
+
+.av-medicine .ms-hero-reminder,
+.av-medicine .ms-hero-art > span {
+  color: #536b59;
+}
+
+.av-medicine .ms-sound-control {
+  border-color: #a9c7af;
+  background: rgba(255, 255, 255, 0.85);
+}
+
+
+/* TRIANGLE_ALERT_SYMBOLS_V1 */
+.av-medicine .ms-dialog {
+  width: min(610px, calc(100vw - 32px));
+  padding: 30px;
+  border-radius: 22px;
+}
+
+.av-medicine .ms-dialog-heading {
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+.av-medicine .ms-dialog .ms-dialog-symbol,
+.av-medicine .ms-dialog.danger .ms-dialog-symbol {
+  display: block;
+  width: 108px;
+  height: 100px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.av-medicine .ms-dialog .ms-warning-triangle {
+  display: block;
+  width: 108px;
+  height: 100px;
+}
+
+.av-medicine .ms-dialog h2 {
+  max-width: 460px;
+  font-size: 24px;
+  line-height: 1.3;
+}
+
+.av-medicine .ms-dialog.warning {
+  border: 1px solid #e7c856;
+  border-top: 7px solid #e6b800;
+  background: #fffdf2;
+}
+
+.av-medicine .ms-dialog.danger {
+  border: 1px solid #efb7b8;
+  border-top: 7px solid #d71920;
+  background: #fff8f7;
+}
+
+.av-medicine .ms-dialog.warning .ms-eyebrow {
+  color: #876800;
+}
+
+.av-medicine .ms-dialog.danger .ms-eyebrow {
+  color: #b32428;
+}
+
+.av-medicine .ms-dialog > #ms-dialog-description {
+  text-align: center;
+  color: #5e6860;
+  line-height: 1.7;
+}
+
+.av-medicine .ms-dialog .ms-alert-list {
+  padding: 17px 18px 17px 36px;
+  border: 1px solid #eddda3;
+  border-radius: 12px;
+  background: #fff5cf;
+}
+
+.av-medicine .ms-dialog.danger .ms-alert-list {
+  border-color: #efc5c1;
+  background: #ffebe8;
+}
+
+@media (max-width: 540px) {
+  .av-medicine .ms-dialog {
+    padding: 22px;
+  }
+
+  .av-medicine .ms-dialog h2 {
+    font-size: 21px;
+  }
+}
+
+
+/* MEDICINE_PHOTO_HEADER_V1 */
+.av-medicine .ms-hero-photo {
+  position: relative;
+  align-self: stretch;
+  align-content: center;
+  gap: 12px;
+  padding: 8px 0;
+}
+
+.av-medicine .ms-hero-photo img {
+  display: block;
+  width: 100%;
+  max-width: 440px;
+  height: auto;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  border: 5px solid rgba(255, 255, 255, 0.8);
+  border-radius: 22px;
+  box-shadow: 0 16px 35px rgba(25, 60, 35, 0.13);
+}
+
+.av-medicine .ms-hero-photo > span {
+  display: block;
+  margin: 0;
+  color: #48634f;
+  font-size: 11px;
+  text-align: center;
+}
+
+@media (max-width: 720px) {
+  .av-medicine .ms-hero-photo {
+    grid-row: auto;
+    padding-top: 12px;
+  }
+
+  .av-medicine .ms-hero-photo img {
+    max-width: 440px;
+    max-height: 240px;
+  }
+
+  .av-medicine .ms-hero-photo > span {
+    display: block;
+  }
+}
