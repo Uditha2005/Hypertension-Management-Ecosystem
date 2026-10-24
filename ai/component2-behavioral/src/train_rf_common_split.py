@@ -4,6 +4,8 @@ import random
 import time
 
 import numpy as np
+import joblib
+
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import (
     accuracy_score,
@@ -24,18 +26,19 @@ RESULTS_DIR = DATA_DIR / "results"
 MODEL_DIR = ROOT / "ai" / "component2-behavioral" / "models"
 
 DATA_FILE = DATA_DIR / "temporal" / "temporal_dataset.npz"
-SPLIT_FILE = RESULTS_DIR / "depth_baseline_results.npz"
+SPLIT_FILE = RESULTS_DIR / "common_split_v2.npz"
 
 RESULTS_DIR.mkdir(parents=True, exist_ok=True)
 MODEL_DIR.mkdir(parents=True, exist_ok=True)
 
 
 def get_sequence_base(sequence_id):
-    """Prevent camera-view variants from being treated as separate sequences."""
+    """Group camera views belonging to the same recording."""
     sequence_id = str(sequence_id)
 
-    if sequence_id.endswith("-cam0") or sequence_id.endswith("-cam1"):
-        return sequence_id.rsplit("-", 1)[0]
+    for suffix in ("-cam0", "-cam1"):
+        if sequence_id.endswith(suffix):
+            return sequence_id[:-len(suffix)]
 
     return sequence_id
 
@@ -50,17 +53,17 @@ def extract_features(X):
     features = []
 
     for window in X:
-        xy = window[:, :, :2]  # (frames, joints, x/y)
+        xy = window[:, :, :2]
         confidence = window[:, :, 2]
 
-        # Joint position statistics across the temporal window.
+        # Joint position statistics.
         mean_xy = np.mean(xy, axis=0)
         std_xy = np.std(xy, axis=0)
         min_xy = np.min(xy, axis=0)
         max_xy = np.max(xy, axis=0)
         range_xy = max_xy - min_xy
 
-        # Movement between consecutive frames.
+        # Joint movement between consecutive frames.
         displacement = np.diff(xy, axis=0)
         speed = np.linalg.norm(displacement, axis=2)
 
@@ -68,10 +71,10 @@ def extract_features(X):
         max_speed = np.max(speed, axis=0)
         std_speed = np.std(speed, axis=0)
 
-        # Confidence statistics for each joint.
+        # Joint confidence.
         mean_confidence = np.mean(confidence, axis=0)
 
-        # Whole-skeleton movement features.
+        # Whole-skeleton movement.
         body_center = np.mean(xy, axis=1)
         center_displacement = np.diff(body_center, axis=0)
         center_speed = np.linalg.norm(center_displacement, axis=1)
@@ -114,68 +117,88 @@ def main():
     if not SPLIT_FILE.exists():
         raise FileNotFoundError(f"Shared split file not found: {SPLIT_FILE}")
 
-    dataset = np.load(DATA_FILE, allow_pickle=True)
-    split_data = np.load(SPLIT_FILE, allow_pickle=True)
+    # Load temporal dataset.
+    with np.load(DATA_FILE, allow_pickle=False) as dataset:
+        X = dataset["X"].astype(np.float32)
+        y = dataset["y"].astype(np.int64)
+        groups = dataset["groups"].astype(str)
 
-    X = dataset["X"]
-    y = dataset["y"].astype(np.int64)
+    if not (len(X) == len(y) == len(groups)):
+        raise ValueError("X, y and groups have different lengths.")
 
-    # Dataset sequence IDs.
-    sequence_key = next(
-        (
-            key for key in ("sequence_ids", "sequence_id", "groups", "seq_ids")
-            if key in dataset.files
-        ),
-        None,
-    )
-
-    if sequence_key is None:
-        raise KeyError(
-            "Could not find sequence IDs in temporal_dataset.npz. "
-            f"Available keys: {dataset.files}"
-        )
-
+    # Normalize camera-view names to base recording IDs.
     sequence_ids = np.array([
-        get_sequence_base(item) for item in dataset[sequence_key]
+        get_sequence_base(item) for item in groups
     ])
 
-    # Find the shared test sequence IDs saved by the baseline split.
-    test_key = next(
-        (
-            key for key in ("test_sequences", "test_sequence_ids", "test_groups")
-            if key in split_data.files
-        ),
-        None,
-    )
+    # Load the shared split used by the CNN.
+    with np.load(SPLIT_FILE, allow_pickle=False) as split_data:
+        train_sequences = {
+            get_sequence_base(item)
+            for item in split_data["train_sequences"].astype(str)
+        }
+        test_sequences = {
+            get_sequence_base(item)
+            for item in split_data["test_sequences"].astype(str)
+        }
 
-    if test_key is None:
-        raise KeyError(
-            "Could not find test sequence IDs in depth_baseline_results.npz. "
-            f"Available keys: {split_data.files}"
+    # Validate split integrity.
+    if train_sequences & test_sequences:
+        raise ValueError(
+            "Sequence leakage detected in common_split_v2.npz."
         )
 
-    test_sequences = {
-        get_sequence_base(item) for item in split_data[test_key]
-    }
+    dataset_sequences = set(sequence_ids)
 
+    missing_train = train_sequences - dataset_sequences
+    missing_test = test_sequences - dataset_sequences
+
+    if missing_train:
+        raise ValueError(
+            f"Training sequences missing from dataset: {sorted(missing_train)}"
+        )
+
+    if missing_test:
+        raise ValueError(
+            f"Test sequences missing from dataset: {sorted(missing_test)}"
+        )
+
+    train_mask = np.isin(sequence_ids, list(train_sequences))
     test_mask = np.isin(sequence_ids, list(test_sequences))
-    train_mask = ~test_mask
 
-    if not np.any(test_mask) or not np.any(train_mask):
-        raise ValueError("Train/test split is empty. Check the sequence IDs.")
+    train_idx = np.flatnonzero(train_mask)
+    test_idx = np.flatnonzero(test_mask)
 
-    X_train, X_test = X[train_mask], X[test_mask]
-    y_train, y_test = y[train_mask], y[test_mask]
+    if len(train_idx) == 0 or len(test_idx) == 0:
+        raise ValueError("Train/test split is empty.")
 
-    print(f"Total windows: {len(X)}")
-    print(f"Training windows: {len(X_train)}")
-    print(f"Testing windows: {len(X_test)}")
-    print(f"Training sequences: {len(set(sequence_ids[train_mask]))}")
-    print(f"Testing sequences: {len(set(sequence_ids[test_mask]))}")
-    print("Train class counts [normal, fall]:", np.bincount(y_train, minlength=2))
-    print("Test class counts [normal, fall]:", np.bincount(y_test, minlength=2))
+    if np.any(train_mask & test_mask):
+        raise ValueError("Train/test window leakage detected.")
 
-    # Extract features separately for the same train/test split.
+    actual_train_groups = set(sequence_ids[train_idx])
+    actual_test_groups = set(sequence_ids[test_idx])
+
+    if not actual_train_groups.isdisjoint(actual_test_groups):
+        raise ValueError("Recording leakage detected between train and test.")
+
+    X_train, X_test = X[train_idx], X[test_idx]
+    y_train, y_test = y[train_idx], y[test_idx]
+
+    if len(np.unique(y_train)) < 2 or len(np.unique(y_test)) < 2:
+        raise ValueError("Both train and test sets must contain normal and fall samples.")
+
+    print("Dataset windows:", len(X))
+    print("Training windows:", len(X_train))
+    print("Testing windows:", len(X_test))
+    print("Training recordings:", len(actual_train_groups))
+    print("Testing recordings:", len(actual_test_groups))
+    print("Train class counts [normal, fall]:",
+          np.bincount(y_train, minlength=2))
+    print("Test class counts [normal, fall]:",
+          np.bincount(y_test, minlength=2))
+    print("Recording leakage: None")
+
+    # Feature extraction using the same recording-level split.
     print("\nExtracting skeleton temporal features...")
     X_train_features = extract_features(X_train)
     X_test_features = extract_features(X_test)
@@ -229,26 +252,29 @@ def main():
     print("Confusion matrix [normal, fall]:")
     print(cm)
 
-    # Save the trained model using joblib.
-    import joblib
-
+    # Save the trained model.
     model_path = MODEL_DIR / "rf_fall_detection_common_split.joblib"
     joblib.dump(model, model_path)
 
+    # Save metrics and recording IDs for reproducibility.
     result_path = RESULTS_DIR / "rf_common_split_results.npz"
-    np.savez(
+    np.savez_compressed(
         result_path,
-        accuracy=accuracy,
-        fall_precision=precision,
-        fall_recall=recall,
-        fall_f1=f1,
-        training_time=training_time,
-        inference_time=inference_time,
+        accuracy=np.array(accuracy),
+        fall_precision=np.array(precision),
+        fall_recall=np.array(recall),
+        fall_f1=np.array(f1),
+        training_time=np.array(training_time),
+        inference_time=np.array(inference_time),
         confusion_matrix=cm,
         y_true=y_test,
         y_pred=y_pred,
-        test_sequences=np.array(sorted(test_sequences)),
-        feature_count=X_train_features.shape[1],
+        test_sequences=np.array(sorted(actual_test_groups)),
+        test_groups=groups[test_idx],
+        normalized_test_groups=sequence_ids[test_idx],
+        train_groups=groups[train_idx],
+        feature_count=np.array(X_train_features.shape[1]),
+        seed=np.array(SEED),
     )
 
     print(f"\nSaved model: {model_path}")

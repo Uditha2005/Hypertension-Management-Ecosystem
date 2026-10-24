@@ -32,12 +32,12 @@ DATA_FILE = (
     / "temporal_dataset.npz"
 )
 
-DEPTH_RESULTS_FILE = (
+SPLIT_FILE = (
     BASE_DIR
     / "data"
     / "processed"
     / "results"
-    / "depth_baseline_results.npz"
+    / "common_split_v2.npz"
 )
 
 MODEL_DIR = BASE_DIR / "models"
@@ -192,10 +192,10 @@ def main():
             "Run the temporal dataset preparation script first."
         )
 
-    if not DEPTH_RESULTS_FILE.exists():
+    if not SPLIT_FILE.exists():
         raise FileNotFoundError(
-            f"Depth split file not found: {DEPTH_RESULTS_FILE}\n"
-            "Run train_depth_baseline.py first."
+            f"Common split v2 file not found: {SPLIT_FILE}\n"
+            "Create common_split_v2.npz before training this model."
         )
 
     # --------------------------------------------------------
@@ -207,12 +207,21 @@ def main():
         y = data["y"].astype(np.int64)
         groups = data["groups"].astype(str)
 
-    # Use the same held-out sequences as the existing ST-GNN.
-    with np.load(DEPTH_RESULTS_FILE, allow_pickle=False) as data:
-        depth_test_sequences = {
-            normalize_sequence(s)
-            for s in data["test_sequences"]
+    # Use the fixed recording-level split shared by CNN and Random Forest.
+    # Both camera views of the same recording are normalized to one base ID.
+    with np.load(SPLIT_FILE, allow_pickle=False) as split:
+        train_sequences = {
+            normalize_sequence(s) for s in split["train_sequences"].astype(str)
         }
+        test_sequences = {
+            normalize_sequence(s) for s in split["test_sequences"].astype(str)
+        }
+
+    if train_sequences & test_sequences:
+        raise ValueError(
+            "Recording leakage detected in common_split_v2.npz: "
+            f"{sorted(train_sequences & test_sequences)}"
+        )
 
     expected_shape = (
         WINDOW_SIZE,
@@ -239,12 +248,8 @@ def main():
     # Sequence-level train/test split
     # --------------------------------------------------------
 
-    test_mask = np.isin(
-        normalized_groups,
-        list(depth_test_sequences),
-    )
-
-    train_mask = ~test_mask
+    train_mask = np.isin(normalized_groups, list(train_sequences))
+    test_mask = np.isin(normalized_groups, list(test_sequences))
 
     train_idx = np.flatnonzero(train_mask)
     test_idx = np.flatnonzero(test_mask)
@@ -262,15 +267,39 @@ def main():
             "Sequence leakage detected between training and testing!"
         )
 
-    missing_test_groups = (
-        depth_test_sequences - set(normalized_groups[test_idx])
-    )
+    actual_train_groups = set(normalized_groups[train_idx])
+    actual_test_groups = set(normalized_groups[test_idx])
+
+    missing_train_groups = train_sequences - actual_train_groups
+    missing_test_groups = test_sequences - actual_test_groups
+
+    if missing_train_groups:
+        raise ValueError(
+            "Expected training recordings are missing from the dataset: "
+            f"{sorted(missing_train_groups)}"
+        )
 
     if missing_test_groups:
         raise ValueError(
-            "Expected test sequences are missing from the dataset: "
+            "Expected test recordings are missing from the dataset: "
             f"{sorted(missing_test_groups)}"
         )
+
+    unexpected_train_groups = actual_train_groups - train_sequences
+    unexpected_test_groups = actual_test_groups - test_sequences
+
+    if unexpected_train_groups or unexpected_test_groups:
+        raise ValueError(
+            "Dataset contains recordings outside common_split_v2. "
+            f"Unexpected train: {sorted(unexpected_train_groups)}; "
+            f"unexpected test: {sorted(unexpected_test_groups)}"
+        )
+
+    if set(np.unique(y[train_idx])) != {0, 1}:
+        raise ValueError("Training split must contain both normal and fall classes.")
+
+    if set(np.unique(y[test_idx])) != {0, 1}:
+        raise ValueError("Testing split must contain both normal and fall classes.")
 
     X_train = X[train_idx].copy()
     X_test = X[test_idx].copy()
@@ -339,9 +368,9 @@ def main():
     print("Total windows:", len(X))
     print("Training windows:", len(train_idx))
     print("Testing windows:", len(test_idx))
-    print("Training sequences:", len(train_groups))
-    print("Testing sequences:", len(test_groups))
-    print("Test sequence IDs:", sorted(test_groups))
+    print("Training recordings:", len(train_groups))
+    print("Testing recordings:", len(test_groups))
+    print("Test recording IDs:", sorted(test_groups))
 
     print(
         "Train class counts [normal, fall]:",

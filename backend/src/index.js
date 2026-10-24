@@ -81,6 +81,27 @@ app.post("/api/component1/predict", async (req, res) => {
 
 const PORT = process.env.PORT || 5000;
 
+// Component 2: Behavioral AI status
+app.get("/api/behavioral/status", async (req, res) => {
+  try {
+    const response = await fetch(
+      "http://127.0.0.1:8000/api/behavioral/status",
+      { signal: AbortSignal.timeout(5000) }
+    );
+
+    const result = await response.json();
+    return res.status(response.status).json(result);
+  } catch (error) {
+    console.error("Component 2 status check failed:", error.message);
+
+    return res.status(503).json({
+      connected: false,
+      error: "Behavioral AI service unavailable",
+      message: "Check that the Component 2 Python AI service is running.",
+    });
+  }
+});
+
 app.listen(PORT, () => {
   console.log(`Backend running on port ${PORT}`);
 });
