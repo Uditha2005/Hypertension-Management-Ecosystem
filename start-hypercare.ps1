@@ -8,9 +8,8 @@ Set-Location $PSScriptRoot
 
 $python = Join-Path $PSScriptRoot "ai\component4-medicine\.venv\Scripts\python.exe"
 $runtime = Join-Path $PSScriptRoot "ai\component4-medicine\.env.runtime"
-$mongo = Join-Path $PSScriptRoot "ai\component4-medicine\.env.mongo"
 
-foreach ($required in @($python, $runtime, $mongo)) {
+foreach ($required in @($python, $runtime)) {
     if (-not (Test-Path -LiteralPath $required)) {
         throw "Required file missing: $required"
     }
@@ -112,5 +111,5 @@ if ($Mode -eq "web") {
 }
 
 Write-Host "Keep the server windows open."
-Write-Host "MongoDB loads from .env.mongo; Groq loads from .env.runtime."
+Write-Host "Medicine records use SQLite; Groq loads from .env.runtime."
 Write-Host "Check the server windows for any startup errors."
