@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import "./TrayVerification.css";
+import MedicineSafety from "./MedicineSafety";
 
 const API = (
   process.env.REACT_APP_API_URL || "http://localhost:8000"
@@ -420,7 +421,7 @@ export default function TrayVerification() {
   const [prescriptionFilename, setPrescriptionFilename] = useState("");
   const [ocrResult, setOcrResult] = useState(null);
   const [text, setText] = useState("");
-  const [useLLM, setUseLLM] = useState(true);
+  const useLLM = true;
   const [rows, setRows] = useState([]);
   const [reference, setReference] = useState("");
   const [reviewed, setReviewed] = useState(false);
@@ -734,19 +735,6 @@ export default function TrayVerification() {
     });
   }
 
-  function changeLLM(newLLM) {
-    setUseLLM(newLLM);
-    invalidate();
-    setRows((previous) =>
-      previous.map((row) => ({
-        ...row,
-        quantity: "",
-        quantityExplanation: "Option changed. Recreate the draft to recalculate.",
-      }))
-    );
-    setNotice("Option changed. Create the draft again to apply it.");
-  }
-
   function editRow(rowId, field, value) {
     invalidate();
 
@@ -1031,6 +1019,14 @@ export default function TrayVerification() {
             </span>
           </div>
         </header>
+        {page === "workspace" && (
+          <MedicineSafety
+            recognition={recognition}
+            result={result}
+            prescription={saved}
+          />
+        )}
+
 
         {error && (
           <div className="av-alert av-error" role="alert">
@@ -1145,19 +1141,24 @@ export default function TrayVerification() {
                       Confirm that each medicine belongs at this time.
                     </div>
                   </div>
-                  <label className="av-switch">
-                    <input
-                      className="av-sr"
-                      type="checkbox"
-                      checked={useLLM}
-                      onChange={(event) => changeLLM(event.target.checked)}
-                    />
-                    <span className="av-switch-track" />
-                    <span>
-                      <strong>Use Groq LLM for extraction</strong>
-                      <small>OCR text is sent to Groq to read instructions.</small>
-                    </span>
-                  </label>
+                  <div
+  className={`ms-provider ${service?.llmConfigured ? "ready" : "unavailable"}`}
+  role="status"
+>
+  <span className="ms-provider-dot" aria-hidden="true" />
+  <div>
+    <strong>
+      {service?.llmConfigured
+        ? "Powered by Groq"
+        : "Groq extraction unavailable"}
+    </strong>
+    <small>
+      {service?.llmConfigured
+        ? "Automatic instruction extraction from OCR text. Review the draft before use."
+        : "The API key is not configured in the medicine server."}
+    </small>
+  </div>
+</div>
                   {useLLM && !service?.llmConfigured && (
                     <div
                       className="av-alert av-warning"

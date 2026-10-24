@@ -29,11 +29,32 @@ const tabs = [
 ];
 
 const App = () => {
-  const [activeTab, setActiveTab] = useState("home");
+  const [activeTab, setActiveTab] = useState(() => {
+    try {
+      const remembered = window.sessionStorage.getItem(
+        "hypercare-active-web-tab"
+      );
+
+      return tabs.some((tab) => tab.id === remembered)
+        ? remembered
+        : "home";
+    } catch {
+      return "home";
+    }
+  });
   const contentRef = useRef(null);
   const firstRender = useRef(true);
 
   useEffect(() => {
+    try {
+      window.sessionStorage.setItem(
+        "hypercare-active-web-tab",
+        activeTab
+      );
+    } catch {
+      // Navigation still works if browser storage is unavailable.
+    }
+
     const current = tabs.find((tab) => tab.id === activeTab);
     document.title = `${current?.title || "Home"} | HyperCare`;
 
