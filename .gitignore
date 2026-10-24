@@ -89,3 +89,7 @@ logs/
 
 # Local SQLite account database
 backend/data/
+
+# Local medicine database and LLM credentials
+/ai/component4-medicine/.env.mongo
+/ai/component4-medicine/.env.runtime
