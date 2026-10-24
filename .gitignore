@@ -87,6 +87,11 @@ logs/
 !ai/component1-physiological/models/
 !ai/component1-physiological/models/model1_random_forest.joblib
 
+# Local SQLite account database
+backend/data/
+
 # Local medicine database and LLM credentials
 /ai/component4-medicine/.env.mongo
 /ai/component4-medicine/.env.runtime
+# Local Component 4 runtime database
+/ai/component4-medicine/data/component4_local_comparison.sqlite3*
