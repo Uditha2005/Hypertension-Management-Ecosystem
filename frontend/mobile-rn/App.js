@@ -1,3 +1,4 @@
+import MedicineSafetyMobile, { MedicineCareHeader } from "./MedicineSafetyMobile";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { CareProviders, AuthGate, SettingsContent, useAppTheme } from "./CareAccount";
 import HomeScreen from "./HomeScreen";
@@ -15,7 +16,6 @@ import {
   ScrollView,
   StatusBar,
   StyleSheet,
-  Switch,
   Text,
   TextInput,
   View,
@@ -494,7 +494,9 @@ function HyperCare() {
   const [connection, setConnection] = useState("Not connected");
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
-  const [useLLM, setUseLLM] = useState(true);
+  const useLLM = true;
+  const [medicineAlertRun, setMedicineAlertRun] = useState(0);
+  const [medicineSoundMuted, setMedicineSoundMuted] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [productRow, setProductRow] = useState(null);
   const [productSearch, setProductSearch] = useState("");
@@ -1004,6 +1006,7 @@ function HyperCare() {
       }
 
       setFlow((current) => ({ ...current, result }));
+      setMedicineAlertRun((current) => current + 1);
       setHistoryLoaded(false);
     });
   }
@@ -1222,6 +1225,11 @@ function HyperCare() {
                 <Text style={s.link}>View medicine review history ?</Text>
               </Pressable>
 
+              <MedicineCareHeader
+                muted={medicineSoundMuted}
+                onToggleMute={() => setMedicineSoundMuted((value) => !value)}
+              />
+
               <View style={s.steps}>
                 {["Prescription", "Review", "Tray"].map((label, index) => (
                   <View style={s.stepItem} key={label}>
@@ -1292,25 +1300,16 @@ function HyperCare() {
                       }
                     />
 
-                    <View style={[s.between, { marginTop: 20 }]}>
-                      <View style={s.flex}>
-                        <Text style={s.rowTitle}>LLM extraction</Text>
-                        <Text style={s.caption}>
-                          {bootstrap?.llmConfigured
-                            ? "Groq configured on the laptop"
-                            : "Groq is not configured; server fallback may apply"}
-                        </Text>
-                      </View>
-                      <Switch
-                        disabled={working}
-                        value={useLLM}
-                        trackColor={{ false: C.border, true: "#9DCFB1" }}
-                        thumbColor={useLLM ? C.green : "#F5F5F5"}
-                        onValueChange={(value) => {
-                          setUseLLM(value);
-                          editFlow({ rows: [], extraction: "" });
-                        }}
-                      />
+                    <View style={[s.infoBox, { marginTop: 18 }]}>
+                      <Text style={s.rowTitle}>
+                        {bootstrap?.llmConfigured
+                          ? "Powered by Groq"
+                          : "Groq extraction unavailable"}
+                      </Text>
+                      <Text style={s.caption}>
+                        Automatic instruction extraction. Review every field
+                        before saving.
+                      </Text>
                     </View>
 
                     <View style={s.infoBox}>
@@ -1820,6 +1819,14 @@ function HyperCare() {
           );
         })}
       </View>
+
+      <MedicineSafetyMobile
+        result={flow.result}
+        eventNumber={medicineAlertRun}
+        active={tab === "medicines" && !settingsOpen && productRow === null}
+        muted={medicineSoundMuted}
+        onMute={() => setMedicineSoundMuted(true)}
+      />
 
       <Modal
         visible={settingsOpen}
