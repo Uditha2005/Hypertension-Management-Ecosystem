@@ -192,6 +192,55 @@ def test_get_food_parses_serving_values_without_guessing_mass(monkeypatch):
     assert record.nutrients.energy_kcal == 180
 
 
+
+def test_branded_gram_serving_fills_missing_label_values_from_per_100g_data(monkeypatch):
+    payload = {
+        "fdcId": 123,
+        "description": "Branded pancakes",
+        "dataType": "Branded",
+        "servingSize": 62,
+        "servingSizeUnit": "g",
+        "labelNutrients": {"sodium": {"value": 237}},
+        "foodNutrients": [
+            {"nutrientId": 1093, "nutrientName": "Sodium, Na", "unitName": "mg", "value": 382},
+            {"nutrientId": 1092, "nutrientName": "Potassium, K", "unitName": "mg", "value": 160},
+            {"nutrientId": 1008, "nutrientName": "Energy", "unitName": "kcal", "value": 274},
+            {"nutrientId": 1258, "nutrientName": "Fatty acids, total saturated", "unitName": "g", "value": 0.81},
+        ],
+    }
+
+    record = client(FakeSession(FakeResponse(payload)), monkeypatch).get_food(123)
+
+    # Keep the label value as the source of truth; fill only missing values
+    # after converting the per-100 g foodNutrients values to a 62 g serving.
+    assert record.nutrients.sodium_mg == 237
+    assert record.nutrients.potassium_mg == pytest.approx(99.2)
+    assert record.nutrients.energy_kcal == pytest.approx(169.88)
+    assert record.nutrients.sat_fat_g == pytest.approx(0.5022)
+    assert (record.reference_quantity, record.reference_unit) == (1, "serving")
+
+
+def test_branded_volume_serving_does_not_guess_conversion_for_missing_label_values(monkeypatch):
+    payload = {
+        "fdcId": 123,
+        "description": "Branded syrup",
+        "dataType": "Branded",
+        "servingSize": 60,
+        "servingSizeUnit": "ml",
+        "labelNutrients": {"sodium": {"value": 2}},
+        "foodNutrients": [
+            {"nutrientId": 1093, "nutrientName": "Sodium, Na", "unitName": "mg", "value": 3.3},
+            {"nutrientId": 1092, "nutrientName": "Potassium, K", "unitName": "mg", "value": 283},
+            {"nutrientId": 1008, "nutrientName": "Energy", "unitName": "kcal", "value": 333},
+        ],
+    }
+
+    record = client(FakeSession(FakeResponse(payload)), monkeypatch).get_food(123)
+
+    assert record.nutrients.sodium_mg == 2
+    assert record.nutrients.potassium_mg is None
+    assert record.nutrients.energy_kcal is None
+
 def test_supported_energy_and_saturated_fat_conversions(monkeypatch):
     payload = per_100g_payload()
     payload["foodNutrients"][2].update({"nutrientId": 1062, "unitName": "kJ", "value": 418.4})

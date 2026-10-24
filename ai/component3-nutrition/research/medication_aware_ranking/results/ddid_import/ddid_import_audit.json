@@ -1,0 +1,54 @@
+{
+  "input_file": "Interaction Information.csv",
+  "rows": 23950,
+  "columns": 26,
+  "unique_drug_names": 1510,
+  "unique_food_herb_names": 1385,
+  "relationship_classification_counts": {
+    "HFDI": 17670,
+    "Drugbank": 2784,
+    "FDI-Package Insert": 1666,
+    "Dietary Effect-Package Insert": 1009,
+    "Dietary effects": 821
+  },
+  "type_counts": {
+    "Herb": 19085,
+    "Food": 4865
+  },
+  "experimental_species_counts_top_10": {
+    "Rat": 12335,
+    "NA": 6446,
+    "Homo Sapiens": 3647,
+    "Rabbit": 893,
+    "Dog": 334,
+    "Mice": 277,
+    "Pig": 13,
+    "Mice ": 2,
+    "Homo sapiens": 2,
+    "Zebrafish": 1
+  },
+  "medicine_candidate_rows": 3194,
+  "candidate_unique_medicines": 17,
+  "candidate_unique_food_herbs": 649,
+  "candidate_rows_with_food_keyword_match": 128,
+  "candidate_medicine_counts": {
+    "Warfarin": 1124,
+    "Losartan": 490,
+    "Verapamil": 422,
+    "Nifedipine": 388,
+    "Valsartan": 311,
+    "Clopidogrel": 89,
+    "Metoprolol": 81,
+    "Amlodipine": 55,
+    "Hydrochlorothiazide": 55,
+    "Enalapril": 47,
+    "Lisinopril": 47,
+    "Furosemide": 29,
+    "Propranolol": 18,
+    "Spironolactone": 14,
+    "Ramipril": 13,
+    "Atenolol": 10,
+    "Irbesartan": 1
+  },
+  "safety_note": "Candidate matches are not validated clinical warnings. Check the original reference, species, dose, study design, result, and clinical relevance before approving any user-facing message."
+}

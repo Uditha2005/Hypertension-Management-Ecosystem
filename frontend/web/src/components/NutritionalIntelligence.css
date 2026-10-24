@@ -29,3 +29,25 @@
 .ci3-photo-disclaimer { margin-bottom:0; font-size:.78rem!important; } .ci3-entered-meal { margin:10px 0; padding:12px 14px; border:1px solid var(--line); border-radius:10px; } .ci3-entered-meal ul { margin:7px 0 0; padding-left:20px; } .ci3-entered-meal li { margin:4px 0; }
 .ci3-actual-meals { padding:16px; border-radius:12px; background:#f8fbfa; } .ci3-result-block h3 { margin-bottom:8px; } .ci3-technical-details summary { cursor:pointer; font-weight:700; }
 @media(max-width:650px){.ci3-photo-item{grid-template-columns:1fr}.ci3-photo-item small{grid-column:auto}.ci3-photo-controls{align-items:stretch;flex-direction:column}.ci3-photo-controls .ci3-button{width:100%}}
+
+/* Component 3 practical suggestions and evidence notes */
+.ci3-suggestion-card { margin:10px 0; padding:14px; border:1px solid var(--line); border-radius:10px; background:#fbfdfc; }
+.ci3-suggestion-card p { margin:6px 0; }
+.ci3-suggestion-card small,.ci3-medication-notes small { color:var(--muted); line-height:1.5; }
+.ci3-medication-notes { margin-top:16px; padding:14px; border:1px solid #e8d9b1; border-radius:10px; background:#fffaf0; }
+.ci3-medication-notes h4 { margin-top:0; }
+.ci3-medication-notes>div { margin:10px 0; }
+.ci3-medication-notes p { margin:5px 0; }
+.ci3-entry-grid select:disabled { background:#f0f2f2; color:#737d7e; }
+
+.ci3-reference-details { padding:12px 14px; border:1px solid var(--line); border-radius:10px; background:#fbfcfc; }
+.ci3-reference-details summary { cursor:pointer; color:var(--primary-dark); font-size:.88rem; font-weight:750; }
+.ci3-reference-details[open] summary { margin-bottom:12px; }
+.ci3-reference-details-block { margin-top:20px; }
+
+/* USDA alternative-record review UI */
+.ci3-alternative-entry { margin: 10px 0; }
+.ci3-alternative-list { margin: 8px 0 14px; padding: 12px; border: 1px solid var(--line); border-radius: 10px; background: #f8fbfa; }
+.ci3-alternative-card { margin: 8px 0; padding: 10px; border: 1px solid var(--line); border-radius: 8px; background: #fff; }
+.ci3-alternative-card strong, .ci3-alternative-card small { display: block; }
+.ci3-alternative-card small { margin-top: 4px; color: var(--muted); }

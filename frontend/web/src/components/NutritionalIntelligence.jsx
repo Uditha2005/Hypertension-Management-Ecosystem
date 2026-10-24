@@ -11,15 +11,21 @@ import {
   getApiErrorMessage,
   searchFoods,
   identifyFoodsFromImage,
+  getFoodDetails,
+  saveMealRecord,
+  submitRecommendationFeedback,
+  optimizeCurrentDayDash,
 } from "../services/nutritionApi";
 import "./NutritionalIntelligence.css";
+// Temporarily hidden: meal history/feedback needs a persistence and profile strategy.
+// import Component3MealHistory from "./Component3MealHistory";
 
 const MEALS = ["Breakfast", "Lunch", "Dinner", "Snacks"];
-const UNITS = [
-  { value: "g", label: "grams (g)" },
-  { value: "kg", label: "kilograms (kg)" },
-  { value: "serving", label: "serving(s) as defined by USDA" },
-];
+const UNIT_LABELS = {
+  g: "grams (g)",
+  kg: "kilograms (kg)",
+  serving: "serving(s) as defined by USDA",
+};
 
 const dateString = (date) => {
   const year = date.getFullYear();
@@ -37,6 +43,11 @@ const newEntry = (day, meal = "Breakfast") => ({
   quantity: "",
   unit: "g",
   servingNote: "",
+  referenceUnit: "",
+  referenceQuantity: null,
+  servingSize: null,
+  servingSizeUnit: "",
+  supportedUnits: [],
 });
 
 const nutrients = [
@@ -72,7 +83,7 @@ function NutrientGrid({ summary }) {
 function Stepper({ step }) {
   return (
     <nav className="ci3-stepper" aria-label="Nutrition plan progress">
-      {["Plan dates", "Build meals", "Review nutrition"].map((label, index) => {
+      {["Choose days", "Add foods", "View results"].map((label, index) => {
         const number = index + 1;
         return (
           <React.Fragment key={label}>
@@ -104,6 +115,23 @@ function formatDay(day) {
 }
 
 function EntryEditor({ entry, onChange, onRemove }) {
+  const supportedUnits = entry.supportedUnits || [];
+  const changeUnit = (nextUnit) => {
+    const quantity = Number(entry.quantity);
+    let converted = entry.quantity;
+    const size = Number(entry.servingSize);
+    const servingHasGramBasis = String(entry.servingSizeUnit || "").toLowerCase() === "g" && Number.isFinite(size) && size > 0;
+    if (entry.quantity !== "" && Number.isFinite(quantity) && quantity > 0) {
+      if (entry.unit === "g" && nextUnit === "kg") converted = String(quantity / 1000);
+      else if (entry.unit === "kg" && nextUnit === "g") converted = String(quantity * 1000);
+      else if (servingHasGramBasis && entry.unit === "serving" && nextUnit === "g") converted = String(quantity * size);
+      else if (servingHasGramBasis && entry.unit === "serving" && nextUnit === "kg") converted = String(quantity * size / 1000);
+      else if (servingHasGramBasis && entry.unit === "g" && nextUnit === "serving") converted = String(quantity / size);
+      else if (servingHasGramBasis && entry.unit === "kg" && nextUnit === "serving") converted = String(quantity * 1000 / size);
+    }
+    onChange(entry.rowId, "quantity", converted);
+    onChange(entry.rowId, "unit", nextUnit);
+  };
   return (
     <article className="ci3-entry">
       <div className="ci3-entry-top">
@@ -149,20 +177,16 @@ function EntryEditor({ entry, onChange, onRemove }) {
           Unit
           <select
             value={entry.unit}
-            onChange={(event) =>
-              onChange(entry.rowId, "unit", event.target.value)
-            }
+            onChange={(event) => changeUnit(event.target.value)}
+            disabled={!supportedUnits.length}
           >
-            {UNITS.map((unit) => (
-              <option value={unit.value} key={unit.value}>
-                {unit.label}
-              </option>
+            {supportedUnits.map((unit) => (
+              <option value={unit} key={unit}>{UNIT_LABELS[unit] || unit}</option>
             ))}
           </select>
         </label>
-        {entry.servingNote && (
-          <p className="ci3-serving-note">{entry.servingNote}</p>
-        )}
+        {entry.servingNote && <p className="ci3-serving-note">{entry.servingNote}</p>}
+        {!supportedUnits.length && <p className="ci3-serving-note">Loading USDA quantity basis or this record could not be validated. Analysis is blocked until the record is reselected.</p>}
       </div>
     </article>
   );
@@ -179,8 +203,7 @@ export default function NutritionalIntelligence() {
   const [entries, setEntries] = useState([]);
   const [ageYears, setAgeYears] = useState("60");
   const [bmi, setBmi] = useState("");
-  const [sexCode, setSexCode] = useState("");
-  const [fullDayIntake, setFullDayIntake] = useState(false);
+  const [confirmedMedications, setConfirmedMedications] = useState("");
   const [dietaryRequirements, setDietaryRequirements] = useState("");
   const [query, setQuery] = useState("");
   const [foodResults, setFoodResults] = useState([]);
@@ -193,9 +216,73 @@ export default function NutritionalIntelligence() {
   const [photoMessage, setPhotoMessage] = useState("");
   const [photoSuggestions, setPhotoSuggestions] = useState([]);
   const [analysis, setAnalysis] = useState(null);
+  const [dashOptimizationResults, setDashOptimizationResults] = useState({});
+  const [dashOptimizationLoading, setDashOptimizationLoading] = useState(false);
+  const [savedMealRecordId, setSavedMealRecordId] = useState("");
+  const [feedbackState, setFeedbackState] = useState({});
   const [analysisError, setAnalysisError] = useState("");
   const [analyzing, setAnalyzing] = useState(false);
   const searchSequence = useRef(0);
+
+  // Run the daily DASH food-group optimizer against the actual entered foods.
+  // Only quantities with a defensible gram basis are submitted; unknowns are not guessed.
+  useEffect(() => {
+    if (step !== 3 || !analysis) return;
+    let cancelled = false;
+    const gramsForEntry = (entry) => {
+      const quantity = Number(entry.quantity);
+      if (!Number.isFinite(quantity) || quantity <= 0) return null;
+      if (entry.unit === "g") return quantity;
+      if (entry.unit === "kg") return quantity * 1000;
+      const size = Number(entry.servingSize);
+      if (entry.unit === "serving" && String(entry.servingSizeUnit || "").toLowerCase() === "g" && Number.isFinite(size) && size > 0) return quantity * size;
+      return null;
+    };
+    const run = async () => {
+      setDashOptimizationLoading(true);
+      setDashOptimizationResults({});
+      console.info("[DASH OPTIMIZER] Starting optimization after successful meal-plan analysis.", {
+        selectedDays, entryCount: entries.length,
+      });
+      const results = {};
+      for (const day of selectedDays) {
+        const dayItems = entries.filter((entry) => entry.day === day).map((entry) => ({
+          food_name: entry.description,
+          quantity_grams: gramsForEntry(entry),
+        }));
+        const validItems = dayItems.filter((item) => item.food_name?.trim() && item.quantity_grams != null);
+        if (!validItems.length) {
+          results[day] = { status: "unavailable", message: "No foods on this day have a confirmed gram quantity, so the optimizer did not guess serving conversions." };
+          continue;
+        }
+        try {
+          console.info("[DASH OPTIMIZER] POST /dash/optimize-current-day", {
+            day, submittedFoodCount: validItems.length, validItems,
+          });
+          results[day] = await optimizeCurrentDayDash(validItems);
+          console.info("[DASH OPTIMIZER] Response received", {
+            day, status: results[day]?.status,
+            changes: results[day]?.changes?.length ?? 0,
+            matchedFoods: results[day]?.matched_foods?.length ?? 0,
+            unmatchedFoods: results[day]?.unmatched_foods?.length ?? 0,
+            mlModelUsed: results[day]?.ml_preference_model?.used ?? false,
+            mlModel: results[day]?.ml_preference_model?.model ?? null,
+          });
+        } catch (error) {
+          console.error("[DASH OPTIMIZER] Request failed", {
+            day, message: getApiErrorMessage(error),
+            status: error?.response?.status,
+          });
+          results[day] = { status: "unavailable", message: getApiErrorMessage(error) };
+        }
+        if (cancelled) return;
+        setDashOptimizationResults({ ...results });
+      }
+      if (!cancelled) setDashOptimizationLoading(false);
+    };
+    run();
+    return () => { cancelled = true; };
+  }, [step, analysis]); // analysis is replaced after each successful recalculation
 
   const checkHealth = useCallback(async () => {
     setApiState("checking");
@@ -302,47 +389,59 @@ export default function NutritionalIntelligence() {
   const addPhotoFoods = async () => {
     const chosen = photoSuggestions.filter(item => item.selected && item.editedName.trim());
     if (!chosen.length) { setPhotoError("Select at least one food to add."); return; }
+    for (const item of chosen) {
+      const grams = Number(item.editedGrams);
+      if (!Number.isFinite(grams) || grams <= 0 || grams > 5000) { setPhotoError(`Enter a portion between 1 and 5,000 g for ${item.editedName}.`); return; }
+    }
     setPhotoBusy(true); setPhotoError("");
     try {
-      const resolved = [];
+      const added = [];
+      const unresolved = [];
       for (const item of chosen) {
         const grams = Number(item.editedGrams);
-        if (!Number.isFinite(grams) || grams <= 0) throw new Error(`Enter a valid portion for ${item.editedName}.`);
         const result = await searchFoods(item.editedName.trim(), 5);
         const food = (result.foods || [])[0];
-        if (!food) { resolved.push({item, food: null}); continue; }
-        resolved.push({item, food, grams});
+        if (!food) { unresolved.push(item.editedName); continue; }
+        const details = await getFoodDetails(food.fdc_id);
+        const unit = details.supported_units.includes("g") ? "g" : details.supported_units[0];
+        let quantity = String(grams);
+        let servingNote = `Suggested from photo as “${item.editedName}”. Estimated portion: ${grams} g. Please check the food name and portion; photo estimates are approximate.`;
+        if (unit === "serving") {
+          const size = details.serving_size;
+          if (details.serving_size_unit?.toLowerCase() === "g" && size > 0) quantity = String(grams / size);
+          else { quantity = ""; servingNote += " This record has no safe gram-to-serving conversion; enter the serving quantity before analysis."; }
+        }
+        added.push({...newEntry(activeDay,activeMeal), fdc_id:String(food.fdc_id), description:food.description, quantity, unit, referenceUnit:details.reference_unit, referenceQuantity:details.reference_quantity, servingSize:details.serving_size, servingSizeUnit:details.serving_size_unit, supportedUnits:details.supported_units, servingNote});
       }
-      const added = resolved.filter(row => row.food).map(({item,food,grams}) => ({...newEntry(activeDay,activeMeal), fdc_id:String(food.fdc_id), description:food.description, quantity:String(grams), unit:"g", servingNote:`Suggested from photo as “${item.editedName}”. Estimated portion: ${grams} g. Please verify the USDA match and portion.`}));
       setEntries(current => [...current, ...added]); setAnalysis(null);
-      const unresolved = resolved.filter(row => !row.food).map(row => row.item.editedName);
-      setPhotoMessage(`${added.length} food(s) added using USDA matches. Check every name and portion below.${unresolved.length ? ` Could not find USDA matches for: ${unresolved.join(", ")}. Add these manually using search.` : ""}`);
+      setPhotoMessage(`${added.length} food(s) added using the first USDA search match. Review the food names and portions below.${unresolved.length ? ` Could not find matches for: ${unresolved.join(", ")}. Add these manually using food search.` : ""}`);
       if (unresolved.length) setPhotoError(`No USDA match found for: ${unresolved.join(", ")}.`);
-      else setPhotoError("");
       setPhotoSuggestions([]); setPhotoFile(null);
     } catch (error) { setPhotoError(getApiErrorMessage(error)); }
     finally { setPhotoBusy(false); }
   };
 
-  const addFood = (food) => {
-    const servingUnit = (food.serving_size_unit || "").toLowerCase();
-    const usesServing = servingUnit === "serving";
-    const usesGrams = servingUnit === "g";
-    setEntries((current) => [
-      ...current,
-      {
-        ...newEntry(activeDay, activeMeal),
-        fdc_id: String(food.fdc_id),
-        description: food.description,
-        quantity: food.serving_size ? String(food.serving_size) : "",
-        unit: usesServing ? "serving" : "g",
-        servingNote: food.serving_size
-          ? `USDA lists a reference serving of ${food.serving_size} ${food.serving_size_unit || "units"}. ${usesGrams ? "This entry starts in grams because the record is mass-based." : "Confirm the unit before submitting."}`
-          : "No serving size was provided; enter a quantity in grams or kilograms.",
-      },
-    ]);
-    setAnalysis(null);
+  const addFood = async (food) => {
     setSearchError("");
+    try {
+      const details = await getFoodDetails(food.fdc_id);
+      const unit = details.supported_units.includes("g") ? "g" : details.supported_units[0];
+      let quantity = "";
+      let servingNote = `Nutrient values are based on ${details.reference_quantity} ${details.reference_unit}. Only compatible units are enabled.`;
+      if (unit === "serving" && details.serving_size_unit?.toLowerCase() === "g" && details.serving_size > 0) {
+        quantity = String(details.serving_size);
+        servingNote += ` USDA lists ${details.serving_size} g per serving.`;
+      } else if (unit === "serving") {
+        quantity = "1";
+        servingNote += " Confirm the serving quantity against the package or recipe.";
+      } else {
+        quantity = "100";
+      }
+      setEntries(current => [...current, {...newEntry(activeDay,activeMeal), fdc_id:String(food.fdc_id), description:details.description, quantity, unit, referenceUnit:details.reference_unit, referenceQuantity:details.reference_quantity, servingSize:details.serving_size, servingSizeUnit:details.serving_size_unit, supportedUnits:details.supported_units, servingNote}]);
+      setAnalysis(null);
+    } catch (error) {
+      setSearchError(`Could not validate this USDA record: ${getApiErrorMessage(error)} Choose another record.`);
+    }
   };
 
   const validateMeals = () => {
@@ -350,16 +449,20 @@ export default function NutritionalIntelligence() {
     for (const [index, entry] of entries.entries()) {
       if (!entry.fdc_id)
         return `Food ${index + 1} needs a USDA search result before analysis.`;
+      if (!entry.supportedUnits?.length)
+        return `${entry.description || `Food ${index + 1}`} has not been validated against its USDA nutrient reference. Remove and reselect this food.`;
+      if (!entry.supportedUnits.includes(entry.unit))
+        return `${entry.description || `Food ${index + 1}`} cannot be safely measured in ${entry.unit}. Choose one of: ${entry.supportedUnits.join(", ")}.`;
       const quantity = Number(entry.quantity);
+      const quantityLimit = entry.unit === "g" ? 5000 : entry.unit === "kg" ? 5 : entry.unit === "serving" ? 50 : 0;
       if (
         !entry.quantity ||
         !Number.isFinite(quantity) ||
         quantity <= 0 ||
-        quantity > 100000
+        !quantityLimit ||
+        quantity > quantityLimit
       )
-        return `${entry.description || `Food ${index + 1}`} needs a quantity greater than 0 and no more than 100,000.`;
-      if (!["g", "kg", "serving"].includes(entry.unit))
-        return `${entry.description || `Food ${index + 1}`} needs a supported unit.`;
+        return `${entry.description || `Food ${index + 1}`} needs a quantity greater than 0 and no more than ${quantityLimit || "the supported limit for"} ${entry.unit || "its selected unit"}.`;
     }
     return "";
   };
@@ -369,6 +472,15 @@ export default function NutritionalIntelligence() {
   };
   const submitAnalysis = async (event) => {
     event.preventDefault();
+    const age = Number(ageYears);
+    if (!Number.isFinite(age) || age <= 18 || age >= 120) {
+      setAnalysisError("Enter an age between 19 and 119 years.");
+      return;
+    }
+    if (bmi.trim() && (!Number.isFinite(Number(bmi)) || Number(bmi) <= 10 || Number(bmi) >= 100)) {
+      setAnalysisError("BMI must be greater than 10 and less than 100, or left blank.");
+      return;
+    }
     const error = validateMeals();
     if (error) {
       setAnalysisError(error);
@@ -380,9 +492,10 @@ export default function NutritionalIntelligence() {
     setStep(3);
     try {
       const payload = {
-        entries: entries.map(({ day, meal, fdc_id, quantity, unit }) => ({
+        entries: entries.map(({ day, meal, description, fdc_id, quantity, unit }) => ({
           day,
           meal,
+          description,
           fdc_id: Number(fdc_id),
           quantity: Number(quantity),
           unit,
@@ -392,9 +505,31 @@ export default function NutritionalIntelligence() {
           age_years: Number(ageYears),
           bmi: bmi.trim() ? Number(bmi) : null,
           dietary_requirements: dietaryRequirements.split(",").map((item) => item.trim()).filter(Boolean),
+          confirmed_medications: confirmedMedications.split(",").map((item) => item.trim()).filter(Boolean),
+          dietary_preferences: [],
+          dietary_restrictions: [],
+          allergies: [],
+          preferred_foods: [],
+          nutrition_goal: "dash_style",
         },
+        full_day_intake: false,
       };
-      setAnalysis(await analyzeMealPlan(payload));
+      const analysisResult = await analyzeMealPlan(payload);
+      setAnalysis(analysisResult);
+      setSavedMealRecordId("");
+      setFeedbackState({});
+      // History persistence is best-effort: an unavailable store should not hide
+      // the successfully calculated analysis from the user.
+      try {
+        const saved = await saveMealRecord({
+          meal_date: selectedDays[0],
+          meals: entries.map(({ day, meal, description, fdc_id, quantity, unit }) => ({ day, meal, description, fdc_id: Number(fdc_id), quantity: Number(quantity), unit })),
+          analysis: analysisResult,
+        });
+        setSavedMealRecordId(saved?.record?.record_id || "");
+      } catch (historyError) {
+        console.warn("Meal analysis succeeded but could not be saved to history.", historyError);
+      }
     } catch (errorResponse) {
       setAnalysisError(getApiErrorMessage(errorResponse));
     } finally {
@@ -409,7 +544,7 @@ export default function NutritionalIntelligence() {
           <p className="ci3-eyebrow">COMPONENT 3 · CAREGIVER WORKSPACE</p>
           <h1>DASH-Informed Personalized Meal Assessment</h1>
           <p className="ci3-subtitle">
-            Build meals from USDA food records, calculate nutrient totals, assess dietary references, and—when you confirm a complete day's intake—see an ML estimate of daily reference alignment. The estimate is a rule-derived research proxy, not a clinical meal-suitability score.
+            Build meals from searched or photo-identified foods, review portions, calculate nutrient totals, and see practical food-based suggestions with cautious medication-related reminders where applicable.
           </p>
         </div>
         <div className={`ci3-api-status ci3-api-${apiState}`} role="status">
@@ -440,16 +575,16 @@ export default function NutritionalIntelligence() {
           <div className="ci3-section-heading">
             <span className="ci3-step">1</span>
             <div>
-              <p className="ci3-eyebrow">MEAL PLAN SETUP</p>
-              <h2 id="setup-title">Choose the dates to assess</h2>
+              <p className="ci3-eyebrow">YOUR MEALS</p>
+              <h2 id="setup-title">Choose the days you want to review</h2>
               <p>
-                Add one or more dates, then enter foods, quantities and serving units. Add relevant personal information to support the intended personalized assessment.
+                Choose a day, add the foods you ate, and enter the requested details for this assessment.
               </p>
             </div>
           </div>
           <div className="ci3-plan-choice">
-            <h3>Personal profile</h3>
-            <p>Enter only information relevant to meal assessment. These fields do not diagnose hypertension or replace professional advice.</p>
+            <h3>About you (for this assessment)</h3>
+            <p>Enter these details each time. They are not saved as a personal profile.</p>
             <div className="ci3-entry-grid">
               <label>Age (years)
                 <input type="number" min="19" max="119" value={ageYears} onChange={(event) => setAgeYears(event.target.value)} required />
@@ -457,23 +592,13 @@ export default function NutritionalIntelligence() {
               <label>BMI (optional)
                 <input type="number" min="10" max="100" step="0.1" value={bmi} onChange={(event) => setBmi(event.target.value)} placeholder="e.g. 26.5" />
               </label>
-              <label>Sex code for optional ML estimate (optional)
-                <select value={sexCode} onChange={(event) => setSexCode(event.target.value)}>
-                  <option value="">Not provided</option>
-                  <option value="1">Code 1</option>
-                  <option value="2">Code 2</option>
-                </select>
-              </label>
               <label>Dietary requirements (optional, comma-separated)
                 <input value={dietaryRequirements} onChange={(event) => setDietaryRequirements(event.target.value)} placeholder="e.g. lower sodium, vegetarian" />
               </label>
             </div>
-            <label className="ci3-full-day-option">
-              <input type="checkbox" checked={fullDayIntake} onChange={(event) => setFullDayIntake(event.target.checked)} />
-              <span>
-                <strong>These entries represent the complete day's food intake</strong>
-                <small>Only select this if you have entered all foods for each selected day. This enables the optional daily ML estimate; it does not make the model a meal-suitability predictor.</small>
-              </span>
+            <label>Confirmed medicine active ingredients (optional, comma-separated)
+              <input value={confirmedMedications} onChange={(event) => setConfirmedMedications(event.target.value)} placeholder="e.g. ramipril, spironolactone" />
+              <small>Optional. Enter only medicine ingredients you have confirmed from the packaging or prescription.</small>
             </label>
             <h3>How many days are you planning?</h3>
             <p>
@@ -786,11 +911,13 @@ export default function NutritionalIntelligence() {
                 <p className="ci3-muted">Check that these foods and portions match the dish you ate.</p>
                 {selectedDays.map(day => <div className="ci3-daily-result" key={`entered-${day}`}>
                   <h4>{formatDay(day)}</h4>
-                  {MEALS.map(meal => { const mealEntries = entries.filter(entry => entry.day === day && entry.meal === meal); if (!mealEntries.length) return null; return <div className="ci3-entered-meal" key={`${day}-${meal}`}><strong>{meal}</strong><ul>{mealEntries.map(entry => <li key={entry.rowId}>{entry.description} — {entry.quantity} {entry.unit}</li>)}</ul></div>; })}
+                  {MEALS.map(meal => { const mealEntries = entries.filter(entry => entry.day === day && entry.meal === meal); if (!mealEntries.length) return null; return <div className="ci3-entered-meal" key={`${day}-${meal}`}><strong>{meal}</strong><ul>{mealEntries.map(entry => <li key={entry.rowId}>
+                    <strong>{entry.description}</strong> — {entry.quantity} {entry.unit}
+                  </li>)}</ul></div>; })}
                 </div>)}
               </div>
               <div className="ci3-result-block">
-                <h3>Nutrition at a glance</h3>
+                <h3>Your nutrition summary</h3>
                 <p className="ci3-muted">
                   This is the total across all selected days, not a daily
                   average.
@@ -799,7 +926,7 @@ export default function NutritionalIntelligence() {
               </div>
               <div className="ci3-result-block">
                 <h3>Daily nutrition</h3>
-                <p className="ci3-muted">Totals for the foods entered on each day.</p>
+                <p className="ci3-muted">Totals for the foods entered for this day.</p>
                 {Object.entries(analysis.daily_nutrients || {}).map(
                   ([day, summary]) => (
                     <div className="ci3-daily-result" key={day}>
@@ -810,44 +937,69 @@ export default function NutritionalIntelligence() {
                 )}
               </div>
               <div className="ci3-result-block">
-                <h3>What to know about your meal</h3>
-                <p className="ci3-muted">Simple findings from the nutrition references. These are guidance comparisons, not medical limits for a single meal.</p>
-                {Object.entries(analysis.meal_assessments || {}).map(([mealKey, assessment]) => (
-                  <article className="ci3-daily-result" key={`assessment-${mealKey}`}>
-                    <h4>{mealKey}</h4>
-                    <p><strong>{assessment.label || "Nutrient-reference assessment"}</strong></p>
-                    {(assessment.items || []).map((item) => (
-                      <p key={`${mealKey}-${item.nutrient}`}><strong>{item.nutrient}:</strong> {item.message}</p>
-                    ))}
-                    {(assessment.suggestions || []).map((suggestion, index) => (
-                      <p key={`${mealKey}-suggestion-${index}`}>Suggestion: {suggestion}</p>
-                    ))}
-                    {(assessment.notes || []).map((note, index) => (
-                      <p key={`${mealKey}-note-${index}`} className="ci3-muted">{note}</p>
-                    ))}
-                  </article>
-                ))}
-              </div>
-              <div className="ci3-result-block">
-                <h3>Daily diet estimate (AI)</h3>
-                <p className="ci3-muted">Available only when you marked the entries as your full day. This estimates a research category, not medical suitability.</p>
-                {Object.entries(analysis.daily_ml_alignment_estimates || {}).map(([day, result]) => (
-                  <article className="ci3-daily-result" key={`ml-${day}`}>
+                <h3>Ways to improve your daily food choices</h3>
+                <p className="ci3-muted">Your recorded foods will not be changed. These are optional ideas for your day.</p>
+                {dashOptimizationLoading && <p className="ci3-muted" role="status">Finding possible improvements…</p>}
+                {selectedDays.map((day) => {
+                  const result = dashOptimizationResults[day];
+                  if (!result) return null;
+                  const groupLabel = (raw) => {
+                    const value = String(raw || "").toLowerCase();
+                    if (/raw apple|apricot|avocado|banana|cantaloupe|cherries|fig|grapes|mango|pear|pineapple|fruit/.test(value)) return "Fruit";
+                    if (/vegetable|tomato|leafy|greens/.test(value)) return "Vegetables";
+                    if (/potato/.test(value)) return "Potatoes";
+                    if (/pancake|waffle/.test(value)) return "Pancakes or waffles";
+                    if (/seed/.test(value)) return "Seeds";
+                    if (/smoothie/.test(value)) return "Fruit or vegetable smoothie";
+                    if (/whole grain|grain|oat|rice|bread/.test(value)) return "Grains";
+                    if (/bean|lentil|legume|pea/.test(value)) return "Beans and lentils";
+                    if (/dairy|milk|yogurt|cheese/.test(value)) return "Dairy foods";
+                    if (/nut/.test(value)) return "Nuts";
+                    return String(raw || "Food group").replaceAll("/", " / ");
+                  };
+                  const plainReason = (raw) => {
+                    const value = String(raw || "").toLowerCase();
+                    if (value.includes("starting daily profile") || value.includes("lower bound") || value.includes("constraint")) return "This change moves your estimated daily food pattern closer to the balanced pattern used by this tool.";
+                    return "This is part of the overall daily balance suggested by the tool; it is not proof of a specific health benefit.";
+                  };
+                  return <article className="ci3-daily-result" key={`dash-optimization-${day}`}>
                     <h4>{formatDay(day)}</h4>
-                    {result.status === "estimated" ? (
-                      <>
-                        <p><strong>Estimated category:</strong> {result.predicted_daily_alignment_proxy === "reference_aligned_proxy" ? "Reference-aligned proxy" : "Needs review proxy"}</p>
-                        <p><strong>Model:</strong> {result.model}</p>
-                        {result.confidence !== null && result.confidence !== undefined && <p><strong>Model confidence:</strong> {(result.confidence * 100).toFixed(1)}% (not clinical certainty)</p>}
-                        <p className="ci3-muted">{result.explanation}</p>
-                      </>
-                    ) : (
-                      <p className="ci3-muted">{result.reason || "ML estimate unavailable."} {result.missing_features?.length ? `Missing: ${result.missing_features.join(", ")}.` : ""}</p>
-                    )}
-                  </article>
-                ))}
+                    {result.status === "unavailable" ? <p className="ci3-muted">{result.message || "Suggestions could not be prepared for this day. Your food log has not changed."}</p> : result.status !== "optimal" ? <p className="ci3-muted">We could not find a reliable set of changes for this day, so no suggestions are shown. Your food log has not changed.</p> : <>
+                      <p className="ci3-muted" role="status">
+                        {result.ml_preference_model?.used
+                          ? "These optional ideas combine learned dietary patterns with DASH-based calculations. They are not medical advice."
+                          : "These optional ideas were calculated using the DASH-based tool."}
+                      </p>
+                      {(result.changes || []).length ? <ul>{result.changes.slice(0, 5).map((change) => <li key={change.food_group_code}>
+                        <strong>{groupLabel(change.food_group)}:</strong> {Number(change.current_servings).toFixed(1)} to {Number(change.suggested_servings).toFixed(1)} servings
+                        <p className="ci3-muted"><strong>Why:</strong> {plainReason(change.reason)}</p>
+                      </li>)}</ul> : <p>No changes were suggested for this day.</p>}
+                      {(result.unmatched_foods || []).length > 0 && <p className="ci3-muted">Some foods could not be matched to a food group, so the suggestions may not account for them: {result.unmatched_foods.map(item => item.food_name).join(", ")}.</p>}
+                      <p className="ci3-muted">These are general suggestions, not medical advice. Choose only changes that suit you.</p>
+                    </>}
+                  </article>;
+                })}
               </div>
-              <details className="ci3-technical-details"><summary>About the research model</summary><p>The daily AI estimate is trained on categories created from nutrition rules. It is not a doctor-labelled meal suitability prediction. Daily DASH optimization is a separate research tool.</p></details>
+              <div className="ci3-result-block ci3-reference-details-block">
+                <h3>More nutrition details (optional)</h3>
+                <details className="ci3-reference-details">
+                  <summary>View detailed nutrition information</summary>
+                  <p className="ci3-muted">These are general reference comparisons, not medical limits for a single meal.</p>
+                  {Object.entries(analysis.meal_assessments || {}).map(([mealKey, assessment]) => (
+                    <article className="ci3-daily-result" key={`assessment-${mealKey}`}>
+                      <h4>{mealKey}</h4>
+                      <p><strong>{assessment.label || "Nutrient-reference assessment"}</strong></p>
+                      {(assessment.items || []).map((item) => (
+                        <p key={`${mealKey}-${item.nutrient}`}><strong>{item.nutrient}:</strong> {item.message}</p>
+                      ))}
+                      {(assessment.notes || []).map((note, index) => (
+                        <p key={`${mealKey}-note-${index}`} className="ci3-muted">{note}</p>
+                      ))}
+                    </article>
+                  ))}
+                </details>
+              </div>
+
             </>
           )}
         </section>
@@ -885,6 +1037,9 @@ export default function NutritionalIntelligence() {
           )}
         </div>
       )}
+      {/* Temporarily hidden until persistent user-specific storage is restored.
+      <Component3MealHistory />
+      */}
       <footer className="ci3-footer">
         Component 3 · Hypertension Dietary Risk Assessment System · Research
         prototype
