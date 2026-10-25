@@ -8,6 +8,8 @@ import {
   TextInput,
   View,
 } from "react-native";
+import HealthConnectSection from "./HealthConnectSection";
+import { useResidentProfileApi } from "./CareAccount";
 
 const INITIAL_FORM = {
   age: "",
@@ -256,7 +258,23 @@ export default function HealthScreen({ apiBase, colors }) {
     () => makeStyles(colors),
     [colors]
   );
+   const {
+     loadResidentHealthProfile,
+     saveResidentHealthProfile,
+     loadAssessmentHistory,
+     saveAssessmentHistory,
+     signedIn,
+   } = useResidentProfileApi();
 
+  const [profileLoading, setProfileLoading] = useState(false);
+  const [profileMessage, setProfileMessage] = useState("");
+  const [profileError, setProfileError] = useState("");
+  const [assessmentHistory, setAssessmentHistory] = useState([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyMessage, setHistoryMessage] = useState("");
+  const [historyError, setHistoryError] = useState("");
+  const [healthConnectRecords, setHealthConnectRecords] = useState([]);
+  const [healthConnectHeartRate, setHealthConnectHeartRate] = useState(null);
   const [form, setForm] = useState(INITIAL_FORM);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
@@ -265,6 +283,155 @@ export default function HealthScreen({ apiBase, colors }) {
   function update(key, value) {
     setForm((current) => ({ ...current, [key]: value }));
     setError("");
+  }
+
+    async function saveResidentProfile() {
+    if (!signedIn) {
+      setProfileError("Sign in before saving the resident profile.");
+      return;
+    }
+
+    setProfileLoading(true);
+    setProfileError("");
+    setProfileMessage("");
+
+    try {
+      await saveResidentHealthProfile({
+        age: form.age.trim() === "" ? null : Number(form.age),
+        sex: form.sex || "",
+        height_cm:
+          form.height_cm.trim() === "" ? null : Number(form.height_cm),
+        weight_kg:
+          form.weight_kg.trim() === "" ? null : Number(form.weight_kg),
+        diabetes_history: form.diabetes_history || "",
+        has_existing_hypertension:
+          form.has_existing_hypertension || "",
+      });
+
+      setProfileMessage(
+        "Resident profile saved. This uses temporary prototype storage."
+      );
+    } catch (err) {
+      setProfileError(
+        err.message || "Could not save the resident profile."
+      );
+    } finally {
+      setProfileLoading(false);
+    }
+  }
+
+  async function fillAvailableData() {
+    if (!signedIn) {
+      setProfileError("Sign in before loading the resident profile.");
+      return;
+    }
+
+    setProfileLoading(true);
+    setProfileError("");
+    setProfileMessage("");
+
+    try {
+      const response = await loadResidentHealthProfile();
+      const profile = response?.profile;
+
+      setForm((current) => {
+        const next = { ...current };
+
+        if (profile) {
+          if (profile.age != null) next.age = String(profile.age);
+          if (["female", "male"].includes(profile.sex)) {
+            next.sex = profile.sex;
+          }
+          if (profile.height_cm != null) {
+            next.height_cm = String(profile.height_cm);
+          }
+          if (profile.weight_kg != null) {
+            next.weight_kg = String(profile.weight_kg);
+          }
+          if (["yes", "no"].includes(profile.diabetes_history)) {
+            next.diabetes_history = profile.diabetes_history;
+          }
+          if (
+            ["yes", "no"].includes(profile.has_existing_hypertension)
+          ) {
+            next.has_existing_hypertension =
+              profile.has_existing_hypertension;
+          }
+        }
+
+        const latestReading = [...healthConnectRecords].sort(
+          (a, b) => new Date(b.time).getTime() - new Date(a.time).getTime()
+        )[0];
+
+       if (latestReading) {
+        next.systolic_bp = String(latestReading.systolic);
+        next.diastolic_bp = String(latestReading.diastolic);
+       }
+
+       if (
+        healthConnectHeartRate &&
+        Number.isFinite(Number(healthConnectHeartRate.bpm))
+       ) {
+        next.pulse_rate = String(healthConnectHeartRate.bpm);
+         }
+
+         return next;
+      });
+
+      setResult(null);
+      setError("");
+
+      const hasReading = healthConnectRecords.length > 0;
+
+      const hasHeartRateReading =
+        healthConnectHeartRate != null &&
+        Number.isFinite(Number(healthConnectHeartRate.bpm));
+
+      setProfileMessage(
+        `${profile ? "Saved resident details loaded." : "No saved resident profile yet."} ${
+          hasReading
+            ? "The latest available Health Connect BP reading was selected."
+            : "No Health Connect BP reading is available."
+        } ${
+          hasHeartRateReading
+            ? `Heart rate (${healthConnectHeartRate.bpm} BPM) was also imported.`
+            : "No Health Connect heart-rate sample is available; manual pulse entry remains available."
+        } Review the fields and complete any missing values.`
+      );
+    } catch (err) {
+      setProfileError(
+        err.message || "Could not load the resident profile."
+      );
+    } finally {
+      setProfileLoading(false);
+    }
+  }
+
+    async function refreshAssessmentHistory() {
+    if (!signedIn) {
+      setHistoryError("Sign in to view assessment history.");
+      return;
+    }
+
+    setHistoryLoading(true);
+    setHistoryError("");
+    setHistoryMessage("");
+
+    try {
+      const response = await loadAssessmentHistory();
+
+      setAssessmentHistory(
+        Array.isArray(response?.history) ? response.history : []
+      );
+
+      setHistoryMessage("Assessment history loaded.");
+    } catch (err) {
+      setHistoryError(
+        err.message || "Could not load assessment history."
+      );
+    } finally {
+      setHistoryLoading(false);
+    }
   }
 
   async function submitAssessment() {
@@ -378,6 +545,34 @@ export default function HealthScreen({ apiBase, colors }) {
       }
 
       setResult(data);
+
+            // Save history separately so a storage failure does not
+      // turn a successful prediction into a failed assessment.
+      if (signedIn) {
+        try {
+          const saved = await saveAssessmentHistory({
+            inputs: payload,
+            result: data,
+          });
+
+          if (saved?.record) {
+            setAssessmentHistory((current) =>
+              [saved.record, ...current].slice(0, 100)
+            );
+          }
+
+          setHistoryError("");
+          setHistoryMessage("Assessment saved to temporary history.");
+        } catch (historySaveError) {
+          setHistoryMessage("");
+          setHistoryError(
+            `The prediction succeeded, but history could not be saved: ${
+              historySaveError.message || "Unknown storage error"
+            }`
+          );
+        }
+      }
+
     } catch (err) {
       if (err.name === "AbortError") {
         setError("The assessment timed out. Check that Express and the Component 1 Python service are running.");
@@ -431,6 +626,217 @@ export default function HealthScreen({ apiBase, colors }) {
           uncalibrated and is not a validated absolute risk for a fixed
           time period. Follow the care home’s clinical assessment process.
         </Text>
+      </View>
+            <HealthConnectSection
+        colors={colors}
+        disabled={loading}
+        onRecordsLoaded={setHealthConnectRecords}
+        onHeartRateLoaded={setHealthConnectHeartRate}
+        onSelectReading={({ systolic, diastolic }) => {
+          setForm((current) => ({
+            ...current,
+            systolic_bp: String(systolic),
+            diastolic_bp: String(diastolic),
+          }));
+          setResult(null);
+          setError("");
+        }}
+      />
+            <View style={styles.card}>
+        <Text style={styles.sectionTitle}>Resident profile</Text>
+
+        <Text style={styles.sectionNote}>
+          Save the resident's details for this signed-in account, or load
+          saved details together with available Health Connect measurements.
+        </Text>
+
+        <Pressable
+          accessibilityRole="button"
+          disabled={profileLoading || loading || !signedIn}
+          onPress={fillAvailableData}
+          style={[
+            styles.button,
+            (profileLoading || loading || !signedIn) && styles.buttonDisabled,
+          ]}
+        >
+          {profileLoading && <ActivityIndicator color="#FFFFFF" />}
+          <Text style={styles.buttonText}>Fill available data</Text>
+        </Pressable>
+
+        <Pressable
+          accessibilityRole="button"
+          disabled={profileLoading || loading || !signedIn}
+          onPress={saveResidentProfile}
+          style={[
+            styles.resetButton,
+            (profileLoading || loading || !signedIn) && styles.buttonDisabled,
+          ]}
+        >
+          <Text style={styles.resetText}>Save resident profile</Text>
+        </Pressable>
+
+        {!signedIn && (
+          <Text style={styles.mutedText}>
+            Sign in to load or save the resident profile.
+          </Text>
+        )}
+
+        {!!profileMessage && (
+          <View style={styles.notice}>
+            <Text style={styles.noticeText}>{profileMessage}</Text>
+          </View>
+        )}
+
+        {!!profileError && (
+          <View style={styles.error}>
+            <Text style={styles.errorText}>{profileError}</Text>
+          </View>
+        )}
+      </View>
+
+            {/* Temporary prototype: saved physiological assessments */}
+      <View style={styles.card}>
+        <Text style={styles.sectionTitle}>Assessment History</Text>
+
+        <Text style={styles.sectionNote}>
+          Review previously saved assessments for this signed-in account.
+          History is currently stored in temporary prototype storage.
+        </Text>
+
+        <Pressable
+          accessibilityRole="button"
+          disabled={
+            historyLoading || loading || profileLoading || !signedIn
+          }
+          onPress={refreshAssessmentHistory}
+          style={[
+            styles.button,
+            (historyLoading || loading || profileLoading || !signedIn) &&
+              styles.buttonDisabled,
+          ]}
+        >
+          {historyLoading && <ActivityIndicator color="#FFFFFF" />}
+          <Text style={styles.buttonText}>
+            {historyLoading ? "Loading history..." : "Refresh assessment history"}
+          </Text>
+        </Pressable>
+
+        {!signedIn && (
+          <Text style={styles.mutedText}>
+            Sign in to access assessment history.
+          </Text>
+        )}
+
+        {!!historyMessage && (
+          <View style={styles.notice}>
+            <Text style={styles.noticeText}>{historyMessage}</Text>
+          </View>
+        )}
+
+        {!!historyError && (
+          <View style={styles.error}>
+            <Text style={styles.errorText}>{historyError}</Text>
+          </View>
+        )}
+
+        {historyMessage === "Assessment history loaded." &&
+          assessmentHistory.length === 0 && (
+            <Text style={styles.message}>
+              No saved assessments were found.
+            </Text>
+          )}
+
+        {assessmentHistory.map((item) => {
+          const inputs = item.inputs || {};
+          const result = item.result || {};
+
+          const score =
+            typeof result.model_score_percent === "number" &&
+            Number.isFinite(result.model_score_percent)
+              ? `${result.model_score_percent.toFixed(2)}%`
+              : "Not returned";
+
+          const features = Array.isArray(
+            result.shap_explanation?.features
+          )
+            ? result.shap_explanation.features
+            : [];
+
+          const recordedAt =
+            item.assessedAt &&
+            !Number.isNaN(new Date(item.assessedAt).getTime())
+              ? new Date(item.assessedAt).toLocaleString()
+              : "Date unavailable";
+
+          return (
+            <View key={String(item.id)} style={styles.record}>
+              <Text style={styles.recordTime}>
+                Assessed: {recordedAt}
+              </Text>
+
+              <Text style={styles.readingLabel}>
+                BLOOD PRESSURE
+              </Text>
+
+              <View style={styles.readings}>
+                <View style={styles.readingValue}>
+                  <Text style={styles.readingLabel}>SYSTOLIC</Text>
+                  <Text style={styles.readingNumber}>
+                    {numberLabel(inputs.systolic_bp)}
+                  </Text>
+                  <Text style={styles.unit}>mmHg</Text>
+                </View>
+
+                <View style={styles.readingValue}>
+                  <Text style={styles.readingLabel}>DIASTOLIC</Text>
+                  <Text style={styles.readingNumber}>
+                    {numberLabel(inputs.diastolic_bp)}
+                  </Text>
+                  <Text style={styles.unit}>mmHg</Text>
+                </View>
+              </View>
+
+              <View style={styles.readings}>
+                <View style={styles.readingValue}>
+                  <Text style={styles.readingLabel}>PULSE RATE</Text>
+                  <Text style={styles.readingNumber}>
+                    {numberLabel(inputs.pulse_rate)}
+                  </Text>
+                  <Text style={styles.unit}>BPM</Text>
+                </View>
+
+                <View style={styles.readingValue}>
+                  <Text style={styles.readingLabel}>MODEL SCORE</Text>
+                  <Text style={styles.readingNumber}>{score}</Text>
+                  <Text style={styles.unit}>Returned score</Text>
+                </View>
+              </View>
+
+              {features.length > 0 && (
+                <View style={{ gap: 6 }}>
+                  <Text style={styles.readingLabel}>
+                    SHAP EXPLANATION — TOP FACTORS
+                  </Text>
+
+                  {features.slice(0, 3).map((feature, index) => (
+                    <Text
+                      key={`${item.id}-feature-${index}`}
+                      style={styles.message}
+                    >
+                      {feature.feature ||
+                        feature.name ||
+                        feature.label ||
+                        `Factor ${index + 1}`}
+                      {feature.contribution != null
+                        ? ` · Contribution: ${signed(feature.contribution)}`
+                        : ""}
+                    </Text>
+                  ))}
+                </View>
+              )}
+            </View>
+          );
+        })}
       </View>
 
       <View style={styles.card}>
