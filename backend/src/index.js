@@ -3,6 +3,7 @@ require("dotenv").config();
 
 const express = require("express");
 const cors = require("cors");
+const authRoutes = require("./routes/auth");
 
 const pool = require("./db");
 
@@ -10,6 +11,10 @@ const app = express();
 
 app.use(cors());
 app.use(express.json());
+
+app.use("/api/auth", authRoutes);
+
+
 
 const authRouter = require("./auth");
 app.use("/api/auth", authRouter);
@@ -138,6 +143,150 @@ app.get("/api/behavioral/status", async (req, res) => {
     });
   }
 });
+
+
+app.post("/api/behavioral/fall-events", async (req, res) => {
+  try {
+    const {
+      residentId,
+      residentName,
+      trackId,
+      probability,
+      source,
+      videoTimeSeconds,
+    } = req.body || {};
+
+    // Validate the event source
+    if (!["uploaded_video", "live_camera"].includes(source)) {
+      return res.status(400).json({
+        error: "source must be uploaded_video or live_camera",
+      });
+    }
+
+    // Validate probability
+    if (
+      probability !== undefined &&
+      probability !== null &&
+      (!Number.isFinite(Number(probability)) ||
+        Number(probability) < 0 ||
+        Number(probability) > 1)
+    ) {
+      return res.status(400).json({
+        error: "probability must be between 0 and 1",
+      });
+    }
+
+    const result = await pool.query(
+      `INSERT INTO fall_events (
+         resident_id,
+         resident_name,
+         track_id,
+         probability,
+         source,
+         video_time_seconds
+       )
+       VALUES ($1, $2, $3, $4, $5, $6)
+       RETURNING
+         id,
+         resident_id AS "residentId",
+         resident_name AS "residentName",
+         track_id AS "trackId",
+         probability,
+         source,
+         occurred_at AS "occurredAt",
+         video_time_seconds AS "videoTimeSeconds"`,
+      [
+        residentId ?? null,
+        residentName ?? null,
+        trackId == null ? null : String(trackId),
+        probability == null ? null : Number(probability),
+        source,
+        videoTimeSeconds == null
+          ? null
+          : Number(videoTimeSeconds),
+      ]
+    );
+
+    return res.status(201).json({
+      success: true,
+      event: result.rows[0],
+    });
+  } catch (error) {
+    console.error("Failed to save fall event:", error.message);
+
+    return res.status(500).json({
+      error: "Could not save fall event",
+    });
+  }
+});
+
+
+
+/* Component 2: Fall notification history */
+app.get("/api/behavioral/fall-events", async (req, res) => {
+  try {
+    const { from, to, source } = req.query;
+
+    const conditions = [];
+    const values = [];
+
+    if (from) {
+      values.push(from);
+      conditions.push(`occurred_at >= $${values.length}::date`);
+    }
+
+    if (to) {
+      values.push(to);
+      conditions.push(
+        `occurred_at < ($${values.length}::date + INTERVAL '1 day')`
+      );
+    }
+
+    if (source && source !== "all") {
+      if (!["uploaded_video", "live_camera"].includes(source)) {
+        return res.status(400).json({
+          error: "Invalid source filter",
+        });
+      }
+
+      values.push(source);
+      conditions.push(`source = $${values.length}`);
+    }
+
+    const whereClause = conditions.length
+      ? `WHERE ${conditions.join(" AND ")}`
+      : "";
+
+    const result = await pool.query(
+      `SELECT
+         id,
+         resident_id AS "residentId",
+         resident_name AS "residentName",
+         track_id AS "trackId",
+         probability,
+         source,
+         occurred_at AS "occurredAt",
+         video_time_seconds AS "videoTimeSeconds"
+       FROM fall_events
+       ${whereClause}
+       ORDER BY occurred_at DESC
+       LIMIT 500`,
+      values
+    );
+
+    return res.json({
+      events: result.rows,
+      count: result.rowCount,
+    });
+  } catch (error) {
+    console.error("Fall history query failed:", error.message);
+
+    return res.status(500).json({
+      error: "Could not load fall notification history",
+    });
+  }
+});
+
 
 app.listen(PORT, () => {
   console.log(`Backend running on port ${PORT}`);
