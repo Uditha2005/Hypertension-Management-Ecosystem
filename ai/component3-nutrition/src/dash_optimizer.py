@@ -27,9 +27,10 @@ def load_problem(coefficient_csv, bounds_csv, scale_csv):
         raise ValueError("At least one nutrient lower bound exceeds its upper bound.")
     return coeff.index.tolist(), codes, A, lb, ub, scale
 
-def check_feasibility(A, lb, ub, n_variables):
+def check_feasibility(A, lb, ub, n_variables, variable_bounds=None):
+    bounds = variable_bounds if variable_bounds is not None else [(0, None)] * n_variables
     result = linprog(c=np.zeros(n_variables), A_ub=np.vstack([A, -A]),
-                     b_ub=np.concatenate([ub, -lb]), bounds=[(0, None)] * n_variables,
+                     b_ub=np.concatenate([ub, -lb]), bounds=bounds,
                      method="highs")
     return {"feasible": bool(result.success), "status": int(result.status),
             "message": str(result.message), "feasible_point": result.x if result.success else None}
@@ -40,7 +41,7 @@ def normalized_bound_violation(nutrients, lb, ub):
     return float(np.sum(violation)), float(np.max(violation, initial=0.0))
 
 def optimize_servings(preferred, coefficient_csv, bounds_csv, scale_csv,
-                      maxiter=2500, gtol=1e-8, xtol=1e-10):
+                      maxiter=2500, gtol=1e-8, xtol=1e-10, allowed_codes=None):
     nutrient_names, codes, A, lb, ub, scale = load_problem(coefficient_csv, bounds_csv, scale_csv)
     x0 = np.asarray(preferred, dtype=float).reshape(-1)
     if len(x0) != len(codes):
@@ -48,7 +49,9 @@ def optimize_servings(preferred, coefficient_csv, bounds_csv, scale_csv,
     if not np.isfinite(x0).all():
         raise ValueError("Preferred serving profile contains non-finite values.")
     x0 = np.maximum(x0, 0.0)
-    feasibility = check_feasibility(A, lb, ub, len(codes))
+    allowed = set(codes if allowed_codes is None else (int(code) for code in allowed_codes))
+    variable_bounds = [(0.0, None) if code in allowed else (0.0, 0.0) for code in codes]
+    feasibility = check_feasibility(A, lb, ub, len(codes), variable_bounds)
     if not feasibility["feasible"]:
         nutrients = A @ x0
         v_sum, v_max = normalized_bound_violation(nutrients, lb, ub)
@@ -74,7 +77,7 @@ def optimize_servings(preferred, coefficient_csv, bounds_csv, scale_csv,
     res = minimize(
         objective, np.maximum(feasibility["feasible_point"], 0.0),
         jac=gradient, hess=hessian, method="trust-constr",
-        bounds=Bounds(np.zeros(len(codes)), np.full(len(codes), np.inf)),
+        bounds=Bounds(np.zeros(len(codes)), np.array([np.inf if code in allowed else 0.0 for code in codes])) ,
         constraints=[LinearConstraint(A_active, lb_active, ub_active)],
         options={"maxiter": maxiter, "gtol": gtol, "xtol": xtol, "verbose": 0},
     )

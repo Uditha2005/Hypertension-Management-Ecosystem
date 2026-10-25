@@ -1,0 +1,106 @@
+{
+  "schema_version": 1,
+  "purpose": "Conservative, source-linked reminders for explicitly confirmed active ingredients. This is a partial evidence registry, not a comprehensive interaction database.",
+  "last_reviewed": "2026-10-23",
+  "rules": [
+    {
+      "id": "ramipril-potassium-salt-substitute",
+      "active_ingredient": "ramipril",
+      "aliases": ["ramipril"],
+      "trigger_terms": ["salt substitute", "salt substitutes", "losalt", "lo salt", "potassium-based salt", "potassium salt substitute", "potassium supplement", "potassium supplements"],
+      "title": "Check potassium-containing salt substitutes",
+      "message": "Official guidance advises not using potassium-rich salt substitutes with ramipril because they may raise blood potassium. Check the product and your personal advice with a pharmacist or clinician before using a salt substitute or potassium supplement.",
+      "source_url": "https://www.nhs.uk/medicines/ramipril/common-questions-about-ramipril/",
+      "evidence_type": "official_patient_guidance",
+      "scope": "potassium-containing salt substitutes and supplements; not a blanket restriction on ordinary foods"
+    },
+    {
+      "id": "irbesartan-potassium-salt-substitute",
+      "active_ingredient": "irbesartan",
+      "aliases": ["irbesartan"],
+      "trigger_terms": ["salt substitute", "salt substitutes", "losalt", "lo salt", "potassium-based salt", "potassium salt substitute", "potassium supplement", "potassium supplements"],
+      "title": "Check potassium-containing salt substitutes",
+      "message": "Official guidance advises telling your doctor if you regularly use potassium-containing salt alternatives while taking irbesartan. Check the product and your personal advice with a pharmacist or clinician before using a salt substitute or potassium supplement.",
+      "source_url": "https://www.nhs.uk/medicines/irbesartan/",
+      "evidence_type": "official_patient_guidance",
+      "scope": "potassium-containing salt substitutes and supplements; not a blanket restriction on ordinary foods"
+    },
+    {
+      "id": "losartan-potassium-salt-substitute",
+      "active_ingredient": "losartan",
+      "aliases": ["losartan"],
+      "trigger_terms": ["salt substitute", "salt substitutes", "losalt", "lo salt", "potassium-based salt", "potassium salt substitute", "potassium supplement", "potassium supplements"],
+      "title": "Check potassium-containing salt substitutes",
+      "message": "Official guidance identifies potassium-containing supplements and salt substitutes as something to check while taking losartan. Ask a pharmacist or clinician before using one; do not assume every lower-sodium product is suitable.",
+      "source_url": "https://www.nhs.uk/medicines/losartan/",
+      "evidence_type": "official_patient_guidance",
+      "scope": "potassium-containing salt substitutes and supplements; not a blanket restriction on ordinary foods"
+    },
+    {
+      "id": "spironolactone-potassium-salt-substitute",
+      "active_ingredient": "spironolactone",
+      "aliases": ["spironolactone"],
+      "trigger_terms": ["salt substitute", "salt substitutes", "losalt", "lo salt", "potassium-based salt", "potassium salt substitute", "potassium supplement", "potassium supplements"],
+      "title": "Check potassium-containing salt substitutes",
+      "message": "Spironolactone can raise blood potassium. Official guidance advises checking before using potassium supplements or potassium-containing salt substitutes; ask a pharmacist or clinician about what is appropriate for this person.",
+      "source_url": "https://www.nhs.uk/medicines/spironolactone/",
+      "evidence_type": "official_patient_guidance",
+      "scope": "potassium-containing salt substitutes and supplements; ordinary food advice depends on the person's clinical context"
+    },
+    {
+      "id": "amlodipine-grapefruit",
+      "active_ingredient": "amlodipine",
+      "aliases": ["amlodipine"],
+      "trigger_terms": ["grapefruit", "grapefruit juice"],
+      "title": "Check grapefruit guidance for amlodipine",
+      "message": "NHS guidance advises not eating grapefruit or drinking grapefruit juice with amlodipine because it can increase side effects. Confirm the exact product information with a pharmacist if needed.",
+      "source_url": "https://www.nhs.uk/medicines/amlodipine/",
+      "evidence_type": "official_patient_guidance",
+      "scope": "grapefruit and grapefruit juice"
+    },
+    {
+      "id": "nifedipine-grapefruit",
+      "active_ingredient": "nifedipine",
+      "aliases": ["nifedipine"],
+      "trigger_terms": ["grapefruit", "grapefruit juice"],
+      "title": "Check grapefruit guidance for nifedipine",
+      "message": "NHS guidance advises not eating grapefruit or drinking grapefruit juice with nifedipine because it can increase side effects. Confirm the active ingredient and formulation from the prescription or package before applying this reminder.",
+      "source_url": "https://www.nhs.uk/medicines/nifedipine/",
+      "evidence_type": "official_patient_guidance",
+      "scope": "grapefruit and grapefruit juice; the catalogue label 'Nitedipine' is not automatically treated as nifedipine"
+    },
+    {
+      "id": "verapamil-grapefruit",
+      "active_ingredient": "verapamil",
+      "aliases": ["verapamil"],
+      "trigger_terms": ["grapefruit", "grapefruit juice"],
+      "title": "Check grapefruit guidance for verapamil",
+      "message": "NHS guidance advises not eating grapefruit or drinking grapefruit juice with verapamil because it can increase medicine levels and side effects. Confirm the specific product guidance if needed.",
+      "source_url": "https://www.nhs.uk/medicines/verapamil/common-questions-about-verapamil/",
+      "evidence_type": "official_patient_guidance",
+      "scope": "grapefruit and grapefruit juice"
+    },
+    {
+      "id": "clopidogrel-grapefruit-juice",
+      "active_ingredient": "clopidogrel",
+      "aliases": ["clopidogrel"],
+      "trigger_terms": ["grapefruit juice"],
+      "title": "Check grapefruit juice guidance for clopidogrel",
+      "message": "NHS guidance advises not drinking grapefruit juice with clopidogrel because it may reduce the medicine's effect. Check the official leaflet or ask a pharmacist if the product is uncertain.",
+      "source_url": "https://www.nhs.uk/medicines/clopidogrel/common-questions-about-clopidogrel/",
+      "evidence_type": "official_patient_guidance",
+      "scope": "grapefruit juice; this rule does not infer a warning for whole grapefruit"
+    },
+    {
+      "id": "losartan-grapefruit-juice",
+      "active_ingredient": "losartan",
+      "aliases": ["losartan"],
+      "trigger_terms": ["grapefruit juice"],
+      "title": "Check grapefruit juice guidance for losartan",
+      "message": "NHS guidance advises avoiding grapefruit juice with losartan because it may stop the medicine working properly. Confirm the product leaflet or ask a pharmacist if needed.",
+      "source_url": "https://www.nhs.uk/medicines/losartan/",
+      "evidence_type": "official_patient_guidance",
+      "scope": "grapefruit juice"
+    }
+  ]
+}

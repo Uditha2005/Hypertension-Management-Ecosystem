@@ -142,6 +142,7 @@ function HomeButton({ title, onPress, secondary = false, disabled = false }) {
 
 export default function HomeScreen({
   onOpenMedicine,
+  onOpenNutrition,
   onOpenHistory,
   onConnect,
   connection = "Not connected",
@@ -159,6 +160,11 @@ export default function HomeScreen({
 
     if (module.id === "medicine") {
       onOpenMedicine();
+      return;
+    }
+
+    if (module.id === "nutrition") {
+      onOpenNutrition();
       return;
     }
 

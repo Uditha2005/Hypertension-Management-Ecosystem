@@ -362,13 +362,31 @@ class USDAFoodDataClient:
         description = _required_string(payload.get("description"), "description")
         data_type = _required_string(payload.get("dataType"), "dataType")
 
-        if "labelNutrients" in payload:
+        if isinstance(payload.get("labelNutrients"), dict) and payload.get("labelNutrients"):
             serving_size = _positive_finite_number(payload.get("servingSize"), "servingSize")
             serving_unit = _required_string(payload.get("servingSizeUnit"), "servingSizeUnit")
             values = _parse_label_nutrients(payload["labelNutrients"])
+
+            # For gram-based branded servings, FoodData Central's foodNutrients
+            # amounts are expressed per 100 g while labelNutrients are per the
+            # declared serving. Use the per-100 g values only to fill label gaps,
+            # scaling them to the serving. Do not infer a mass basis for ml or
+            # other volume/household units because density may be unknown.
+            gram_units = {"g", "grm", "gram", "grams"}
+            if (
+                serving_unit.strip().casefold() in gram_units
+                and any(value is None for value in values.values())
+            ):
+                food_values = _parse_food_nutrients(payload.get("foodNutrients"))
+                serving_scale = serving_size / 100.0
+                for target, label_value in values.items():
+                    if label_value is None:
+                        food_value = food_values.get(target)
+                        if food_value is not None:
+                            values[target] = food_value * serving_scale
+
             reference_quantity = 1.0
             reference_unit = "serving"
-            _ = (serving_size, serving_unit)
         else:
             if data_type not in PER_100_GRAM_DATA_TYPES:
                 raise USDAResponseError("USDA nutrient reference basis could not be determined")

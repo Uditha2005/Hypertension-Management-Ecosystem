@@ -1,0 +1,38 @@
+{
+  "input": "research/medication_aware_ranking/training_examples_template.csv",
+  "status": "not_ready",
+  "row_count": 0,
+  "missing_required_columns": [],
+  "eligible_rows": 0,
+  "eligible_participants": 0,
+  "eligible_meal_contexts": 0,
+  "eligible_candidates_with_proxy_label": 0,
+  "eligible_candidates_with_expert_label": 0,
+  "expert_label_participants": 0,
+  "expert_label_contexts": 0,
+  "expert_contexts_with_multiple_candidates": 0,
+  "expert_label_distribution": {},
+  "numeric_feature_missing_counts_in_eligible_rows": {
+    "evidence_strength": 0,
+    "food_group_fit": 0,
+    "grapefruit_precaution": 0,
+    "legume_gap": 0,
+    "potassium_precaution": 0,
+    "preference_match": 0,
+    "sodium_excess_ratio": 0,
+    "vegetable_gap": 0
+  },
+  "training_readiness": {
+    "minimum_prototype_rows_met": false,
+    "minimum_participants_met": false,
+    "minimum_contexts_met": false,
+    "ranking_contexts_met": false
+  },
+  "notes": [
+    "Proxy labels are not expert judgements and are excluded from the default training path.",
+    "At least two expert-labelled candidates per context are needed to calculate meaningful within-context ranking metrics.",
+    "Participant IDs must be pseudonymous and stable so group-separated train/validation/test splits are possible.",
+    "Evidence source IDs should point to versioned, reviewable sources; a blank source is not evidence."
+  ],
+  "reason": "The current file does not meet all minimum expert-labelled ranking experiment requirements."
+}

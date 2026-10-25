@@ -1,5 +1,0 @@
-model,evaluation_status,cv_macro_f1_mean,holdout_macro_f1,selection_status
-LogisticRegression,not_evaluated_no_genuine_labelled_data,,,not_selected
-RandomForest,not_evaluated_no_genuine_labelled_data,,,not_selected
-ExtraTrees,not_evaluated_no_genuine_labelled_data,,,not_selected
-HistGradientBoosting,not_evaluated_no_genuine_labelled_data,,,not_selected

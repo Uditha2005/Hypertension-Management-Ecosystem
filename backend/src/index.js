@@ -4,6 +4,8 @@ require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
 
+const pool = require("./db");
+
 const app = express();
 
 app.use(cors());
@@ -29,6 +31,28 @@ app.get("/", (req, res) => {
   res.send("Hypertension Management Ecosystem backend running");
 });
 
+// Check PostgreSQL database connection
+app.get("/api/db/health", async (req, res) => {
+  try {
+    const result = await pool.query(
+      "SELECT current_database() AS database, NOW() AS server_time"
+    );
+
+    return res.json({
+      connected: true,
+      database: result.rows[0].database,
+      serverTime: result.rows[0].server_time,
+    });
+  } catch (error) {
+    console.error("Database health check failed:", error.message);
+
+    return res.status(503).json({
+      connected: false,
+      error: "Database connection failed",
+    });
+  }
+});
+
 // Check whether the Python AI service is available
 app.get("/api/component1/health", async (req, res) => {
   try {
@@ -48,6 +72,8 @@ app.get("/api/component1/health", async (req, res) => {
     });
   }
 });
+
+
 
 // Forward patient inputs to the Python prediction service
 app.post("/api/component1/predict", async (req, res) => {

@@ -1,0 +1,11 @@
+# Install PyTorch/torchvision first using the official macOS instructions if needed.
+# The core libraries are listed here; versions are intentionally unpinned to allow
+# pip to resolve wheels compatible with the installed Python version.
+torch
+torchvision
+numpy
+Pillow
+
+# Hugging Face FoodSeg103 dataset loader
+datasets>=2.19
+huggingface_hub>=0.23

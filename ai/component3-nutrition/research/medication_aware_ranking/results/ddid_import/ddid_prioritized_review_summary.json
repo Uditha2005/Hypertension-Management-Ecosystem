@@ -1,0 +1,46 @@
+{
+  "input_file": "Interaction Information.csv",
+  "rows": 23950,
+  "columns": 26,
+  "exact_target_medicine_rows": 3194,
+  "unique_target_medicines_present": 17,
+  "target_medicine_names_present": [
+    "Amlodipine",
+    "Atenolol",
+    "Clopidogrel",
+    "Enalapril",
+    "Furosemide",
+    "Hydrochlorothiazide",
+    "Irbesartan",
+    "Lisinopril",
+    "Losartan",
+    "Metoprolol",
+    "Nifedipine",
+    "Propranolol",
+    "Ramipril",
+    "Spironolactone",
+    "Valsartan",
+    "Verapamil",
+    "Warfarin"
+  ],
+  "type_counts": {
+    "Herb": 2966,
+    "Food": 228
+  },
+  "species_counts": {
+    "Rat": 2373,
+    "Rabbit": 358,
+    "NA": 286,
+    "Homo Sapiens": 173,
+    "Mice ": 2,
+    "Dog": 1,
+    "Mice": 1
+  },
+  "triage_band_counts": {
+    "C_herb_or_other_context": 2966,
+    "B_review_next": 159,
+    "A_review_first": 69
+  },
+  "food_records_human_context_with_reference": 69,
+  "important_caveat": "Triage score is an administrative review-priority heuristic, not a clinical severity, certainty, or risk score. No record is promoted to the patient-facing registry automatically."
+}
