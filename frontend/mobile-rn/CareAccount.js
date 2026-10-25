@@ -125,7 +125,7 @@ export function CareProviders({ children }) {
   const system = useColorScheme();
   const [mode, setMode] = useState("system");
   const [loaded, setLoaded] = useState(false);
-  const [server, setServer] = useState("http://192.168.8.151:5000");
+  const [server, setServer] = useState("http://172.20.10.3:5000");
   const [token, setToken] = useState("");
   const [user, setUser] = useState(null);
   const [restoreError, setRestoreError] = useState("");
@@ -138,7 +138,7 @@ export function CareProviders({ children }) {
     let active = true;
 
     async function initialize() {
-      let base = "http://192.168.8.151:5000";
+      let base = "http://172.20.10.3:5000";
 
       try {
         const savedMode = await AsyncStorage.getItem(THEME_KEY);

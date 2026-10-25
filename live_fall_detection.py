@@ -5,6 +5,9 @@ import time
 import threading
 import tempfile
 import os
+import json
+import urllib.request
+import urllib.error
 
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -24,6 +27,53 @@ sys.path.insert(0, str(COMPONENT_DIR / "src"))
 
 from train_rf_common_split import extract_features
 app = FastAPI(title="Component 2 Behavioral AI")
+
+
+NODE_API_URL = os.getenv(
+    "NODE_API_URL",
+    "http://127.0.0.1:5000/api/behavioral/fall-events"
+)
+
+
+def persist_fall_event(
+    resident_id=None,
+    resident_name=None,
+    track_id=None,
+    probability=None,
+    source="live_camera",
+    video_time_seconds=None,
+):
+    """Save a confirmed fall event through the Node.js backend."""
+
+    payload = {
+        "residentId": resident_id,
+        "residentName": resident_name,
+        "trackId": str(track_id) if track_id is not None else None,
+        "probability": probability,
+        "source": source,
+        "videoTimeSeconds": video_time_seconds,
+    }
+
+    request = urllib.request.Request(
+        NODE_API_URL,
+        data=json.dumps(payload).encode("utf-8"),
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+
+    try:
+        with urllib.request.urlopen(request, timeout=3) as response:
+            result = json.loads(response.read().decode("utf-8"))
+            print(
+                f"[Fall History] Saved event: "
+                f"{result.get('event', {}).get('id')}"
+            )
+            return True
+
+    except (urllib.error.URLError, TimeoutError, ValueError) as error:
+        print(f"[Fall History] Could not save event: {error}")
+        return False
+
 
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -339,6 +389,17 @@ def _analyze_uploaded_video(video_path: str):
         }
     elif recognized_residents:
         selected_identity = next(iter(recognized_residents.values()))
+        
+    for event in detected_events:
+        persist_fall_event(
+            resident_id=event.get("residentId"),
+            resident_name=event.get("residentName"),
+            track_id=event.get("trackId"),
+            probability=event.get("probability"),
+            source="uploaded_video",
+            video_time_seconds=event.get("confirmedTimeSeconds"),
+        )
+
 
     
     return {
@@ -524,6 +585,7 @@ def main():
     # One independent temporal window and alert state per tracked person.
     buffers = defaultdict(lambda: deque(maxlen=WINDOW_SIZE))
     positive_counts = defaultdict(int)
+    fall_recorded = defaultdict(bool)
     last_alert = defaultdict(float)
 
     
@@ -784,7 +846,9 @@ def main():
                             positive_counts[track_id] += 1
                         else:
                             positive_counts[track_id] = 0
+                            fall_recorded[track_id] = False
 
+                        
                         if positive_counts[track_id] >= FALL_CONFIRM_WINDOWS:
                             label = (
                                 f"FALL DETECTED - {identity_label} "
@@ -801,6 +865,19 @@ def main():
                                 )
                                 last_alert[track_id] = now
 
+                                # Save the confirmed fall only once
+                                if not fall_recorded[track_id]:
+                                    saved = persist_fall_event(
+                                        resident_id=person_id,
+                                        resident_name=person_name,
+                                        track_id=track_id,
+                                        probability=fall_probability,
+                                        source="live_camera",
+                                    )
+
+                                    if saved:
+                                        fall_recorded[track_id] = True
+
                         elif fall_probability >= 0.75:
                             label = (
                                 f"WARNING - MAY BE FALLING "
@@ -814,6 +891,7 @@ def main():
                                 f"Fall score {fall_probability:.0%}"
                             )
                             color = (0, 220, 0)
+
 
                     cv2.rectangle(display, (x1, y1), (x2, y2), color, 2)
                     cv2.putText(
