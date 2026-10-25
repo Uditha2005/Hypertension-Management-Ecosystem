@@ -4,10 +4,13 @@ require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
 
+const pool = require("./db");
+
 const app = express();
 
 app.use(cors());
 app.use(express.json());
+app.use("/api/auth", require("./auth"));
 
 const AI_SERVICE_URL = (
   process.env.COMPONENT1_AI_URL || "http://127.0.0.1:8000"
@@ -16,6 +19,28 @@ const AI_SERVICE_URL = (
 // Existing backend health route
 app.get("/", (req, res) => {
   res.send("Hypertension Management Ecosystem backend running");
+});
+
+// Check PostgreSQL database connection
+app.get("/api/db/health", async (req, res) => {
+  try {
+    const result = await pool.query(
+      "SELECT current_database() AS database, NOW() AS server_time"
+    );
+
+    return res.json({
+      connected: true,
+      database: result.rows[0].database,
+      serverTime: result.rows[0].server_time,
+    });
+  } catch (error) {
+    console.error("Database health check failed:", error.message);
+
+    return res.status(503).json({
+      connected: false,
+      error: "Database connection failed",
+    });
+  }
 });
 
 // Check whether the Python AI service is available
@@ -37,6 +62,8 @@ app.get("/api/component1/health", async (req, res) => {
     });
   }
 });
+
+
 
 // Forward patient inputs to the Python prediction service
 app.post("/api/component1/predict", async (req, res) => {
@@ -80,6 +107,27 @@ app.post("/api/component1/predict", async (req, res) => {
 });
 
 const PORT = process.env.PORT || 5000;
+
+// Component 2: Behavioral AI status
+app.get("/api/behavioral/status", async (req, res) => {
+  try {
+    const response = await fetch(
+      "http://127.0.0.1:8000/api/behavioral/status",
+      { signal: AbortSignal.timeout(5000) }
+    );
+
+    const result = await response.json();
+    return res.status(response.status).json(result);
+  } catch (error) {
+    console.error("Component 2 status check failed:", error.message);
+
+    return res.status(503).json({
+      connected: false,
+      error: "Behavioral AI service unavailable",
+      message: "Check that the Component 2 Python AI service is running.",
+    });
+  }
+});
 
 app.listen(PORT, () => {
   console.log(`Backend running on port ${PORT}`);
