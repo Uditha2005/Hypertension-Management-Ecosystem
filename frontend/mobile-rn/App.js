@@ -8,6 +8,7 @@ import {
 } from "./CareAccount";
 import HomeScreen from "./HomeScreen";
 import HealthScreen from "./HealthScreen";
+import NutritionScreen from "./NutritionScreen";
 import React, { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -1187,6 +1188,7 @@ function HyperCare() {
           {tab === "home" && (
             <HomeScreen
               onOpenMedicine={() => changeTab("medicines")}
+              onOpenNutrition={() => changeTab("nutrition")}
               onOpenHistory={() => changeTab("history")}
               onConnect={() => connect()}
               connection={connection}
@@ -1200,6 +1202,9 @@ function HyperCare() {
              apiBase={accountServer}
              colors={C}
            />
+          )}
+          {tab === "nutrition" && (
+            <NutritionScreen apiBase={apiUrl} colors={C} onBack={() => changeTab("home")} />
           )}
           {tab === "medicines" && (
             <>
@@ -1632,7 +1637,7 @@ function HyperCare() {
             </>
           )}
 
-          {CARE_WORKSPACES[tab] && (
+          {CARE_WORKSPACES[tab] && tab !== "nutrition" && (
             <>
               <Text style={s.eyebrow}>
                 {CARE_WORKSPACES[tab].eyebrow}
