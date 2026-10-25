@@ -68,6 +68,8 @@ Rules:
 - Copy medicineName, strength, doseText, scheduleText and durationText
   from that sourceText without correcting spelling or numbers.
 - Use empty strings for absent or unclear fields.
+- Copy an explicit phrase such as "1 tab" into doseText even when no
+  frequency is written. Missing frequency does not erase an explicit dose.
 - Never invent a missing decimal point.
 - Never replace an OCR medicine name using medical knowledge.
 - Never infer dose from strength or the medicine name.
@@ -85,6 +87,8 @@ DAILY_SCHEDULES = {
     "once a day": 1,
     "once per day": 1,
     "daily": 1,
+    "od": 1,
+    "qd": 1,
     "every morning": 1,
     "every evening": 1,
     "every night": 1,
@@ -258,110 +262,134 @@ def validate_extraction(data, text):
     return rows
 
 
+# Only explicit whole-tablet instructions qualify. Never repair I/l into 1.
+EXPLICIT_DOSE = re.compile(
+    r"(?<![\w./+\-])([1-9]\d?)\s*(?:tablets?|tabs?|capsules?|caps?)\.?(?![\w/])",
+    re.I,
+)
+SUPPLY = re.compile(r"\b(?:dispense|supply|quantity|qty|total|pack)\b|\bno\.", re.I)
+FRACTION_OR_RANGE = re.compile(
+    r"\b\d+\s*(?:/|[-–])\s*\d+\s*(?:tabs?|tablets?|caps?|capsules?)\b"
+    r"|\b\d+\.\d+\s*(?:tabs?|tablets?|caps?|capsules?)\b", re.I
+)
+
+
+def explicit_dose(row):
+    """Return a source-backed whole-tablet phrase, never a default count."""
+    source = normalize_space(row.get("sourceText", ""))
+    if VARIABLE_INSTRUCTION.search(source) or FRACTION_OR_RANGE.search(source):
+        return None
+    # A source containing supply instructions needs manual review: don't
+    # accidentally interpret a supplied number of tablets as a per-dose count.
+    if SUPPLY.search(source):
+        return None
+    matches = list(EXPLICIT_DOSE.finditer(source))
+    if len(matches) != 1:
+        return None
+    match = matches[0]
+    dose = normalize_space(row.get("doseText", ""))
+    if dose and dose.casefold().rstrip(".") != match.group().casefold().rstrip("."):
+        return None
+    return match
+
+
 def calculate_tray_quantity(row, tray_scope):
     if tray_scope not in VALID_SCOPES:
         raise ValueError("Invalid tray scope.")
-
     if tray_scope == "manual":
         return None, "Custom tray: enter the intended quantity manually."
-
     source = normalize_space(row.get("sourceText", ""))
-
-    if VARIABLE_INSTRUCTION.search(source):
-        return None, (
-            "Conditional or changing instructions: enter quantity manually."
-        )
-
+    if VARIABLE_INSTRUCTION.search(source) or FRACTION_OR_RANGE.search(source) or SUPPLY.search(source):
+        return None, "Conditional, fractional, variable or supply instruction: review quantity."
     shorthand = SHORTHAND_END.search(source)
-
     if shorthand:
-        # Reject another dose/schedule elsewhere in this same source.
         preceding = source[:shorthand.start()]
-
-        if (
-            re.search(r"[x×]\s*\d", preceding, re.I)
-            or re.search(
-                r"\b(?:od|qd|bd|bid|tds|tid|qid|daily|night|morning)\b",
-                preceding,
-                re.I,
-            )
-            or re.search(
-                r"\d+\s*(?:tablets?|tabs?|capsules?|caps?)\b",
-                preceding,
-                re.I,
-            )
-        ):
-            return None, (
-                "Multiple instruction expressions found. Review quantity."
-            )
-
-        if not TABLET_PREFIX.search(source):
-            return None, (
-                "Shorthand has no explicit tablet/capsule form. "
-                "Enter quantity manually."
-            )
-
-        if not shorthand_confirmed():
-            return None, (
-                "Confirm that A x B means tablets per dose x doses per day "
-                "before using shorthand for a tray calculation."
-            )
-
+        if (re.search(r"[x×]\s*\d", preceding, re.I)
+            or re.search(r"\b(?:od|qd|bd|bid|tds|tid|qid|daily|night|morning)\b", preceding, re.I)
+            or EXPLICIT_DOSE.search(preceding)):
+            return None, "Multiple instruction expressions found. Review quantity."
+        if not TABLET_PREFIX.search(source) or not shorthand_confirmed():
+            return None, "Shorthand requires an explicit tablet form and a configured interpretation convention."
         tablets_per_dose = int(shorthand.group("dose"))
         doses_per_day = int(shorthand.group("frequency"))
-
-        basis = (
-            f"Interpreted '{shorthand.group().strip()}' using the "
-            "configured tablets-per-dose x doses-per-day convention. "
-        )
-
+        basis = "Calculated using the configured tablets-per-dose x doses-per-day convention. "
     else:
-        dose_text = normalize_space(row.get("doseText", ""))
-        schedule = normalize_space(
-            row.get("scheduleText", "")
-        ).casefold().rstrip(".")
-
-        match = DOSE.fullmatch(dose_text)
-        doses_per_day = DAILY_SCHEDULES.get(schedule)
-
-        if match is None or doses_per_day is None:
-            return None, (
-                "Dose or frequency is unclear. "
-                "Correct the OCR text or enter quantity manually."
-            )
-
-        complete_phrase = re.compile(
-            r"(?<![\w./+\-])"
-            + re.escape(dose_text)
-            + r"(?![\w/])",
-            re.I,
-        )
-
-        if not complete_phrase.search(source):
-            return None, "Dose was not verified as a complete source phrase."
-
+        match = explicit_dose(row)
+        if match is None:
+            return None, "No unambiguous whole-tablet dose was read. Check the OCR text against the image."
         tablets_per_dose = int(match.group(1))
-        basis = "Calculated from the extracted dose and frequency. "
-
-    if tray_scope == "single-dose":
-        quantity = tablets_per_dose
-        explanation = (
-            basis
-            + f"{quantity} for one scheduled dose. "
-            "Confirm that this medicine belongs at the selected dose time."
-        )
-    else:
-        quantity = tablets_per_dose * doses_per_day
-        explanation = (
-            basis
-            + f"{tablets_per_dose} x {doses_per_day} = {quantity} "
-            "for one full day. Review before saving."
-        )
-
+        schedule = normalize_space(row.get("scheduleText", "")).casefold().rstrip(".")
+        doses_per_day = DAILY_SCHEDULES.get(schedule)
+        # A single scheduled administration needs the per-dose quantity,
+        # not a daily frequency. Full-day calculations still need frequency.
+        if tray_scope == "full-day" and doses_per_day is None:
+            return None, "Full-day tray requires an explicit daily frequency; it was not read."
+        basis = "Read explicit dose '" + match.group().strip() + "'. "
+    quantity = tablets_per_dose if tray_scope == "single-dose" else tablets_per_dose * doses_per_day
     if not 1 <= quantity <= 100:
         return None, "Calculated count is outside the supported range."
+    if tray_scope == "single-dose":
+        return quantity, basis + f"{quantity} tablet(s) for ONE dose. Frequency was not assumed; confirm the intended dose time."
+    return quantity, basis + f"{tablets_per_dose} x {doses_per_day} = {quantity} for one full day. Review before saving."
 
-    return quantity, explanation
+
+# Explicit compatibility aliases for the existing misspelled dataset labels.
+# These affect catalog lookup only, never the source text or image predictions.
+CATALOG_ALIASES = {
+    "nifedipine": "nitedipine nicardia e",
+    "irbesartan": "irbesartan irovel",
+    "metoprolol": "metaprolol betaloc",
+    "metoprolol betaloc": "metaprolol betaloc",
+}
+CATALOG_STRENGTH = re.compile(r"(?<![\w./])([0-9]+(?:\.[0-9]+)?)\s*(mcg|ug|mg|g|ml|iu|%)(?![a-z])", re.I)
+
+
+def name_key(value):
+    value = str(value).casefold().replace("_", " ")
+    value = CATALOG_STRENGTH.sub(" ", value)
+    value = re.sub(r"\b(?:tabs?|tablets?|caps?|capsules?|film|coated)\b", " ", value)
+    return re.sub(r"[^a-z0-9]+", " ", value).strip()
+
+
+def strength_key(value):
+    value = str(value).casefold().replace("µ", "u").replace("μ", "u")
+    match = CATALOG_STRENGTH.fullmatch(value.strip())
+    if not match:
+        return ""
+    from decimal import Decimal
+    unit = "mcg" if match.group(2).lower() == "ug" else match.group(2).lower()
+    return str(Decimal(match.group(1)).normalize()) + unit
+
+
+def match_catalog(item, products):
+    """Unique exact/declared-alias match; never fuzzy-pick another drug."""
+    wanted = name_key(item["medicineName"])
+    wanted = CATALOG_ALIASES.get(wanted, wanted)
+    raw_strength = item.get("strength", "").strip()
+    wanted_strength = strength_key(raw_strength)
+    if raw_strength and not wanted_strength:
+        return "", "unresolved", []
+    candidates = []
+    for pid, product in products.items():
+        label = product.get("name", "")
+        key = name_key(label)
+        if CATALOG_ALIASES.get(key, key) != wanted:
+            continue
+        embedded = CATALOG_STRENGTH.findall(label.replace("_", " "))
+        metadata = product.get("strength", "").strip()
+        catalog_strength = strength_key(metadata)
+        if not catalog_strength and len(embedded) == 1:
+            catalog_strength = strength_key(" ".join(embedded[0]))
+        # Never accept a conflicting/combination strength automatically.
+        if metadata and len(embedded) == 1 and strength_key(" ".join(embedded[0])) != catalog_strength:
+            continue
+        if len(embedded) > 1 or (wanted_strength and catalog_strength != wanted_strength):
+            continue
+        candidates.append((str(pid), label))
+    suggestions = [{"productId": pid, "name": label} for pid, label in candidates[:3]]
+    if len(candidates) != 1:
+        return "", "unresolved", suggestions
+    return candidates[0][0], "exact-text" if wanted_strength else "unique-name-review-strength", []
 
 
 def extract_prescription(text):
@@ -488,6 +516,11 @@ def fallback_extraction(text):
             dose_text = unclear.group("instruction")
             identity_text = line[:unclear.start()].strip(" -;,")
 
+        if not dose_text:
+            match = explicit_dose({"sourceText": line, "doseText": ""})
+            if match:
+                dose_text = match.group().strip()
+                identity_text = line[:match.start()].strip(" -—–;,")
         parsed = build_draft(identity_text, {})["rows"]
 
         if len(parsed) != 1:
@@ -545,6 +578,11 @@ def build_llm_draft(text, products, tray_scope="manual"):
     rows = []
 
     for item in extracted["rows"]:
+        item = dict(item)
+        if not item["doseText"]:
+            explicit = explicit_dose(item)
+            if explicit:
+                item["doseText"] = explicit.group().strip()
         identity_text = normalize_space(
             item["medicineName"] + " " + item["strength"]
         )
@@ -554,6 +592,9 @@ def build_llm_draft(text, products, tray_scope="manual"):
             raise ValueError("Invalid extracted medicine identity.")
 
         catalog_row = matched[0]
+        # Keep written identity fields separate from catalog metadata.
+        product_id, match_type, suggestions = match_catalog(item, products)
+        catalog_row.update(productId=product_id, matchType=match_type, suggestions=suggestions)
         quantity, explanation = calculate_tray_quantity(
             item,
             tray_scope,
@@ -569,14 +610,13 @@ def build_llm_draft(text, products, tray_scope="manual"):
                 + " Local parser used instead.",
             )
 
-        # Record every automatic correction so the reviewer can see it.
-        for correction in catalog_row.get("autoCorrections", []):
-            if correction not in notes:
-                notes.append(correction)
-
+        # Legacy parser corrections are not applied to source identity fields
+        # here, so do not display its discarded name/strength-fill messages.
+        if match_type == "unique-name-review-strength":
+            notes.append("A unique catalog NAME was preselected. Prescription strength was not read; confirm it against the original.")
         notes.append(explanation)
 
-        if not catalog_row["strength"]:
+        if not item["strength"]:
             notes.append(
                 "Strength was not clearly extracted. Check the source image."
             )
@@ -590,9 +630,11 @@ def build_llm_draft(text, products, tray_scope="manual"):
         rows.append({
             **catalog_row,
             **item,
-            # Corrected identity must win over the raw OCR/LLM values.
-            "medicineName": catalog_row["medicineName"],
-            "strength": catalog_row["strength"],
+            # Preserve source fields; a catalog match must never invent a written strength.
+            "medicineName": item["medicineName"],
+            "strength": item["strength"],
+            "catalogStrength": products.get(product_id, {}).get("strength", ""),
+            "strengthSource": "source-text" if item["strength"] else "not-read",
             "quantity": quantity,
             "quantitySource": (
                 "reviewable-calculation"

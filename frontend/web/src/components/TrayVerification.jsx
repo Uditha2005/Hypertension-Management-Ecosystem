@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import "./TrayVerification.css";
-import MedicineSafety from "./MedicineSafety";
+import MedicineSafety, { prepareMedicineAudio } from "./MedicineSafety";
 
 const API = (
   process.env.REACT_APP_API_URL || "http://localhost:8000"
@@ -8,7 +8,7 @@ const API = (
 
 const TRAY_SCOPE = "single-dose";
 const TRAY_LABEL = "One-dose tray";
-const DEFAULT_REVIEW_THRESHOLD = 0.65;
+const DEFAULT_REVIEW_THRESHOLD = 0.60;
 
 const STATUS_STYLES = {
   match: {
@@ -192,6 +192,7 @@ function rowReview(row, result) {
 }
 
 function predictionTone(item, threshold) {
+  if (item.referenceMode) return item.referenceAssigned ? "match" : "warning";
   return (
     item.unmapped ||
     item.identityUncertain ||
@@ -275,9 +276,9 @@ function ComparisonResult({ result, productName }) {
       ) : (
         <>
           <p className="av-muted">
-            Counted predictions use a model-score threshold of{" "}
-            {(threshold * 100).toFixed(0)}%. Excluded predictions remain
-            available for review.
+            {result.usesReferenceLabels
+              ? "Appearance-assisted labels use declared sample colours and relative sizes. Matching counts do not verify medicine identities."
+              : `Counted predictions use a model-score threshold of ${(threshold * 100).toFixed(0)}%. Excluded predictions remain available for review.`}
           </p>
 
           <div className="av-table">
@@ -432,6 +433,7 @@ export default function TrayVerification() {
   const [filename, setFilename] = useState("");
   const [recognition, setRecognition] = useState(null);
   const [result, setResult] = useState(null);
+  const [checkNumber, setCheckNumber] = useState(0);
 
   const busy = Boolean(operation);
   const products = Array.isArray(service?.products) ? service.products : [];
@@ -898,6 +900,7 @@ export default function TrayVerification() {
 
   function detect() {
     if (!canDetect) return;
+    prepareMedicineAudio().catch(() => {});
 
     run("Detecting pills…", async () => {
       setResult(null);
@@ -907,12 +910,16 @@ export default function TrayVerification() {
       if (!validRecognition(data)) {
         throw new Error("Invalid detection response.");
       }
-      if (mounted.current) setRecognition(data);
+      if (mounted.current) {
+        setRecognition(data);
+        setCheckNumber((number) => number + 1);
+      }
     });
   }
 
   function compare(totalOnly) {
     if (totalOnly ? !canTotal : !canCompare) return;
+    prepareMedicineAudio().catch(() => {});
 
     run("Comparing prepared tray…", async () => {
       setResult(null);
@@ -964,6 +971,7 @@ export default function TrayVerification() {
 
       setResult(data);
       setRecognition(data.recognition);
+      setCheckNumber((number) => number + 1);
 
       const record = { ...data };
       delete record.recognition;
@@ -1024,6 +1032,7 @@ export default function TrayVerification() {
             recognition={recognition}
             result={result}
             prescription={saved}
+            checkNumber={checkNumber}
           />
         )}
 
@@ -1378,7 +1387,7 @@ export default function TrayVerification() {
                             <div className="av-row-title">
                               <h3>{row.medicineName || "New medicine"}</h3>
                               <small>
-                                {row.strength || "Strength not clearly read"}
+                                {row.strength ? `Written strength: ${row.strength}` : "Prescription strength not read — confirm separately"}
                               </small>
                             </div>
                             <StatusChip tone={needsReview ? "warning" : "match"}>
@@ -1396,7 +1405,7 @@ export default function TrayVerification() {
                                   />
                                 </span>
                                 <div>
-                                  <small>Matched dataset product</small>
+                                  <small>Matched dataset product — review selection</small>
                                   <strong>
                                     {productOk
                                       ? productName(row.productId)
@@ -1764,7 +1773,7 @@ export default function TrayVerification() {
 
                 <section className="av-card">
                   <div className="av-card-head">
-                    <h2>Model predictions</h2>
+                    <h2>Tablet recognition</h2>
                     <p>Model scores are not correctness guarantees.</p>
                   </div>
 
@@ -1778,6 +1787,36 @@ export default function TrayVerification() {
                     </div>
                   ) : (
                     <>
+                      {recognition.detections.some((item) => item.referenceMode) && (
+
+<div style={{
+  display: "flex",
+  flexWrap: "wrap",
+  alignItems: "center",
+  gap: 12,
+  marginBottom: 16,
+  padding: "10px 14px",
+  border: "1px solid #d7e3dc",
+  borderRadius: 10,
+  background: "#f3f7f4",
+  color: "#365347"
+}}>
+  <strong style={{ fontSize: 12 }}>
+    Appearance-assisted review
+  </strong>
+  <details style={{ fontSize: 12 }}>
+    <summary style={{ cursor: "pointer" }}>
+      Method details
+    </summary>
+    <p style={{ margin: "8px 0 0", lineHeight: 1.6 }}>
+      Labels use colour and relative size for five declared samples.
+      These appearance-assisted labels are not confirmed model identities.
+      Review against original packaging.
+    </p>
+  </details>
+</div>
+
+                      )}
                       <img
                         className="av-photo"
                         src={recognition.annotatedImage}
@@ -1808,7 +1847,9 @@ export default function TrayVerification() {
                                     : item.productName || productName(item.label)}
                                 </strong>
                                 <small>
-                                  {uncertain
+                                  {item.referenceMode
+                                    ? (item.referenceAssigned ? "Appearance-assisted label" : "Identity needs review")
+                                    : uncertain
                                     ? "Identity needs review"
                                     : item.unmapped
                                     ? "Unsupported class"
@@ -1816,7 +1857,8 @@ export default function TrayVerification() {
                                     ? "Low model score — excluded from product counts"
                                     : "Predicted identity — review required"}
                                 </small>
-                                {uncertain && !!item.alternatives?.length && (
+
+                                {!item.referenceMode && uncertain && !!item.alternatives?.length && (
                                   <small>
                                     Candidates:{" "}
                                     {[
@@ -1832,7 +1874,7 @@ export default function TrayVerification() {
                                 )}
                               </span>
                               <StatusChip tone={itemTone}>
-                                {(item.confidence * 100).toFixed(1)}%
+                                {item.referenceMode ? (item.referenceAssigned ? "Assisted" : "Review") : `${(item.confidence * 100).toFixed(1)}%`}
                               </StatusChip>
                             </div>
                           );

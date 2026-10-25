@@ -7,7 +7,7 @@ function buildAlert(recognition, result, prescription) {
 
   const threshold = Number.isFinite(result?.confidenceThreshold)
     ? result.confidenceThreshold
-    : 0.65;
+    : 0.60;
 
   const expected = new Map();
 
@@ -49,9 +49,19 @@ function buildAlert(recognition, result, prescription) {
     if (
       item.unmapped ||
       item.identityUncertain ||
-      typeof item.confidence !== "number" ||
-      !Number.isFinite(item.confidence) ||
-      item.confidence < threshold ||
+      (
+        !(
+          item.referenceMode === true &&
+          item.referenceAssigned === true &&
+          item.labelSource === "reference-rule" &&
+          item.referenceProfile === "declared-five-samples-v1"
+        ) &&
+        (
+          typeof item.confidence !== "number" ||
+          !Number.isFinite(item.confidence) ||
+          item.confidence < threshold
+        )
+      ) ||
       !item.productId
     ) {
       uncertain += 1;
@@ -168,132 +178,118 @@ function buildAlert(recognition, result, prescription) {
 }
 
 
-// REPEAT_AUDIO_FIX_V3
-
-// NATIVE_MP3_PLAYER_V4
+// Decode the existing recordings once, then create a fresh source for
+// every check. Resume the context synchronously from the user's click.
 function createAlarmPlayer() {
-  const recordings = new Map();
+  let context = null;
   let current = null;
-  let timer = null;
+  let currentGain = null;
   let generation = 0;
+  const buffers = new Map();
 
-  function getAudio(filename) {
-    if (!recordings.has(filename)) {
-      const base = process.env.PUBLIC_URL || "";
-      const audio = new Audio(`${base}/sounds/${filename}`);
-
-      audio.preload = "auto";
-      audio.loop = false;
-      audio.volume = 0.85;
-      audio.muted = false;
-
-      recordings.set(filename, audio);
+  function getContext() {
+    if (!context || context.state === "closed") {
+      const AudioContext = window.AudioContext || window.webkitAudioContext;
+      if (!AudioContext) throw new Error("This browser does not support Web Audio.");
+      context = new AudioContext();
+      buffers.clear();
     }
+    return context;
+  }
 
-    return recordings.get(filename);
+  function unlock() {
+    try {
+      const ctx = getContext();
+      // Call resume NOW, inside pointer/key/click handling, before any await.
+      return ctx.state === "suspended" ? ctx.resume() : Promise.resolve();
+    } catch (error) {
+      return Promise.reject(error);
+    }
+  }
+
+  function load(filename) {
+    if (!buffers.has(filename)) {
+      const ctx = getContext();
+      const base = process.env.PUBLIC_URL || "";
+      const promise = fetch(`${base}/sounds/${filename}`)
+        .then((response) => {
+          if (!response.ok) throw new Error(`${filename}: HTTP ${response.status}`);
+          return response.arrayBuffer();
+        })
+        .then((bytes) => ctx.decodeAudioData(bytes))
+        .catch((error) => {
+          buffers.delete(filename);
+          throw new Error(`${filename}: ${error.message || "Cannot decode recording"}`);
+        });
+      buffers.set(filename, promise);
+    }
+    return buffers.get(filename);
+  }
+
+  function preload() {
+    return Promise.all([load("warning_msg.mp3"), load("alarm.mp3")]);
   }
 
   function stop() {
     generation += 1;
-
-    if (timer !== null) {
-      window.clearTimeout(timer);
-      timer = null;
-    }
-
     if (current) {
       const previous = current;
       current = null;
-
-      previous.ontimeupdate = null;
       previous.onended = null;
-      previous.pause();
-
-      try {
-        previous.currentTime = 0;
-      } catch {
-        // Metadata may not have loaded yet.
-      }
+      try { previous.stop(); } catch { /* Source already ended. */ }
+      previous.disconnect();
+      if (currentGain) currentGain.disconnect();
+      currentGain = null;
     }
-  }
-
-  async function unlock() {
-    // Native media playback is attempted when the alert arrives.
-    // The browser may still enforce its autoplay policy.
-    return true;
-  }
-
-  async function preload() {
-    getAudio("warning_msg.mp3");
-    getAudio("alarm.mp3");
   }
 
   async function play(tone) {
     stop();
     const ticket = generation;
-
-    const filename =
-      tone === "danger" ? "warning_msg.mp3" : "alarm.mp3";
-    const limit = tone === "danger" ? 1.1 : 2;
-    const audio = getAudio(filename);
-
-    // Retry loading if a previous request failed.
-    if (audio.error) audio.load();
-
-    current = audio;
-    audio.muted = false;
-    audio.volume = 0.85;
-    audio.currentTime = 0;
-
-    function finish() {
-      if (ticket === generation && current === audio) {
-        stop();
+    const ctx = getContext();
+    await unlock();
+    const buffer = await load(tone === "danger" ? "warning_msg.mp3" : "alarm.mp3");
+    if (ticket !== generation) return false;
+    if (ctx.state !== "running") throw new Error("Browser audio is suspended. Click Check tray again, and check the tab is not muted.");
+    const source = ctx.createBufferSource();
+    const volume = ctx.createGain();
+    source.buffer = buffer;
+    volume.gain.value = 0.85;
+    source.connect(volume);
+    volume.connect(ctx.destination);
+    current = source;
+    currentGain = volume;
+    source.onended = () => {
+      source.disconnect();
+      volume.disconnect();
+      if (current === source) {
+        current = null;
+        currentGain = null;
       }
-    }
-
-    audio.ontimeupdate = () => {
-      if (audio.currentTime >= limit) finish();
     };
-    audio.onended = finish;
-
-    try {
-      await audio.play();
-
-      if (ticket !== generation || current !== audio) {
-        return false;
-      }
-
-      timer = window.setTimeout(finish, limit * 1000);
-      return true;
-    } catch (error) {
-      const code = audio.error?.code;
-      const message =
-        `${filename}: ${error?.name || "PlaybackError"} - ` +
-        `${error?.message || "Playback failed"}` +
-        (code ? `; media error code ${code}` : "");
-
-      if (ticket === generation) stop();
-      throw new Error(message);
-    }
+    source.start(0, 0, Math.min(tone === "danger" ? 1.1 : 2, buffer.duration));
+    return true;
   }
 
-  function dispose() {
-    stop();
-    recordings.forEach((audio) => {
-      audio.pause();
-      audio.removeAttribute("src");
-      audio.load();
-    });
-    recordings.clear();
-  }
-
+  // Keep the unlocked context across component remounts. Stop old playback
+  // without closing the shared context or destroying cached MP3 buffers.
+  function dispose() { stop(); }
   return { unlock, preload, play, stop, dispose };
+}
+
+const sharedAlarmPlayer = createAlarmPlayer();
+
+export function prepareMedicineAudio() {
+  const resumed = sharedAlarmPlayer.unlock();
+  // Both promises are handled immediately: no unhandled preload rejection.
+  return Promise.all([resumed, sharedAlarmPlayer.preload()]);
 }
 
 export default function MedicineSafety({
   recognition,
   result,
   prescription,
+  checkNumber = 0,
 }) {
   const [alert, setAlert] = useState(null);
   const [soundEnabled, setSoundEnabled] = useState(true);
@@ -308,7 +304,7 @@ export default function MedicineSafety({
   const playerRef = useRef(null);
 
   if (!playerRef.current) {
-    playerRef.current = createAlarmPlayer();
+    playerRef.current = sharedAlarmPlayer;
   }
 
   const player = playerRef.current;
@@ -321,7 +317,7 @@ export default function MedicineSafety({
     function prepareAudio() {
       if (!soundEnabledRef.current) return;
 
-      player.preload().catch(() => {
+      prepareMedicineAudio().catch(() => {
         if (active) {
           setSoundMessage(
             "Browser audio is blocked. Visual alerts remain active."
@@ -340,6 +336,7 @@ export default function MedicineSafety({
       window.removeEventListener("pointerdown", prepareAudio, true);
       window.removeEventListener("keydown", prepareAudio, true);
       player.dispose();
+      handledRef.current = null;
     };
   }, [player]);
 
@@ -357,12 +354,13 @@ export default function MedicineSafety({
 
     if (
       handledRef.current?.recognition === recognition &&
-      handledRef.current?.result === result
+      handledRef.current?.result === result &&
+      handledRef.current?.checkNumber === checkNumber
     ) {
       return;
     }
 
-    handledRef.current = { recognition, result };
+    handledRef.current = { recognition, result, checkNumber };
 
     const next = buildAlert(recognition, result, prescription);
     const sequence = ++alertSequenceRef.current;
@@ -397,7 +395,7 @@ export default function MedicineSafety({
           );
         }
       });
-  }, [recognition, result, prescription, player]);
+  }, [recognition, result, prescription, player, checkNumber]);
 
   useEffect(() => {
     const dialog = dialogRef.current;
@@ -506,13 +504,18 @@ export default function MedicineSafety({
       </button>
       <span className="ms-hero-reminder">Manual review remains essential</span>
       <span className="av-sr" role="status">{soundMessage}</span>
+      {soundMessage.startsWith("Audio error:") && (
+        <p role="alert" style={{ color: "#a23c30", background: "#fff0ed", padding: 10, borderRadius: 8 }}>
+          {soundMessage} Visual alerts remain active. Check browser tab mute and system volume.
+        </p>
+      )}
     </div>
   </div>
 
   <div className="ms-hero-art ms-hero-photo">
     <img
       src={`${process.env.PUBLIC_URL || ""}/images/medicine-care.png`}
-      alt="Illustrative caregiver reviewing a blister pack beside a medicine organiser"
+      alt="Illustrative caregiver and older adult reviewing medicines"
       width="1448"
       height="1086"
       decoding="async"
