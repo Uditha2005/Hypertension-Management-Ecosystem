@@ -3,6 +3,7 @@ import argparse
 import json
 import math
 import re
+import time
 from functools import lru_cache
 from pathlib import Path
 from statistics import median
@@ -10,7 +11,7 @@ from threading import Lock
 
 import numpy as np
 from paddleocr import PaddleOCR
-from PIL import Image, ImageOps
+from PIL import Image, ImageOps, ImageFilter
 
 COMPONENT_DIR = Path(__file__).resolve().parent.parent
 OCR_LOCK = Lock()
@@ -39,23 +40,14 @@ SHORTHAND = re.compile(
 
 
 def repair_shorthand(text):
-    """Return (text, corrections) after fixing '1x/' style digit misreads."""
-    corrections = []
-
-    def replace(match):
-        first, second = match.group(1), match.group(2)
-        fixed_first = first if first.isdigit() else "1"
-        fixed_second = second if second.isdigit() else "1"
-        original = match.group().strip()
-        fixed = f"{fixed_first}x{fixed_second}"
-        if original.replace(" ", "") != fixed:
-            corrections.append(
-                f"OCR shorthand '{original}' read as '{fixed}'. "
-                "Verify against the image."
+    """Preserve ambiguous symbols instead of manufacturing a numeric dose."""
+    notes = []
+    for match in SHORTHAND.finditer(text):
+        if not match.group(1).isdigit() or not match.group(2).isdigit():
+            notes.append(
+                f"Ambiguous OCR shorthand '{match.group()}': not converted to digits. Review the image."
             )
-        return fixed
-
-    return SHORTHAND.sub(replace, text), corrections
+    return text, notes
 
 
 def is_medicine_candidate(text):
@@ -184,6 +176,205 @@ def assemble_lines(raw_blocks):
     return [{"lineId": index + 1, **block} for index, block in enumerate(assembled)]
 
 
+# Geometry associates recognized dose fragments; it cannot recover an
+# unrecognized digit by itself. No medicine dictionary or dose default is used.
+DOSE_FRAGMENT = re.compile(
+    r"(?:[0-9Il/|]+(?:\s*[x×]\s*[0-9Il/|]+)?"
+    r"(?:\s*(?:tabs?|tablets?|caps?|capsules?))?"
+    r"|tabs?|tablets?|caps?|capsules?|od|qd|bd|bid|tds|tid|qid|prn)\.?", re.I
+)
+EXPLICIT_TABLET_DOSE = re.compile(
+    r"(?<![\w./+\-])([1-9]\d?)\s*(?:tabs?|tablets?|caps?|capsules?)\.?(?![\w/])", re.I
+)
+NUMERIC_SHORTHAND = re.compile(r"(?<![\w./+\-])([1-9]\d?)\s*[x×]\s*([1-4])(?![\w/×x])", re.I)
+OCR_BUDGET_SECONDS = 60
+MAX_ROW_RETRIES = 5
+RETRY_MIN_SCORE = 0.75
+
+
+def dose_signature(text):
+    matches = list(EXPLICIT_TABLET_DOSE.finditer(text))
+    if len(matches) == 1:
+        return ("tablets", int(matches[0].group(1)))
+    shorthand = list(NUMERIC_SHORTHAND.finditer(text))
+    if len(shorthand) == 1:
+        return ("shorthand", int(shorthand[0].group(1)), int(shorthand[0].group(2)))
+    return None
+
+
+def link_dose_columns(lines):
+    """Attach only uniquely aligned right-hand instruction fragments.
+
+    Separate medicine rows and ambiguous/tied alignments remain separate.
+    All attached line IDs, boxes and text are retained in the result.
+    """
+    anchors = [line for line in lines if is_medicine_candidate(line["text"])]
+    attached = {id(anchor): [] for anchor in anchors}
+    used = set()
+    for line in lines:
+        if line in anchors or not DOSE_FRAGMENT.fullmatch(line["text"].strip()):
+            continue
+        x1, y1, x2, y2 = line["bbox"]
+        h = max(1, y2 - y1)
+        cy = (y1 + y2) / 2
+        candidates = []
+        for anchor in anchors:
+            ax1, ay1, ax2, ay2 = anchor["bbox"]
+            ah = max(1, ay2 - ay1)
+            acy = (ay1 + ay2) / 2
+            overlap = max(0, min(y2, ay2) - max(y1, ay1))
+            if (x1 >= ax2 - 0.1 * ah
+                    and 0.25 <= h / ah <= 3
+                    and overlap >= 0.35 * min(h, ah)
+                    and abs(cy - acy) <= 0.6 * max(h, ah)):
+                candidates.append((abs(cy - acy), anchor))
+        candidates.sort(key=lambda pair: pair[0])
+        if not candidates:
+            continue
+        if len(candidates) > 1 and candidates[1][0] - candidates[0][0] <= 0.25 * h:
+            continue
+        anchor = candidates[0][1]
+        attached[id(anchor)].append(line)
+        used.add(id(line))
+    output = []
+    for line in lines:
+        if id(line) in used:
+            continue
+        pieces = [line] + attached.get(id(line), [])
+        if len(pieces) == 1:
+            output.append(dict(line))
+            continue
+        pieces.sort(key=lambda part: part["bbox"][0])
+        output.append({
+            **line,
+            "text": " ".join(part["text"].strip() for part in pieces),
+            "confidence": min(part["confidence"] for part in pieces),
+            "bbox": [min(p["bbox"][0] for p in pieces), min(p["bbox"][1] for p in pieces),
+                     max(p["bbox"][2] for p in pieces), max(p["bbox"][3] for p in pieces)],
+            "sourceLineIds": [i for p in pieces for i in p["sourceLineIds"]],
+            "assembledFromFragments": True,
+            "assemblyChanges": [change for p in pieces for change in p.get("assemblyChanges", [])] + [{
+                "reason": "Uniquely aligned instruction column attached to medicine row",
+                "parts": [{"text": p["text"], "bbox": p["bbox"], "sourceLineIds": p["sourceLineIds"]} for p in pieces],
+                "requiresManualReview": True,
+            }],
+        })
+    output.sort(key=lambda line: (line["bbox"][1], line["bbox"][0]))
+    return [{**line, "lineId": index + 1} for index, line in enumerate(output)]
+
+
+def result_blocks(results, scale=1.0, offset=(0, 0)):
+    """Validate OCR output and map crop coordinates back to the page."""
+    blocks = []
+    for result in results:
+        texts, scores, boxes = result["rec_texts"], result["rec_scores"], result["rec_boxes"]
+        if not (len(texts) == len(scores) == len(boxes)):
+            raise RuntimeError("OCR returned inconsistent text results.")
+        for text, score, box in zip(texts, scores, boxes):
+            score = float(score)
+            values = np.asarray(box, dtype=float).reshape(-1).tolist()
+            if not math.isfinite(score) or not 0 <= score <= 1:
+                raise RuntimeError("OCR returned an invalid confidence score.")
+            if len(values) != 4 or not all(math.isfinite(v) for v in values):
+                raise RuntimeError("OCR returned an invalid bounding box.")
+            mapped = [values[0] / scale + offset[0], values[1] / scale + offset[1],
+                      values[2] / scale + offset[0], values[3] / scale + offset[1]]
+            if mapped[2] <= mapped[0] or mapped[3] <= mapped[1]:
+                raise RuntimeError("OCR returned an empty bounding box.")
+            blocks.append({"lineId": len(blocks) + 1, "text": str(text),
+                           "confidence": score, "bbox": [round(v, 2) for v in mapped],
+                           "requiresManualReview": True})
+    return blocks
+
+
+def predict_page(ocr, image):
+    # Keep weak recognized fragments in the audit output; do not inflate scores.
+    bgr = np.asarray(image)[:, :, ::-1].copy()
+    return list(ocr.predict(
+        input=bgr, text_det_thresh=0.2, text_det_box_thresh=0.35,
+        text_det_limit_side_len=1600, text_det_limit_type="max",
+        text_rec_score_thresh=0.0,
+    ))
+
+
+def choose_retry(original, candidates):
+    """Accept one source-backed dose transcript; reject conflicting numbers."""
+    candidates = [c for c in candidates if is_medicine_candidate(c["text"])
+                  and dose_signature(c["text"]) is not None and c["confidence"] >= RETRY_MIN_SCORE]
+    if not candidates or len({dose_signature(c["text"]) for c in candidates}) != 1:
+        return None
+    original_height = max(1, original["bbox"][3] - original["bbox"][1])
+    original_center = (original["bbox"][1] + original["bbox"][3]) / 2
+    candidates = [c for c in candidates
+                  if abs((c["bbox"][1] + c["bbox"][3]) / 2 - original_center) <= original_height]
+    if len(candidates) != 1:
+        return None
+    return candidates[0]
+
+
+def retry_missing_doses(image, blocks, ocr, started):
+    """Retry only bounded medicine rows, using the same cached local models."""
+    rows = sorted(blocks, key=lambda b: (b["bbox"][1] + b["bbox"][3]) / 2)
+    retry_records = []
+    updated = []
+    attempted = 0
+    for index, row in enumerate(rows):
+        if dose_signature(row["text"]) is not None or attempted >= MAX_ROW_RETRIES or time.monotonic() - started >= OCR_BUDGET_SECONDS:
+            updated.append(row)
+            continue
+        x1, y1, x2, y2 = row["bbox"]
+        height = max(1, y2 - y1)
+        center = (y1 + y2) / 2
+        upper = max(0, y1 - 0.65 * height)
+        lower = min(image.height, y2 + 0.65 * height)
+        if index:
+            prev = rows[index - 1]["bbox"]
+            upper = max(upper, (center + (prev[1] + prev[3]) / 2) / 2)
+        if index + 1 < len(rows):
+            following = rows[index + 1]["bbox"]
+            lower = min(lower, (center + (following[1] + following[3]) / 2) / 2)
+        crop_box = (max(0, int(x1 - height)), int(upper), image.width, int(lower))
+        if crop_box[3] <= crop_box[1] or crop_box[2] <= crop_box[0]:
+            updated.append(row)
+            continue
+        attempted += 1
+        record = {"rowLineId": row["lineId"], "originalText": row["text"],
+                  "cropBox": list(crop_box), "accepted": False, "requiresManualReview": True}
+        try:
+            with image.crop(crop_box) as crop:
+                scale = min(2.0, 2400 / max(crop.size))
+                with crop.resize((max(1, round(crop.width * scale)), max(1, round(crop.height * scale))), Image.Resampling.LANCZOS) as enlarged:
+                    with ImageOps.autocontrast(enlarged) as contrast:
+                        with contrast.filter(ImageFilter.UnsharpMask(radius=1, percent=110, threshold=3)) as enhanced:
+                            with OCR_LOCK:
+                                print(f"[prescription OCR] Retrying medicine row {index + 1}...", flush=True)
+                                retry_raw = result_blocks(predict_page(ocr, enhanced), scale, crop_box[:2])
+            retry_lines = link_dose_columns(assemble_lines(retry_raw))
+            record["rawBlocks"] = retry_raw
+            record["assembledBlocks"] = retry_lines
+            chosen = choose_retry(row, retry_lines)
+            if chosen:
+                replacement = {**chosen, "lineId": row["lineId"],
+                               "sourceLineIds": row["sourceLineIds"],
+                               "originalOcrText": row["text"], "transcriptionSource": "row-crop-retry",
+                               "rowRetryIndex": len(retry_records),
+                               "assemblyChanges": row.get("assemblyChanges", []) + [{
+                                   "reason": "New OCR transcript from an enlarged, isolated medicine row; verify against image",
+                                   "originalText": row["text"], "retryText": chosen["text"],
+                                   "requiresManualReview": True}]}
+                record["accepted"] = True
+                record["selectedText"] = chosen["text"]
+                updated.append(replacement)
+            else:
+                updated.append(row)
+        except Exception as error:
+            # Preserve the successful first pass if an optional retry fails.
+            record["errorType"] = type(error).__name__
+            updated.append(row)
+        retry_records.append(record)
+    return updated, retry_records
+
+
 @lru_cache(maxsize=1)
 def load_ocr():
     return PaddleOCR(
@@ -197,6 +388,7 @@ def load_ocr():
 
 
 def read_prescription(image):
+    started = time.monotonic()
     if image.width * image.height > 20_000_000:
         raise ValueError("Choose an image no larger than 20 megapixels.")
     oriented = ImageOps.exif_transpose(image)
@@ -216,40 +408,22 @@ def read_prescription(image):
             prepared.close()
             prepared = enlarged
 
-        image_bgr = np.asarray(prepared)[:, :, ::-1].copy()
         with OCR_LOCK:
             print("[prescription OCR] Loading OCR models...", flush=True)
             ocr = load_ocr()
             print("[prescription OCR] Running prediction...", flush=True)
-            results = list(ocr.predict(input=image_bgr))
-        raw_blocks = []
-        for result in results:
-            texts, scores, boxes = result["rec_texts"], result["rec_scores"], result["rec_boxes"]
-            if not (len(texts) == len(scores) == len(boxes)):
-                raise RuntimeError("OCR returned inconsistent text results.")
-            for text, score, box in zip(texts, scores, boxes):
-                score = float(score)
-                values = np.asarray(box, dtype=float).reshape(-1).tolist()
-                if not math.isfinite(score) or not 0 <= score <= 1:
-                    raise RuntimeError("OCR returned an invalid confidence score.")
-                if len(values) != 4 or not all(math.isfinite(value) for value in values):
-                    raise RuntimeError("OCR returned an invalid bounding box.")
-                if values[2] <= values[0] or values[3] <= values[1]:
-                    raise RuntimeError("OCR returned an empty or inverted bounding box.")
-                raw_blocks.append({
-                    "lineId": len(raw_blocks) + 1, "text": str(text),
-                    "confidence": score, "bbox": [int(value) for value in values],
-                    "requiresManualReview": True,
-                })
-        assembled = assemble_lines(raw_blocks)
-        blocks = [block for block in assembled if is_medicine_candidate(block["text"])]
+            results = predict_page(ocr, prepared)
+        raw_blocks = result_blocks(results)
+        assembled = link_dose_columns(assemble_lines(raw_blocks))
+        first_pass_blocks = [block for block in assembled if is_medicine_candidate(block["text"])]
+        blocks, row_retries = retry_missing_doses(prepared, first_pass_blocks, ocr, started)
 
-        # Flagged correction of misread handwritten "1" in shorthand.
+        # Flag ambiguous shorthand without substituting a numeric dose.
         shorthand_notes = []
         for block in blocks:
             fixed, notes = repair_shorthand(block["text"])
             if notes:
-                block["originalOcrText"] = block["text"]
+                block.setdefault("originalOcrText", block["text"])
                 block["text"] = fixed
                 block["shorthandCorrections"] = notes
                 shorthand_notes.extend(notes)
@@ -266,7 +440,14 @@ def read_prescription(image):
             "include other text. Check the original prescription."
         )
         warnings = list(shorthand_notes)
-        if any(b["assemblyChanges"] for b in assembled):
+        accepted_retries = sum(record["accepted"] for record in row_retries)
+        if accepted_retries:
+            warnings.append(f"Used enlarged row-crop OCR for {accepted_retries} row(s). Verify new text against originalOcrText and the image.")
+        if any(dose_signature(block["text"]) is None for block in blocks):
+            warnings.append("Some doses remain unread. No missing numeric dose was defaulted to one.")
+        if time.monotonic() - started >= OCR_BUDGET_SECONDS:
+            warnings.append("Optional crop retries stopped at the processing budget; remaining rows need review.")
+        if any(change.get("removedDuplicatePrefix") for b in assembled for change in b["assemblyChanges"]):
             warnings.append("Exact duplicated edge text was removed from overlapping fragments. Review assemblyChanges and rawBlocks against the image.")
         if merged_count:
             warnings.append(f"Joined fragments in {merged_count} lines. Check names, strengths and quantities against the image.")
@@ -286,13 +467,16 @@ def read_prescription(image):
             "text": text, "blocks": blocks, "medicineCandidateCount": len(blocks),
             "detectedRegionCount": len(raw_blocks), "rawText": raw_text,
             "rawBlocks": raw_blocks, "filterApplied": True,
+            "firstPassBlocks": first_pass_blocks, "rowRetries": row_retries,
+            "rowRetryCount": len(row_retries), "acceptedRowRetryCount": accepted_retries,
+            "numericDoseRepairApplied": False,
             "assembledText": "\n".join(b["text"] for b in assembled),
             "assembledBlocks": assembled, "assembledLineCount": len(assembled),
             "fragmentJoinedLineCount": merged_count,
-            "filterMethod": "overlap_aware_lines_v5", "filterMessage": message,
+            "filterMethod": "aligned_dose_columns_and_row_retries_v6", "filterMessage": message,
             "warnings": warnings, "requiresManualReview": True,
             "confirmed": False, "comparisonPerformed": False,
-            "notes": message + " Original OCR blocks are preserved in rawBlocks; overlap-edge deduplication is recorded in assemblyChanges and shorthand fixes in originalOcrText. Medicine identity, strengths and instructions are unverified. Confidence scores do not guarantee correctness.",
+            "notes": message + " Original OCR blocks are preserved in rawBlocks; overlap-edge deduplication is recorded in assemblyChanges and row retries in rowRetries. Ambiguous handwritten symbols were not converted to numbers. Medicine identity, strengths and instructions are unverified. Confidence scores do not guarantee correctness.",
         }
     finally:
         prepared.close()
