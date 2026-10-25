@@ -265,18 +265,46 @@ router.post(
   })
 );
 
-function authenticate(req, res, next) {
-  const match = /^Bearer ([a-f0-9]{64})$/i.exec(
-    req.headers.authorization || ""
-  );
+async function authenticate(req, res, next) {
+  try {
+    const match = /^Bearer ([a-f0-9]{64})$/i.exec(
+      req.headers.authorization || ""
+    );
 
-  if (!match) {
-    return next(failure(401, "Sign in to continue."));
+    if (!match) {
+      throw failure(401, "Sign in to continue.");
+    }
+
+    const sessionHash = digestToken(match[1]);
+
+    const result = await pool.query(
+      `SELECT
+         u.id,
+         u.name,
+         u.email,
+         u.phone,
+         u.care_home,
+         u.created_at
+       FROM sessions s
+       JOIN users u ON u.id = s.user_id
+       WHERE s.token_hash = $1
+         AND s.expires_at > $2`,
+      [sessionHash, Date.now()]
+    );
+
+    if (result.rowCount === 0) {
+      throw failure(401, "Your session expired. Sign in again.");
+    }
+
+    req.sessionHash = sessionHash;
+    req.account = result.rows[0];
+
+    return next();
+  } catch (error) {
+    return next(error);
   }
-
-  req.sessionHash = digestToken(match[1]);
-  return next();
 }
+
 
 // GET /api/auth/me
 router.get(
@@ -296,6 +324,125 @@ router.get(
     }
 
     return res.json({ user: publicUser(result.rows[0]) });
+  })
+);
+
+// PATCH /api/auth/me
+// Update the signed-in user's account details.
+router.patch(
+  "/me",
+  authenticate,
+  asyncRoute(async (req, res) => {
+    const name = clean(req.body.name ?? req.account.name, "full name", 100, true);
+    const email = emailAddress(req.body.email ?? req.account.email);
+    const phone = clean(
+      req.body.phone ?? req.account.phone ?? "",
+      "phone number",
+      30
+    );
+    const careHome = clean(
+      req.body.careHome ?? req.account.care_home ?? "",
+      "care home name",
+      200
+    );
+
+    let updated;
+
+    try {
+      updated = await pool.query(
+        `UPDATE users
+         SET name = $1,
+             email = $2,
+             phone = $3,
+             care_home = $4,
+             updated_at = NOW()
+         WHERE id = $5
+         RETURNING id, name, email, phone, care_home, created_at`,
+        [name, email, phone, careHome, req.account.id]
+      );
+    } catch (error) {
+      if (error.code === "23505") {
+        throw failure(409, "An account already uses this email address.");
+      }
+
+      throw error;
+    }
+
+    if (updated.rowCount === 0) {
+      throw failure(404, "Account not found.");
+    }
+
+    return res.json({ user: publicUser(updated.rows[0]) });
+  })
+);
+
+// POST /api/auth/password
+// Change the signed-in user's password and issue a fresh session.
+router.post(
+  "/password",
+  authenticate,
+  asyncRoute(async (req, res) => {
+    const currentPassword = req.body.currentPassword;
+
+    if (
+      typeof currentPassword !== "string" ||
+      currentPassword.length > 128
+    ) {
+      throw failure(422, "Enter your current password.");
+    }
+
+    const newPassword = passwordValue(req.body.newPassword);
+    const client = await pool.connect();
+
+    try {
+      await client.query("BEGIN");
+
+      const current = await client.query(
+        "SELECT password_hash FROM users WHERE id = $1 FOR UPDATE",
+        [req.account.id]
+      );
+
+      if (current.rowCount === 0) {
+        throw failure(404, "Account not found.");
+      }
+
+      if (!(await checkPassword(currentPassword, current.rows[0].password_hash))) {
+        throw failure(401, "Current password is incorrect.");
+      }
+
+      const passwordHash = await hashPassword(newPassword);
+
+      const updated = await client.query(
+        `UPDATE users
+         SET password_hash = $1,
+             updated_at = NOW()
+         WHERE id = $2
+         RETURNING id, name, email, phone, care_home, created_at`,
+        [passwordHash, req.account.id]
+      );
+
+      // Revoke previous sessions and return a fresh session to the mobile app.
+      await client.query(
+        "DELETE FROM sessions WHERE user_id = $1",
+        [req.account.id]
+      );
+
+      const response = await issueSession(client, updated.rows[0]);
+
+      await client.query("COMMIT");
+
+      return res.json(response);
+    } catch (error) {
+      try {
+        await client.query("ROLLBACK");
+      } catch {
+        // Preserve the original error.
+      }
+
+      throw error;
+    } finally {
+      client.release();
+    }
   })
 );
 
@@ -341,5 +488,7 @@ router.use((error, req, res, next) => {
         : error.message,
   });
 });
+
+router.authenticate = authenticate;
 
 module.exports = router;
