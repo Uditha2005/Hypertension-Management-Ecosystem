@@ -74,6 +74,21 @@ export function useAccountServer() {
   const account = useAccount();
   return account?.server || "";
 }
+export function useResidentProfileApi() {
+  const account = useAccount();
+
+  return {
+    loadResidentHealthProfile:
+      account?.loadResidentHealthProfile,
+    saveResidentHealthProfile:
+      account?.saveResidentHealthProfile,
+    loadAssessmentHistory:
+      account?.loadAssessmentHistory,
+    saveAssessmentHistory:
+      account?.saveAssessmentHistory,
+    signedIn: Boolean(account?.token && account?.user),
+  };
+}
 
 async function accountRequest(base, path, method = "GET", body, token) {
   const controller = new AbortController();
@@ -113,6 +128,134 @@ async function accountRequest(base, path, method = "GET", body, token) {
       throw new Error(
         "Cannot reach the account server. Check the laptop address and port 5000."
       );
+    }
+
+    throw error;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+async function residentProfileRequest(
+  base,
+  method = "GET",
+  body,
+  token
+) {
+  if (!base) {
+    throw new Error("The account server address is unavailable.");
+  }
+
+  if (!token) {
+    throw new Error("Sign in to access the resident profile.");
+  }
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 20000);
+
+  try {
+    const response = await fetch(
+      `${base}/api/component1/resident-profile`,
+      {
+        method,
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: body === undefined ? undefined : JSON.stringify(body),
+        signal: controller.signal,
+      }
+    );
+
+    const raw = await response.text();
+    let data;
+
+    try {
+      data = JSON.parse(raw);
+    } catch {
+      throw new Error("The resident-profile API returned an unexpected response.");
+    }
+
+    if (!response.ok) {
+      throw new Error(
+        data.error || `Profile request failed (HTTP ${response.status}).`
+      );
+    }
+
+    return data;
+  } catch (error) {
+    if (error.name === "AbortError") {
+      throw new Error("The resident-profile request timed out.");
+    }
+
+    if (String(error.message).includes("Network request failed")) {
+      throw new Error("Cannot reach the resident-profile API.");
+    }
+
+    throw error;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function assessmentHistoryRequest(
+  base,
+  method = "GET",
+  body,
+  token
+) {
+  if (!base) {
+    throw new Error("The account server address is unavailable.");
+  }
+
+  if (!token) {
+    throw new Error("Sign in to access assessment history.");
+  }
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 20000);
+
+  try {
+    const response = await fetch(
+      `${base}/api/component1/assessment-history`,
+      {
+        method,
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: body === undefined ? undefined : JSON.stringify(body),
+        signal: controller.signal,
+      }
+    );
+
+    const raw = await response.text();
+    let data;
+
+    try {
+      data = JSON.parse(raw);
+    } catch {
+      throw new Error(
+        "The assessment-history API returned an unexpected response."
+      );
+    }
+
+    if (!response.ok) {
+      throw new Error(
+        data.error ||
+          `Assessment-history request failed (HTTP ${response.status}).`
+      );
+    }
+
+    return data;
+  } catch (error) {
+    if (error.name === "AbortError") {
+      throw new Error("The assessment-history request timed out.");
+    }
+
+    if (String(error.message).includes("Network request failed")) {
+      throw new Error("Cannot reach the assessment-history API.");
     }
 
     throw error;
@@ -270,6 +413,57 @@ export function CareProviders({ children }) {
     );
     setUser(data.user);
   }
+async function loadResidentHealthProfile() {
+  if (!token) {
+    throw new Error("Sign in to load the resident health profile.");
+  }
+
+  return residentProfileRequest(
+    server,
+    "GET",
+    undefined,
+    token
+  );
+}
+
+async function saveResidentHealthProfile(values) {
+  if (!token) {
+    throw new Error("Sign in to save the resident health profile.");
+  }
+
+  return residentProfileRequest(
+    server,
+    "PUT",
+    values,
+    token
+  );
+}
+
+async function loadAssessmentHistory() {
+  if (!token) {
+    throw new Error("Sign in to load assessment history.");
+  }
+
+  return assessmentHistoryRequest(
+    server,
+    "GET",
+    undefined,
+    token
+  );
+}
+
+async function saveAssessmentHistory(assessment) {
+  if (!token) {
+    throw new Error("Sign in to save assessment history.");
+  }
+
+  return assessmentHistoryRequest(
+    server,
+    "POST",
+    assessment,
+    token
+  );
+}
 
   async function changePassword(currentPassword, newPassword) {
     const data = await accountRequest(
@@ -314,6 +508,12 @@ export function CareProviders({ children }) {
           refreshSession,
           saveServer,
           saveProfile,
+          loadResidentHealthProfile,
+          saveResidentHealthProfile,
+          loadResidentHealthProfile,
+          saveResidentHealthProfile,
+          loadAssessmentHistory,
+          saveAssessmentHistory,
           changePassword,
           signOut,
         }}

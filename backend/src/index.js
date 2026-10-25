@@ -10,8 +10,18 @@ const app = express();
 
 app.use(cors());
 app.use(express.json());
-app.use("/api/auth", require("./auth"));
 
+const authRouter = require("./auth");
+app.use("/api/auth", authRouter);
+
+app.use(
+  "/api/component1/resident-profile",
+  require("./residentProfileTemp")(authRouter.authenticate)
+);
+app.use(
+  "/api/component1/assessment-history",
+  require("./assessmentHistoryTemp")(authRouter.authenticate)
+);
 const AI_SERVICE_URL = (
   process.env.COMPONENT1_AI_URL || "http://127.0.0.1:8000"
 ).replace(/\/+$/, "");
