@@ -1,9 +1,7 @@
-const fs = require("node:fs");
-const path = require("node:path");
-const { DatabaseSync } = require("node:sqlite");
 const express = require("express");
+const pool = require("./db");
 
-const STORAGE_MODE = "temporary-sqlite";
+const STORAGE_MODE = "neon-postgresql";
 
 function validationError(message) {
   const error = new Error(message);
@@ -44,44 +42,24 @@ function optionalChoice(value, label, choices) {
   return value;
 }
 
-module.exports = function createTemporaryResidentProfileRouter(
-  authenticate
-) {
+module.exports = function createResidentProfileRouter(authenticate) {
   if (typeof authenticate !== "function") {
     throw new Error("Resident profile API requires authentication.");
   }
 
   const router = express.Router();
-  const dataDirectory = path.resolve(__dirname, "../data");
 
-  fs.mkdirSync(dataDirectory, { recursive: true });
-
-  // Temporary prototype storage. This file is ignored by Git.
-  const db = new DatabaseSync(
-    path.join(dataDirectory, "component1_resident_profiles_temp.sqlite3")
-  );
-
-  db.exec(`
-    PRAGMA journal_mode = WAL;
-
-    CREATE TABLE IF NOT EXISTS resident_profiles (
-      user_id TEXT PRIMARY KEY,
-      profile_json TEXT NOT NULL,
-      updated_at TEXT NOT NULL
-    );
-  `);
-
-
-
-   router.get("/", authenticate, (req, res, next) => {
+  // Retrieve the profile belonging to the authenticated PostgreSQL user.
+  router.get("/", authenticate, async (req, res, next) => {
     try {
-      const row = db.prepare(`
-        SELECT profile_json, updated_at
-        FROM resident_profiles
-        WHERE user_id = ?
-      `).get(req.account.id);
+      const result = await pool.query(
+        `SELECT profile, updated_at
+         FROM public.component1_resident_profiles
+         WHERE user_id = $1`,
+        [req.account.id]
+      );
 
-      if (!row) {
+      if (result.rowCount === 0) {
         return res.json({
           profile: null,
           updatedAt: null,
@@ -90,8 +68,8 @@ module.exports = function createTemporaryResidentProfileRouter(
       }
 
       return res.json({
-        profile: JSON.parse(row.profile_json),
-        updatedAt: row.updated_at,
+        profile: result.rows[0].profile,
+        updatedAt: result.rows[0].updated_at,
         storageMode: STORAGE_MODE,
       });
     } catch (error) {
@@ -99,7 +77,8 @@ module.exports = function createTemporaryResidentProfileRouter(
     }
   });
 
-  router.put("/", authenticate, (req, res, next) => {
+  // Save or update the profile belonging to the authenticated user.
+  router.put("/", authenticate, async (req, res, next) => {
     try {
       if (
         !req.body ||
@@ -140,25 +119,20 @@ module.exports = function createTemporaryResidentProfileRouter(
         ),
       };
 
-      const updatedAt = new Date().toISOString();
-
-        db.prepare(`
-         INSERT INTO resident_profiles (
-          user_id, profile_json, updated_at
-        )
-        VALUES (?, ?, ?)
-        ON CONFLICT(user_id) DO UPDATE SET
-          profile_json = excluded.profile_json,
-          updated_at = excluded.updated_at
-      `).run(
-        req.account.id,
-        JSON.stringify(profile),
-        updatedAt
+      const result = await pool.query(
+        `INSERT INTO public.component1_resident_profiles
+           (user_id, profile, updated_at)
+         VALUES ($1, $2::jsonb, NOW())
+         ON CONFLICT (user_id) DO UPDATE SET
+           profile = EXCLUDED.profile,
+           updated_at = NOW()
+         RETURNING profile, updated_at`,
+        [req.account.id, JSON.stringify(profile)]
       );
 
       return res.json({
-        profile,
-        updatedAt,
+        profile: result.rows[0].profile,
+        updatedAt: result.rows[0].updated_at,
         storageMode: STORAGE_MODE,
       });
     } catch (error) {
@@ -172,13 +146,13 @@ module.exports = function createTemporaryResidentProfileRouter(
     const status = error.status || 500;
 
     if (status >= 500) {
-      console.error("Temporary resident profile error:", error.message);
+      console.error("Resident profile error:", error.message);
     }
 
     return res.status(status).json({
       error:
         status >= 500
-          ? "Could not access the temporary resident profile."
+          ? "Could not access resident profile."
           : error.message,
     });
   });
