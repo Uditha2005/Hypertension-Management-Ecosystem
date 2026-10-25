@@ -41,3 +41,26 @@ def test_photo_identification_returns_editable_food_suggestions(monkeypatch):
     assert payload["foods"][0]["food_name"] == "cooked rice"
     assert payload["foods"][0]["estimated_quantity_g"] == 180
     assert "confirm" in payload["limitation"].lower()
+
+def test_local_foodseg103_checkpoint_is_preferred_without_gemini(monkeypatch):
+    import base64
+
+    class FakeLocalModel:
+        checkpoint_path = __import__('pathlib').Path('/fake/checkpoint.pth')
+        available = True
+        def predict_data_url(self, image_data_url):
+            return {
+                'foods': [{'food_name': 'rice', 'estimated_quantity_g': 100.0, 'confidence': 'low',
+                           'notes': '100 g is a placeholder; edit it manually.'}],
+                'message': 'Local segmentation results; review each suggestion.',
+                'limitation': 'Pixel area is not portion weight.'
+            }
+
+    monkeypatch.delenv('GEMINI_API_KEY', raising=False)
+    monkeypatch.setattr(api, '_foodseg103', FakeLocalModel())
+    image = 'data:image/png;base64,' + base64.b64encode(b'fake-image-bytes' * 20).decode('ascii')
+    response = client.post('/foods/identify-image', json={'image_data_url': image, 'meal_context': 'Lunch'})
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload['foods'][0]['food_name'] == 'rice'
+    assert 'placeholder' in payload['foods'][0]['notes']

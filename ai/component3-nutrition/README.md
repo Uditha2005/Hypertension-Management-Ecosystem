@@ -132,3 +132,7 @@ This is an experimental behavioural prediction model, not a meal-healthiness cla
 Component 3 no longer connects to PostgreSQL or any external database. Meal history and optional feedback are stored as local JSON files for development only. The saved profile feature and `/profile` endpoints have been removed. Users enter assessment details in the form each time; these details are used for that request and are not loaded from a saved profile.
 
 Historical experiment note: previous daily alignment, food-goal suitability, and serving-prediction model experiments were removed from active code/results. The current DASH Ridge model and DASH optimizer are retained.
+
+## Experimental multi-food image segmentation comparison
+
+An isolated training experiment is available at `ai/component3-nutrition/research/food_segmentation/`. It compares FCN-ResNet50, DeepLabV3-MobileNetV3-Large, and LRASPP-MobileNetV3-Large on the real FoodSeg103 dataset. It does not change the live photo-identification endpoint. See that folder's README for the Mac M1 setup, dataset preparation, pilot run, metrics, and research limitations. Do not claim the models have been trained or that a winner has been selected until the runs have completed on the dataset.
