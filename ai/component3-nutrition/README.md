@@ -85,7 +85,25 @@ python -m pytest -q
 
 ## Photo-based meal entry
 
-The API exposes `POST /foods/identify-image` for photo-based food suggestions. Configure `GEMINI_API_KEY` in the API process environment (and optionally `GEMINI_VISION_MODEL`, default `gemini-2.5-flash`). Photo recognition uses the Gemini API; availability and free-tier quotas depend on your Google AI Studio account and current limits. The endpoint returns likely visible foods and approximate portion sizes. The frontend searches USDA FoodData Central for each edited suggested name and uses the first returned result, preserving the previous workflow. The selected food name and estimated portion remain visible and editable in the meal entry; the system does not claim that the first search match is guaranteed correct. This uses a separate pretrained vision-capable service; it does not replace or retrain the existing dietary ML models. Photos cannot reliably reveal hidden ingredients, cooking oil, salt, sauces, or exact weights.
+The API exposes `POST /foods/identify-image`. When the FoodSeg103 checkpoint and PyTorch/torchvision are available, the endpoint lazily loads the trained FCN-ResNet-50, caches it, and uses MPS when available (otherwise CUDA or CPU). The default checkpoint is `research/food_segmentation/results/full_data_experiment/fcn_resnet50_seed42/fcn_resnet50/best_model.pth`; set `FOODSEG103_CHECKPOINT` to override it. The checkpoint is not copied into a second model directory. Install compatible `torch` and `torchvision` packages in the backend environment to enable local inference.
+
+Local segmentation returns FoodSeg103 class IDs/names, original-resolution pixel area and area fraction, and a transparent segmentation overlay. It does not estimate grams or return calibrated confidence. The web review requires users to edit/remove predictions, select a USDA FoodData Central record, and enter a portion before a food can be added for nutrient calculation. Pixel area is not a weight estimate.
+
+If the checkpoint or inference dependencies are unavailable, configure `GEMINI_API_KEY` in the API process environment (optionally set `GEMINI_VISION_MODEL`, default `gemini-2.5-flash`) for the existing Gemini fallback. Gemini still returns approximate portion estimates; users must review those and choose a USDA record before calculation. Health reports the checkpoint and lazy inference status. Both image-recognition paths can miss hidden ingredients, cooking oil, salt, sauces, and foods outside the model's label set. FoodSeg103 is experimental and not a clinically validated food-recognition system.
+
+Start the API from this directory:
+
+```bash
+python -m uvicorn src.api:app --reload --port 8000
+```
+
+Start the web app from `frontend/web` in a second terminal:
+
+```bash
+npm start
+```
+
+The web client defaults to `http://127.0.0.1:8000`; set `REACT_APP_NUTRITION_API_URL` before starting it if the API runs elsewhere.
 
 
 ## Medication-aware suggestion-ranking research (in progress)
@@ -135,4 +153,4 @@ Historical experiment note: previous daily alignment, food-goal suitability, and
 
 ## Experimental multi-food image segmentation comparison
 
-An isolated training experiment is available at `ai/component3-nutrition/research/food_segmentation/`. It compares FCN-ResNet50, DeepLabV3-MobileNetV3-Large, and LRASPP-MobileNetV3-Large on the real FoodSeg103 dataset. It does not change the live photo-identification endpoint. See that folder's README for the Mac M1 setup, dataset preparation, pilot run, metrics, and research limitations. Do not claim the models have been trained or that a winner has been selected until the runs have completed on the dataset.
+The training experiment is available at `research/food_segmentation/`. The full-data FCN-ResNet-50 checkpoint is connected to `POST /foods/identify-image` when it and the optional PyTorch/torchvision dependencies are available; the endpoint falls back to Gemini when configured. The web review requires explicit food, USDA-record, and portion confirmation. This is experimental ingredient segmentation, not a clinically validated food-recognition or portion-estimation system. See the research folder README for model comparisons, metrics, and limitations.
