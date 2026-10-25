@@ -1,0 +1,31 @@
+{
+  "source_file": "Interaction Information.csv",
+  "source_rows": 23950,
+  "medicine_names_targeted": [
+    "amlodipine",
+    "nifedipine",
+    "verapamil",
+    "losartan",
+    "valsartan",
+    "irbesartan",
+    "ramipril",
+    "lisinopril",
+    "enalapril",
+    "spironolactone",
+    "hydrochlorothiazide",
+    "furosemide",
+    "metoprolol",
+    "propranolol",
+    "atenolol",
+    "clopidogrel",
+    "warfarin"
+  ],
+  "candidate_records_in_priority_batch": 69,
+  "unique_medicine_names": 12,
+  "unique_food_names": 32,
+  "records_with_doi": 69,
+  "records_with_pmid": 69,
+  "all_records_are_food_type": true,
+  "all_records_have_human_species_match": true,
+  "review_status": "not reviewed; no patient-facing rules activated"
+}

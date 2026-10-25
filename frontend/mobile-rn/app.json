@@ -1,0 +1,57 @@
+{
+  "expo": {
+    "name": "HyperCare",
+    "slug": "mobile-rn",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/hypercare-icon.png",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/hypercare-icon.png",
+        "backgroundColor": "#123F35"
+      },
+      "permissions": [
+        "android.permission.health.READ_BLOOD_PRESSURE",
+        "android.permission.health.READ_HEART_RATE",
+        "android.permission.health.READ_OXYGEN_SATURATION"
+      ],
+      "package": "com.anonymous.mobilern"
+    },
+    "web": {
+      "favicon": "./assets/hypercare-icon.png"
+    },
+    "plugins": [
+      "react-native-health-connect",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "compileSdkVersion": 36,
+            "targetSdkVersion": 36,
+            "minSdkVersion": 26,
+            "manifestQueries": {
+              "package": [
+                "com.google.android.apps.healthdata"
+              ]
+            }
+          }
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow HyperCare to select prescription and medicine tray photos.",
+          "cameraPermission": "Allow HyperCare to photograph prescriptions and medicine trays.",
+          "microphonePermission": false
+        }
+      ],
+      "expo-secure-store",
+      "expo-font",
+      "expo-status-bar"
+    ]
+  }
+}

@@ -1,0 +1,11 @@
+candidate_suggestion_id,candidate_type,suggestion_text,required_context_or_evidence
+C3-S001,substitution,Choose a lower-sodium version of the packaged food recorded in this meal.,FoodData Central item sodium values and package label required
+C3-S002,food_group,Add a serving of vegetables that fits the meal and the user’s preferences.,Recorded meal context and user preference required
+C3-S003,food_group,"Add beans or lentils as a practical source of fibre, where appropriate for the meal.",Recorded meal context and user preference required
+C3-S004,substitution,"Replace a salty processed snack with fresh fruit, unsalted nuts, or plain yoghurt, according to preference.",Recorded snack and preference required
+C3-S005,nutrient,Review portion size before interpreting this meal’s sodium and potassium totals.,Portion and nutrient-source confidence required
+C3-S006,general,Choose an actionable next meal adjustment based on the largest measured nutrition gap.,Measured daily totals and targets required
+C3-S007,medication_precaution,Show a medication-related food reminder only when the active ingredient and relevant food trigger are both confirmed by a reviewed rule.,Approved rule registry required
+C3-S008,general,Ask the user to confirm an uncertain food or portion before making a nutrient-specific recommendation.,Food/portion confidence flags required
+C3-S009,food_group,Include a fruit or vegetable option with no added salt when it fits the user’s meal plan.,Meal context and preference required
+C3-S010,nutrient,"Explain which measured nutrient contributed most to the meal assessment, with its data source.",Meal nutrient calculation and source required
