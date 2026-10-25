@@ -1,9 +1,7 @@
-const fs = require("node:fs");
-const path = require("node:path");
-const { DatabaseSync } = require("node:sqlite");
-const express = require("express");
 
-const STORAGE_MODE = "temporary-sqlite";
+const express = require("express");
+const pool = require("./db");
+
 const MAX_HISTORY_RECORDS = 100;
 
 function validationError(message) {
@@ -50,7 +48,9 @@ function validateAssessment(body) {
   }
 
   if (!isObject(body.result)) {
-    throw validationError("The successful AI assessment result is required.");
+    throw validationError(
+      "The successful AI assessment result is required."
+    );
   }
 
   const source = body.inputs;
@@ -85,27 +85,11 @@ function validateAssessment(body) {
         30,
         180
       ),
-      pulse_rate: requiredNumber(
-        source.pulse_rate,
-        "pulse rate",
-        30,
-        200
-      ),
-      height_cm: requiredNumber(
-        source.height_cm,
-        "height",
-        100,
-        220
-      ),
-      weight_kg: requiredNumber(
-        source.weight_kg,
-        "weight",
-        25,
-        300
-      ),
+      pulse_rate: requiredNumber(source.pulse_rate, "pulse rate", 30, 200),
+      height_cm: requiredNumber(source.height_cm, "height", 100, 220),
+      weight_kg: requiredNumber(source.weight_kg, "weight", 25, 300),
       diabetes_history: source.diabetes_history,
-      has_existing_hypertension:
-        source.has_existing_hypertension,
+      has_existing_hypertension: source.has_existing_hypertension,
     },
     result: body.result,
   };
@@ -117,89 +101,66 @@ module.exports = function createAssessmentHistoryRouter(authenticate) {
   }
 
   const router = express.Router();
-  const dataDirectory = path.resolve(__dirname, "../data");
 
-  fs.mkdirSync(dataDirectory, { recursive: true });
-
-  // Temporary prototype storage, separate from resident profiles.
-  const db = new DatabaseSync(
-    path.join(
-      dataDirectory,
-      "component1_assessment_history_temp.sqlite3"
-    )
-  );
-
-  db.exec(`
-    PRAGMA journal_mode = WAL;
-
-    CREATE TABLE IF NOT EXISTS assessment_history (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      user_id TEXT NOT NULL,
-      assessed_at TEXT NOT NULL,
-      inputs_json TEXT NOT NULL,
-      result_json TEXT NOT NULL
-    );
-
-    CREATE INDEX IF NOT EXISTS idx_assessment_history_user_date
-      ON assessment_history(user_id, assessed_at DESC);
-  `);
-
-  // Retrieve the latest 100 records for the signed-in account.
-  router.get("/", authenticate, (req, res, next) => {
+  // Retrieve up to 100 assessments for the signed-in account.
+  router.get("/", authenticate, async (req, res, next) => {
     try {
-      const rows = db.prepare(`
-        SELECT id, assessed_at, inputs_json, result_json
-        FROM assessment_history
-        WHERE user_id = ?
-        ORDER BY assessed_at DESC, id DESC
-        LIMIT ?
-      `).all(req.account.id, MAX_HISTORY_RECORDS);
+      const result = await pool.query(
+        `SELECT id, assessed_at, inputs, result
+         FROM public.component1_assessment_history
+         WHERE local_account_id = $1
+         ORDER BY assessed_at DESC, id DESC
+         LIMIT $2`,
+        [req.account.id, MAX_HISTORY_RECORDS]
+      );
 
-      const history = rows.map((row) => ({
-        id: row.id,
+      const history = result.rows.map((row) => ({
+        id: Number(row.id),
         assessedAt: row.assessed_at,
-        inputs: JSON.parse(row.inputs_json),
-        result: JSON.parse(row.result_json),
+        inputs: row.inputs,
+        result: row.result,
       }));
 
       return res.json({
         history,
-        storageMode: STORAGE_MODE,
+        storageMode: "neon-postgresql",
       });
     } catch (error) {
       next(error);
     }
   });
 
-  // Save a successfully completed assessment.
-  router.post("/", authenticate, (req, res, next) => {
+  // Save a successfully completed assessment in Neon.
+  router.post("/", authenticate, async (req, res, next) => {
     try {
-      const { inputs, result } = validateAssessment(req.body);
+      const { inputs, result: assessmentResult } =
+        validateAssessment(req.body);
+
       const assessedAt = new Date().toISOString();
 
-      const saved = db.prepare(`
-        INSERT INTO assessment_history (
-          user_id,
-          assessed_at,
-          inputs_json,
-          result_json
-        )
-        VALUES (?, ?, ?, ?)
-      `).run(
-        req.account.id,
-        assessedAt,
-        JSON.stringify(inputs),
-        JSON.stringify(result)
+      const saved = await pool.query(
+        `INSERT INTO public.component1_assessment_history
+           (local_account_id, assessed_at, inputs, result)
+         VALUES ($1, $2, $3::jsonb, $4::jsonb)
+         RETURNING id, assessed_at, inputs, result`,
+        [
+          req.account.id,
+          assessedAt,
+          JSON.stringify(inputs),
+          JSON.stringify(assessmentResult),
+        ]
       );
+
+      const row = saved.rows[0];
 
       return res.status(201).json({
         record: {
-          id: Number(saved.lastInsertRowid),
-          assessedAt,
-          inputs,
-          result,
+          id: Number(row.id),
+          assessedAt: row.assessed_at,
+          inputs: row.inputs,
+          result: row.result,
         },
-        storageMode: STORAGE_MODE,
+        storageMode: "neon-postgresql",
       });
     } catch (error) {
       next(error);
@@ -212,16 +173,13 @@ module.exports = function createAssessmentHistoryRouter(authenticate) {
     const status = error.status || 500;
 
     if (status >= 500) {
-      console.error(
-        "Temporary assessment history error:",
-        error.message
-      );
+      console.error("Assessment history error:", error.message);
     }
 
     return res.status(status).json({
       error:
         status >= 500
-          ? "Could not access temporary assessment history."
+          ? "Could not access assessment history."
           : error.message,
     });
   });

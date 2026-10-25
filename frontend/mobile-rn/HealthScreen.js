@@ -700,7 +700,7 @@ export default function HealthScreen({ apiBase, colors }) {
 
         <Text style={styles.sectionNote}>
           Review previously saved assessments for this signed-in account.
-          History is currently stored in temporary prototype storage.
+          Assessment history is stored in the shared database for this signed-in account.
         </Text>
 
         <Pressable
