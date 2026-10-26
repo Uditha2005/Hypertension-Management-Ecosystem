@@ -8,6 +8,7 @@ import {
 } from "./CareAccount";
 import HomeScreen from "./HomeScreen";
 import HealthScreen from "./HealthScreen";
+
 import React, { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -40,7 +41,9 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const LOGO = require("./assets/hypercare-icon.png");
 const API_STORAGE = "hypercare-api-url";
-const DEFAULT_API = "http://192.168.8.151:8000";
+const DEFAULT_API = "http://172.20.10.3:8000";
+const HISTORY_API = "http://172.20.10.3:5000";
+const CAMERA_STREAM_URL = "http://172.20.10.3:8000/video_feed";
 const PREFIX = "/api/medicine";
 
 const C = {
@@ -511,6 +514,27 @@ function HyperCare() {
   const [historySearch, setHistorySearch] = useState("");
   const [historyDetail, setHistoryDetail] = useState(null);
 
+  // Fall detection monitoring
+  const [fallStatus, setFallStatus] = useState(null);
+  const previousFallRef = useRef(false);
+  const previousFallEventIdsRef = useRef(null);
+  const [fallConnectionError, setFallConnectionError] = useState(false);
+  const [fallLastUpdated, setFallLastUpdated] = useState(null);
+
+  // Fall notification history
+const [fallHistory, setFallHistory] = useState([]);
+const [fallHistoryLoading, setFallHistoryLoading] = useState(false);
+const [fallHistoryError, setFallHistoryError] = useState("");
+
+  const latestFallEvent = fallHistory.length > 0
+    ? fallHistory.reduce((latest, event) => {
+        return new Date(event.occurredAt) >
+          new Date(latest.occurredAt)
+          ? event
+          : latest;
+      })
+    : null;
+
   const mounted = useRef(true);
   const lock = useRef(false);
   const activeRequest = useRef(null);
@@ -520,6 +544,77 @@ function HyperCare() {
   const working = Boolean(busy);
   const hasReview =
     Boolean(flow.rxPhoto) || Boolean(flow.text.trim()) || Boolean(flow.rows.length);
+
+  const loadFallHistory = async () => {
+    setFallHistoryLoading(true);
+    setFallHistoryError("");
+
+    try {
+      const response = await fetch(
+        `${HISTORY_API}/api/behavioral/fall-events`
+      );
+
+      if (!response.ok) {
+        throw new Error(`Request failed (${response.status})`);
+      }
+      const data = await response.json();
+      const events = Array.isArray(data.events) ? data.events : [];
+
+      const previousIds = previousFallEventIdsRef.current;
+
+      if (previousIds !== null) {
+        const newEvents = events.filter(
+          (event) => !previousIds.has(String(event.id))
+        );
+
+        if (newEvents.length > 0) {
+          const latestEvent = newEvents[0];
+
+          setFallStatus((previous) => ({
+            ...previous,
+            fallDetected: true,
+            lastEvent: latestEvent,
+            residentName: latestEvent.residentName,
+            residentId: latestEvent.residentId,
+            updatedAt: latestEvent.occurredAt,
+          }));
+
+          Alert.alert(
+            "Fall Detected!",
+            `A fall event was recorded${
+              latestEvent.residentName
+                ? ` for ${latestEvent.residentName}`
+                : ""
+            }. Please check the resident.`,
+            [{ text: "OK" }]
+          );
+        }
+      }
+
+      previousFallEventIdsRef.current = new Set(
+        events.map((event) => String(event.id))
+      );
+
+      setFallHistory(events);
+    } catch (err) {
+      setFallHistoryError(
+        err.message || "Could not load fall notification history."
+      );
+    } finally {
+      setFallHistoryLoading(false);
+    }
+  };
+  useEffect(() => {
+    if (tab !== "activity") return;
+
+    loadFallHistory();
+
+    const interval = setInterval(() => {
+      loadFallHistory();
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, [tab]);
 
   useEffect(() => {
     mounted.current = true;
@@ -551,6 +646,61 @@ function HyperCare() {
   useEffect(() => {
     scroll.current?.scrollTo({ y: 0, animated: true });
   }, [tab, flow.step, historyDetail]);
+
+  
+  useEffect(() => {
+    if (tab !== "activity") return undefined;
+
+    let active = true;
+
+    const fetchFallStatus = async () => {
+      try {
+        const baseUrl = apiUrl.replace(/\/+$/, "");
+
+        const response = await fetch(
+          `${baseUrl}/api/behavioral/status`
+        );
+
+        if (!response.ok) {
+          throw new Error("Fall detection status unavailable");
+        }
+
+        const data = await response.json();
+
+        if (active) {
+          setFallStatus(data);
+          setFallConnectionError(false);
+          setFallLastUpdated(new Date());
+
+          if (data.fallDetected && !previousFallRef.current) {
+            Alert.alert(
+              "Fall Detected!",
+              "A possible fall has been detected. Please check the resident.",
+              [{ text: "OK" }]
+            );
+          }
+
+          previousFallRef.current = Boolean(data.fallDetected);
+        }
+      } catch {
+        if (active) {
+          setFallConnectionError(true);
+        }
+      }
+    };
+
+    fetchFallStatus();
+
+    const interval = setInterval(fetchFallStatus, 2000);
+
+    return () => {
+      active = false;
+      clearInterval(interval);
+    };
+  }, [tab, apiUrl]);
+
+  
+
 
   useEffect(() => {
     const subscription = BackHandler.addEventListener(
@@ -1632,6 +1782,310 @@ function HyperCare() {
             </>
           )}
 
+          {tab === "activity" && (
+            <>
+              <Text style={s.eyebrow}>
+                COMPONENT 02 · FALL DETECTION
+              </Text>
+
+              <Text style={s.title}>
+                Activity & Safety
+              </Text>
+
+              <Text style={s.subtitle}>
+                Live resident safety monitoring and fall detection.
+              </Text>
+
+              <Panel>
+                <View style={s.between}>
+                  <Text style={s.panelTitle}>
+                    AI connection
+                  </Text>
+
+                  <Tag
+                    text={
+                      fallConnectionError
+                        ? "Connection error"
+                        : fallStatus?.connected
+                          ? "Connected"
+                          : "Waiting"
+                    }
+                    tone={
+                      fallConnectionError
+                        ? "red"
+                        : fallStatus?.connected
+                          ? "green"
+                          : "amber"
+                    }
+                  />
+                </View>
+
+                <Text style={[s.body, { marginTop: 12 }]}>
+                  {fallConnectionError
+                    ? "Unable to reach the Fall Detection backend. Check that the Python AI service is running and the API address is correct."
+                    : fallStatus?.connected
+                      ? "The AI service is receiving camera frames."
+                      : "Waiting for camera frames from the AI service."}
+                </Text>
+
+                {!!fallLastUpdated && (
+                  <Text style={[s.caption, { marginTop: 10 }]}>
+                    Last checked: {fallLastUpdated.toLocaleTimeString()}
+                  </Text>
+                )}
+              </Panel>
+              <Panel>
+                <Text style={s.panelTitle}>Live Camera View</Text>
+
+                <Text style={[s.caption, { marginTop: 6 }]}>
+                  Live feed from the fall detection AI service.
+                </Text>
+
+                <View
+                  style={{
+                    marginTop: 12,
+                    height: 220,
+                    backgroundColor: "#111827",
+                    borderRadius: 12,
+                    overflow: "hidden",
+                  }}
+                >
+                  <Image
+                    source={{
+                      uri: "http://172.20.10.3:8000/video_frame",
+                    }}
+                    style={{
+                      width: "100%",
+                      height: "100%",
+                    }}
+                    resizeMode="contain"
+                  />
+                </View>
+              </Panel>
+
+              <Panel
+                style={{
+                  backgroundColor: fallStatus?.fallDetected
+                    ? C.redBg
+                    : C.mint,
+                  borderColor: fallStatus?.fallDetected
+                    ? C.red
+                    : C.mintBorder,
+                }}
+              >
+                <Text
+                  style={[
+                    s.eyebrow,
+                    {
+                      color: fallStatus?.fallDetected
+                        ? C.red
+                        : C.green,
+                    },
+                  ]}
+                >
+                  CURRENT SAFETY STATUS
+                </Text>
+
+                <Text
+                  style={[
+                    s.panelTitle,
+                    {
+                      color: fallStatus?.fallDetected
+                        ? C.red
+                        : C.green,
+                      marginTop: 8,
+                    },
+                  ]}
+                >
+                  {fallStatus?.fallDetected
+                    ? "Fall detected — check resident"
+                    : "No active fall alert"}
+                </Text>
+
+                <Text style={[s.body, { marginTop: 8 }]}>
+                  {fallStatus?.fallDetected
+                    ? "Please check the resident and verify the situation. AI detection may produce false alarms."
+                    : "The latest status does not indicate an active fall alert."}
+                </Text>
+              </Panel>
+
+              
+              <Panel>
+                <Text style={s.eyebrow}>
+                  LATEST EVENT
+                </Text>
+
+                {latestFallEvent ? (
+                  <View style={{ marginTop: 12 }}>
+                    <Text style={s.panelTitle}>
+                      Fall Detection Event
+                    </Text>
+
+                    <View style={{ marginTop: 12 }}>
+                      <Text style={s.caption}>Event Details</Text>
+
+                      <Text style={s.body}>
+                        {Object.entries(latestFallEvent)
+                          .map(([key, value]) => {
+                            const label = key
+                              .replace(/([A-Z])/g, " $1")
+                              .replace(/^./, (char) => char.toUpperCase());
+
+                            return `${label}: ${
+                              value == null ? "—" : String(value)
+                            }`;
+                          })
+                          .join("\n")}
+                      </Text>
+                    </View>
+
+                    <View style={{ marginTop: 12 }}>
+                      <Text style={s.caption}>Resident Name</Text>
+                      <Text style={s.body}>
+                        {latestFallEvent.residentName || "Unknown"}
+                      </Text>
+                    </View>
+
+                    <View style={{ marginTop: 10 }}>
+                      <Text style={s.caption}>Resident ID</Text>
+                      <Text style={s.body}>
+                        {latestFallEvent.residentId ?? "—"}
+                      </Text>
+                    </View>
+
+                    <View style={{ marginTop: 10 }}>
+                      <Text style={s.caption}>Event Time</Text>
+                      <Text style={s.body}>
+                        {latestFallEvent.occurredAt
+                          ? new Date(
+                              latestFallEvent.occurredAt
+                            ).toLocaleString()
+                          : "—"}
+                      </Text>
+                    </View>
+
+                    <View style={{ marginTop: 10 }}>
+                      <Text style={s.caption}>Confidence</Text>
+                      <Text style={s.body}>
+                        {latestFallEvent.probability != null
+                          ? `${(
+                              Number(latestFallEvent.probability) * 100
+                            ).toFixed(1)}%`
+                          : "—"}
+                      </Text>
+                    </View>
+
+                    <View style={{ marginTop: 10 }}>
+                      <Text style={s.caption}>Source</Text>
+                      <Text style={s.body}>
+                        {latestFallEvent.source || "Unknown"}
+                      </Text>
+                    </View>
+                  </View>
+                ) : (
+                  <Text style={[s.body, { marginTop: 12 }]}>
+                    No event information available.
+                  </Text>
+                )}
+              </Panel>
+
+
+              <Panel>
+                <View style={s.between}>
+                  <Text style={s.panelTitle}>
+                    Fall Notification History
+                  </Text>
+
+                  <Tag
+                    text={`${fallHistory.length} events`}
+                    tone="grey"
+                  />
+                </View>
+
+                <Text style={[s.caption, { marginTop: 6 }]}>
+                  Previously detected falls and their timestamps.
+                </Text>
+
+                <Action
+                  title={
+                    fallHistoryLoading
+                      ? "Loading history..."
+                      : "Refresh fall history"
+                  }
+                  secondary
+                  disabled={fallHistoryLoading}
+                  onPress={loadFallHistory}
+                />
+
+                {fallHistoryError !== "" && (
+                  <Text style={[s.body, { color: C.red, marginTop: 12 }]}>
+                    {fallHistoryError}
+                  </Text>
+                )}
+
+                {!fallHistoryLoading &&
+                  !fallHistoryError &&
+                  fallHistory.length === 0 && (
+                    <Text style={[s.body, { marginTop: 12 }]}>
+                      No fall notifications found.
+                    </Text>
+                  )}
+
+                {fallHistory.map((event) => (
+                  <View
+                    key={String(event.id)}
+                    style={{
+                      borderTopWidth: 1,
+                      borderTopColor: C.border,
+                      paddingTop: 14,
+                      marginTop: 14,
+                    }}
+                  >
+                    <View style={s.between}>
+                      <Text style={s.panelTitle}>
+                        Fall detected
+                      </Text>
+
+                      <Tag text="Alert" tone="red" />
+                    </View>
+
+                    <Text style={[s.body, { marginTop: 8 }]}>
+                      Resident: {event.residentName || "Unknown"}
+                    </Text>
+
+                    <Text style={s.caption}>
+                      Resident ID: {event.residentId ?? "—"}
+                    </Text>
+
+                    <Text style={s.caption}>
+                      Date:{" "}
+                      {event.occurredAt
+                        ? new Date(event.occurredAt).toLocaleString()
+                        : "—"}
+                    </Text>
+
+                    <Text style={s.caption}>
+                      Confidence:{" "}
+                      {event.probability != null
+                        ? `${(Number(event.probability) * 100).toFixed(1)}%`
+                        : "—"}
+                    </Text>
+
+                    <Text style={s.caption}>
+                      Source: {event.source || "Unknown"}
+                    </Text>
+                  </View>
+                ))}
+              </Panel>
+
+              <Action
+                title="Back to Home"
+                secondary
+                onPress={() => changeTab("home")}
+              />
+            </>
+          )}
+
           {CARE_WORKSPACES[tab] && (
             <>
               <Text style={s.eyebrow}>
@@ -1937,29 +2391,6 @@ const CARE_WORKSPACES = {
     ],
   },
 
-  activity: {
-    eyebrow: "COMPONENT 02 ? ACTIVITY & SAFETY",
-    title: "Activity & safety.",
-    description:
-      "A dedicated workspace for movement observations and resident-safety support.",
-    sections: [
-      {
-        title: "Activity observations",
-        description:
-          "The activity component's observations can be displayed here.",
-      },
-      {
-        title: "Safety assessment",
-        description:
-          "Relevant model results and supporting observations can be connected here.",
-      },
-      {
-        title: "Observation history",
-        description:
-          "Recorded activity and caregiver reviews can be displayed here.",
-      },
-    ],
-  },
 
   nutrition: {
     eyebrow: "COMPONENT 03 ? NUTRITION CARE",
