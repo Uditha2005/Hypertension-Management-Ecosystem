@@ -8,6 +8,7 @@ const router = express.Router();
 const scrypt = promisify(crypto.scrypt);
 
 const SESSION_LIFETIME_MS = 7 * 24 * 60 * 60 * 1000;
+
 const SCRYPT_OPTIONS = {
   N: 32768,
   r: 8,
@@ -36,7 +37,12 @@ function clean(value, field, maximum, required = false) {
 }
 
 function emailAddress(value) {
-  const email = clean(value, "email address", 254, true).toLowerCase();
+  const email = clean(
+    value,
+    "email address",
+    254,
+    true
+  ).toLowerCase();
 
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     throw failure(422, "Enter a valid email address.");
@@ -52,15 +58,43 @@ function passwordValue(value) {
     value.length > 128 ||
     !value.trim()
   ) {
-    throw failure(422, "Use a password between 10 and 128 characters.");
+    throw failure(
+      422,
+      "Use a password between 10 and 128 characters."
+    );
   }
 
   return value;
 }
 
+function accountRole(value) {
+  const role = clean(
+    value ?? "caregiver",
+    "account role",
+    20,
+    true
+  ).toLowerCase();
+
+  if (!["caregiver", "patient"].includes(role)) {
+    throw failure(
+      422,
+      "Account role must be caregiver or patient."
+    );
+  }
+
+  return role;
+}
+
 async function hashPassword(password) {
   const salt = crypto.randomBytes(16).toString("hex");
-  const key = await scrypt(password, salt, 64, SCRYPT_OPTIONS);
+
+  const key = await scrypt(
+    password,
+    salt,
+    64,
+    SCRYPT_OPTIONS
+  );
+
   return `${salt}:${key.toString("hex")}`;
 }
 
@@ -80,13 +114,22 @@ async function checkPassword(password, stored) {
   }
 
   const expected = Buffer.from(parts[1], "hex");
-  const actual = await scrypt(password, parts[0], 64, SCRYPT_OPTIONS);
+
+  const actual = await scrypt(
+    password,
+    parts[0],
+    64,
+    SCRYPT_OPTIONS
+  );
 
   return crypto.timingSafeEqual(actual, expected);
 }
 
 function digestToken(token) {
-  return crypto.createHash("sha256").update(token).digest("hex");
+  return crypto
+    .createHash("sha256")
+    .update(token)
+    .digest("hex");
 }
 
 function publicUser(user) {
@@ -96,6 +139,7 @@ function publicUser(user) {
     email: user.email,
     phone: user.phone || "",
     careHome: user.care_home || "",
+    role: user.role || "caregiver",
     createdAt: user.created_at,
   };
 }
@@ -125,14 +169,22 @@ function authLimit(req, res, next) {
   let record = attempts.get(key);
 
   if (!record || now >= record.until) {
-    record = { count: 0, until: now + 15 * 60 * 1000 };
+    record = {
+      count: 0,
+      until: now + 15 * 60 * 1000,
+    };
+
     attempts.set(key, record);
   }
 
   record.count += 1;
 
   if (record.count > 30) {
-    res.set("Retry-After", String(Math.ceil((record.until - now) / 1000)));
+    res.set(
+      "Retry-After",
+      String(Math.ceil((record.until - now) / 1000))
+    );
+
     return res.status(429).json({
       error: "Too many account requests. Try again later.",
     });
@@ -152,25 +204,46 @@ router.use((req, res, next) => {
 router.use((req, res, next) => {
   if (
     ["POST", "PATCH"].includes(req.method) &&
-    (!req.body || typeof req.body !== "object" || Array.isArray(req.body))
+    (!req.body ||
+      typeof req.body !== "object" ||
+      Array.isArray(req.body))
   ) {
-    return res.status(400).json({ error: "Send a valid JSON object." });
+    return res.status(400).json({
+      error: "Send a valid JSON object.",
+    });
   }
 
   next();
 });
 
 // POST /api/auth/register
-// Body: { name, email, password, phone?, careHome? }
+// Body: { name, email, password, phone?, careHome?, role? }
 router.post(
   "/register",
   authLimit,
   asyncRoute(async (req, res) => {
-    const name = clean(req.body.name, "full name", 100, true);
+    const name = clean(
+      req.body.name,
+      "full name",
+      100,
+      true
+    );
+
     const email = emailAddress(req.body.email);
     const password = passwordValue(req.body.password);
-    const phone = clean(req.body.phone ?? "", "phone number", 30);
-    const careHome = clean(req.body.careHome ?? "", "care home name", 200);
+    const phone = clean(
+      req.body.phone ?? "",
+      "phone number",
+      30
+    );
+
+    const careHome = clean(
+      req.body.careHome ?? "",
+      "care home name",
+      200
+    );
+
+    const role = accountRole(req.body.role);
 
     const passwordHash = await hashPassword(password);
     const id = crypto.randomUUID();
@@ -181,15 +254,35 @@ router.post(
 
       const inserted = await client.query(
         `INSERT INTO users (
-           id, name, email, password_hash, phone, care_home,
-           created_at, updated_at
+           id,
+           name,
+           email,
+           password_hash,
+           phone,
+           care_home,
+           role,
+           created_at,
+           updated_at
          )
-         VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())
-         RETURNING id, name, email, phone, care_home, created_at`,
-        [id, name, email, passwordHash, phone, careHome]
+         VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NOW())
+         RETURNING
+           id, name, email, phone, care_home, role, created_at`,
+        [
+          id,
+          name,
+          email,
+          passwordHash,
+          phone,
+          careHome,
+          role,
+        ]
       );
 
-      const response = await issueSession(client, inserted.rows[0]);
+      const response = await issueSession(
+        client,
+        inserted.rows[0]
+      );
+
       await client.query("COMMIT");
 
       return res.status(201).json(response);
@@ -197,7 +290,10 @@ router.post(
       await client.query("ROLLBACK");
 
       if (error.code === "23505") {
-        throw failure(409, "An account already uses this email address.");
+        throw failure(
+          409,
+          "An account already uses this email address."
+        );
       }
 
       throw error;
@@ -215,12 +311,20 @@ router.post(
     const email = emailAddress(req.body.email);
     const password = req.body.password;
 
-    if (typeof password !== "string" || password.length > 128) {
-      throw failure(401, "Email or password is incorrect.");
+    if (
+      typeof password !== "string" ||
+      password.length > 128
+    ) {
+      throw failure(
+        401,
+        "Email or password is incorrect."
+      );
     }
 
     const result = await pool.query(
-      `SELECT id, name, email, password_hash, phone, care_home, created_at
+      `SELECT
+         id, name, email, password_hash,
+         phone, care_home, role, created_at
        FROM users
        WHERE LOWER(email) = $1
        LIMIT 1`,
@@ -229,8 +333,14 @@ router.post(
 
     const user = result.rows[0];
 
-    if (!user || !(await checkPassword(password, user.password_hash))) {
-      throw failure(401, "Email or password is incorrect.");
+    if (
+      !user ||
+      !(await checkPassword(password, user.password_hash))
+    ) {
+      throw failure(
+        401,
+        "Email or password is incorrect."
+      );
     }
 
     const client = await pool.connect();
@@ -239,7 +349,9 @@ router.post(
       await client.query("BEGIN");
 
       const latest = await client.query(
-        `SELECT id, name, email, password_hash, phone, care_home, created_at
+        `SELECT
+           id, name, email, password_hash,
+           phone, care_home, role, created_at
          FROM users
          WHERE id = $1
          FOR UPDATE`,
@@ -248,11 +360,21 @@ router.post(
 
       const latestUser = latest.rows[0];
 
-      if (!latestUser || latestUser.password_hash !== user.password_hash) {
-        throw failure(401, "Account credentials changed. Sign in again.");
+      if (
+        !latestUser ||
+        latestUser.password_hash !== user.password_hash
+      ) {
+        throw failure(
+          401,
+          "Account credentials changed. Sign in again."
+        );
       }
 
-      const response = await issueSession(client, latestUser);
+      const response = await issueSession(
+        client,
+        latestUser
+      );
+
       await client.query("COMMIT");
 
       return res.json(response);
@@ -271,7 +393,9 @@ function authenticate(req, res, next) {
   );
 
   if (!match) {
-    return next(failure(401, "Sign in to continue."));
+    return next(
+      failure(401, "Sign in to continue.")
+    );
   }
 
   req.sessionHash = digestToken(match[1]);
@@ -284,18 +408,31 @@ router.get(
   authenticate,
   asyncRoute(async (req, res) => {
     const result = await pool.query(
-      `SELECT u.id, u.name, u.email, u.phone, u.care_home, u.created_at
+      `SELECT
+         u.id,
+         u.name,
+         u.email,
+         u.phone,
+         u.care_home,
+         u.role,
+         u.created_at
        FROM sessions s
        JOIN users u ON u.id = s.user_id
-       WHERE s.token_hash = $1 AND s.expires_at > $2`,
+       WHERE s.token_hash = $1
+         AND s.expires_at > $2`,
       [req.sessionHash, Date.now()]
     );
 
     if (result.rowCount === 0) {
-      throw failure(401, "Your session expired. Sign in again.");
+      throw failure(
+        401,
+        "Your session expired. Sign in again."
+      );
     }
 
-    return res.json({ user: publicUser(result.rows[0]) });
+    return res.json({
+      user: publicUser(result.rows[0]),
+    });
   })
 );
 
@@ -309,16 +446,24 @@ router.post(
       [req.sessionHash]
     );
 
-    return res.json({ message: "Signed out." });
+    return res.json({
+      message: "Signed out.",
+    });
   })
 );
 
 // Remove expired sessions periodically.
 const cleanup = setInterval(() => {
   pool
-    .query("DELETE FROM sessions WHERE expires_at <= $1", [Date.now()])
+    .query(
+      "DELETE FROM sessions WHERE expires_at <= $1",
+      [Date.now()]
+    )
     .catch((error) => {
-      console.error("Expired session cleanup failed:", error.message);
+      console.error(
+        "Expired session cleanup failed:",
+        error.message
+      );
     });
 }, 60 * 1000);
 
@@ -331,7 +476,10 @@ router.use((error, req, res, next) => {
   const status = error.status || 500;
 
   if (status >= 500) {
-    console.error("Account request failed:", error.message);
+    console.error(
+      "Account request failed:",
+      error.message
+    );
   }
 
   return res.status(status).json({

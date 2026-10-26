@@ -1,0 +1,176 @@
+
+.patient-dashboard {
+  width: min(100% - 32px, 1100px);
+  margin: 0 auto;
+  padding: 40px 0 56px;
+  color: #172b4d;
+}
+
+.patient-welcome {
+  margin-bottom: 28px;
+}
+
+.patient-eyebrow {
+  margin: 0 0 10px;
+  color: #526b91;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+}
+
+.patient-welcome h1 {
+  margin: 0;
+  color: #10264a;
+  font-size: clamp(28px, 4vw, 38px);
+}
+
+.patient-welcome > p:last-child {
+  color: #66758c;
+  line-height: 1.6;
+}
+
+.patient-history-card {
+  overflow: hidden;
+  border: 1px solid #e0e7f0;
+  border-radius: 16px;
+  background: #ffffff;
+  box-shadow: 0 8px 28px rgb(16 38 74 / 5%);
+}
+
+.patient-card-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 24px;
+  border-bottom: 1px solid #e8edf4;
+}
+
+.patient-card-heading h2 {
+  margin: 0 0 6px;
+  font-size: 20px;
+}
+
+.patient-card-heading p {
+  margin: 0;
+  color: #718096;
+  font-size: 14px;
+}
+
+.patient-count {
+  display: grid;
+  min-width: 42px;
+  height: 42px;
+  padding: 0 10px;
+  place-items: center;
+  border-radius: 12px;
+  background: #edf3fb;
+  color: #173b70;
+  font-weight: 700;
+}
+
+.patient-message,
+.patient-error {
+  padding: 24px;
+  line-height: 1.6;
+}
+
+.patient-error {
+  color: #a12626;
+}
+
+.patient-empty {
+  padding: 48px 24px;
+  text-align: center;
+}
+
+.patient-empty-icon {
+  display: grid;
+  width: 52px;
+  height: 52px;
+  margin: 0 auto 16px;
+  place-items: center;
+  border-radius: 50%;
+  background: #edf3fb;
+  color: #173b70;
+  font-size: 25px;
+}
+
+.patient-empty h3 {
+  margin: 0 0 8px;
+  color: #17304f;
+}
+
+.patient-empty p {
+  max-width: 440px;
+  margin: 0 auto;
+  color: #718096;
+  line-height: 1.6;
+}
+
+.patient-incident-list {
+  padding: 8px 24px;
+}
+
+.patient-incident {
+  display: flex;
+  gap: 16px;
+  padding: 22px 0;
+  border-bottom: 1px solid #edf1f6;
+}
+
+.patient-incident:last-child {
+  border-bottom: 0;
+}
+
+.patient-incident-marker {
+  flex: 0 0 10px;
+  width: 10px;
+  height: 10px;
+  margin-top: 7px;
+  border-radius: 50%;
+  background: #315b91;
+}
+
+.patient-incident-details h3 {
+  margin: 0 0 8px;
+  font-size: 16px;
+}
+
+.patient-incident-details p {
+  margin: 0 0 10px;
+  color: #718096;
+  font-size: 14px;
+}
+
+.patient-status {
+  display: inline-block;
+  padding: 5px 10px;
+  border-radius: 20px;
+  background: #edf3fb;
+  color: #173b70;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.patient-privacy-note {
+  margin-top: 20px;
+  color: #718096;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+@media (max-width: 600px) {
+  .patient-dashboard {
+    width: min(100% - 24px, 1100px);
+    padding-top: 24px;
+  }
+
+  .patient-card-heading {
+    padding: 18px;
+  }
+
+  .patient-incident-list {
+    padding: 8px 18px;
+  }
+}

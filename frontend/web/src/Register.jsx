@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import "./Register.css";
 
@@ -11,7 +12,9 @@ export default function Register({ onRegisterSuccess, onLogin }) {
     confirmPassword: "",
     phone: "",
     careHome: "",
+    role: "caregiver",
   });
+
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -29,7 +32,10 @@ export default function Register({ onRegisterSuccess, onLogin }) {
       return;
     }
 
-    if (form.password.length < 10 || form.password.length > 128) {
+    if (
+      form.password.length < 10 ||
+      form.password.length > 128
+    ) {
       setError("Password must be between 10 and 128 characters.");
       return;
     }
@@ -46,6 +52,7 @@ export default function Register({ onRegisterSuccess, onLogin }) {
           password: form.password,
           phone: form.phone.trim(),
           careHome: form.careHome.trim(),
+          role: form.role,
         }),
       });
 
@@ -56,7 +63,9 @@ export default function Register({ onRegisterSuccess, onLogin }) {
       }
 
       if (!data.token || !data.user) {
-        throw new Error("The server returned an invalid registration response.");
+        throw new Error(
+          "The server returned an invalid registration response."
+        );
       }
 
       onRegisterSuccess(data);
@@ -75,8 +84,11 @@ export default function Register({ onRegisterSuccess, onLogin }) {
     <main className="auth-page">
       <section className="auth-card auth-card-register">
         <div className="auth-brand-mark">H</div>
+
         <p className="auth-eyebrow">HYPERCARE PORTAL</p>
+
         <h1>Create your account</h1>
+
         <p className="auth-subtitle">
           Register to access the elderly-care management workspace.
         </p>
@@ -106,6 +118,18 @@ export default function Register({ onRegisterSuccess, onLogin }) {
             maxLength={254}
             required
           />
+
+          <label htmlFor="register-role">Account type</label>
+          <select
+            id="register-role"
+            name="role"
+            value={form.role}
+            onChange={updateField}
+            required
+          >
+            <option value="caregiver">Caregiver</option>
+            <option value="patient">Patient</option>
+          </select>
 
           <label htmlFor="register-phone">Phone number</label>
           <input
@@ -143,7 +167,9 @@ export default function Register({ onRegisterSuccess, onLogin }) {
             required
           />
 
-          <label htmlFor="register-confirm-password">Confirm password</label>
+          <label htmlFor="register-confirm-password">
+            Confirm password
+          </label>
           <input
             id="register-confirm-password"
             name="confirmPassword"
@@ -157,9 +183,17 @@ export default function Register({ onRegisterSuccess, onLogin }) {
             required
           />
 
-          {error && <p className="auth-error" role="alert">{error}</p>}
+          {error && (
+            <p className="auth-error" role="alert">
+              {error}
+            </p>
+          )}
 
-          <button className="auth-submit" type="submit" disabled={loading}>
+          <button
+            className="auth-submit"
+            type="submit"
+            disabled={loading}
+          >
             {loading ? "Creating account..." : "Create account"}
           </button>
         </form>
@@ -171,7 +205,9 @@ export default function Register({ onRegisterSuccess, onLogin }) {
           </button>
         </p>
 
-        <p className="auth-footer">HyperCare · Elderly-care management</p>
+        <p className="auth-footer">
+          HyperCare · Elderly-care management
+        </p>
       </section>
     </main>
   );
