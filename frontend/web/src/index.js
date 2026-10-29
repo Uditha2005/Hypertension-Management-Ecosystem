@@ -1,4 +1,3 @@
-
 import React, { useEffect, useRef, useState } from "react";
 import ReactDOM from "react-dom/client";
 
@@ -47,7 +46,37 @@ const caregiverTabs = [
 
 const patientTabs = [
   {
-    id: "home",
+    id: "patient-profile",
+    navLabel: "My Health Profile",
+    title: "My Health Profile",
+    icon: "wellness",
+  },
+  {
+    id: "patient-assessment",
+    navLabel: "Latest Assessment",
+    title: "Latest Assessment",
+    icon: "monitoring",
+  },
+  {
+    id: "patient-xai",
+    navLabel: "AI & SHAP",
+    title: "AI Assessment Explanation",
+    icon: "wellness",
+  },
+  {
+    id: "patient-recommendations",
+    navLabel: "Recommendations",
+    title: "My Recommendations",
+    icon: "wellness",
+  },
+  {
+    id: "patient-history",
+    navLabel: "Assessment History",
+    title: "Assessment History",
+    icon: "monitoring",
+  },
+  {
+    id: "patient-falls",
     navLabel: "My Fall History",
     title: "My Fall History",
     icon: "monitoring",
@@ -65,7 +94,6 @@ const App = () => {
   const firstRender = useRef(true);
 
   const isPatient = user?.role === "patient";
-
   const tabs = isPatient ? patientTabs : caregiverTabs;
 
   // Restore and validate the current browser session.
@@ -104,7 +132,7 @@ const App = () => {
 
         if (!cancelled) {
           setUser(data.user);
-          setActiveTab("home");
+          setActiveTab("patient-profile");
         }
       } catch {
         try {
@@ -135,12 +163,14 @@ const App = () => {
 
   // Ensure the selected tab is allowed for the user's role.
   useEffect(() => {
+    if (!user) return;
+
     if (!tabs.some((tab) => tab.id === activeTab)) {
-      setActiveTab("home");
+      setActiveTab(isPatient ? "patient-profile" : "home");
     }
   }, [activeTab, user?.role]);
 
-  // Update the page title and remember the active tab.
+  // Remember the active tab and update the page title.
   useEffect(() => {
     try {
       window.sessionStorage.setItem(
@@ -192,7 +222,11 @@ const App = () => {
 
     setUser(data.user);
     setLogoutError("");
-    setActiveTab("home");
+    setActiveTab(
+      data.user.role === "patient"
+        ? "patient-profile"
+        : "home"
+    );
   }
 
   async function handleLogout() {
@@ -291,7 +325,11 @@ const App = () => {
           <button
             type="button"
             className="hc-brand"
-            onClick={() => setActiveTab("home")}
+            onClick={() =>
+              setActiveTab(
+                isPatient ? "patient-profile" : "home"
+              )
+            }
             aria-label="HyperCare Home"
           >
             <span className="hc-brand-mark">
@@ -310,7 +348,9 @@ const App = () => {
 
           <nav
             className="hc-nav"
-            aria-label="Care workspaces"
+            aria-label={
+              isPatient ? "Patient dashboard sections" : "Care workspaces"
+            }
           >
             {tabs.map((tab) => (
               <button
@@ -333,7 +373,9 @@ const App = () => {
 
           <div className="hc-account-actions">
             <span className="hc-research-label">
-              {isPatient ? "Patient Account" : "Research prototype"}
+              {isPatient
+                ? "Patient Account"
+                : "Research prototype"}
             </span>
 
             <span
@@ -365,7 +407,7 @@ const App = () => {
         className="hc-content"
       >
         {isPatient ? (
-          <PatientDashboard />
+          <PatientDashboard activeSection={activeTab} />
         ) : (
           <>
             {activeTab === "home" && (
