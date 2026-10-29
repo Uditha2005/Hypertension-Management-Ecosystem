@@ -132,13 +132,37 @@ def generate_frames():
             + buffer.tobytes()
             + b"\r\n"
         )
-
+from fastapi.responses import Response
 
 @app.get("/video_feed")
 def video_feed():
     return StreamingResponse(
         generate_frames(),
         media_type="multipart/x-mixed-replace; boundary=frame",
+    )
+
+
+@app.get("/video_frame")
+def video_frame():
+    with frame_lock:
+        if latest_frame is None:
+            raise HTTPException(
+                status_code=503,
+                detail="Camera frame is not available yet.",
+            )
+
+        success, encoded_frame = cv2.imencode(".jpg", latest_frame.copy())
+
+    if not success:
+        raise HTTPException(
+            status_code=500,
+            detail="Could not encode camera frame.",
+        )
+
+    return Response(
+        content=encoded_frame.tobytes(),
+        media_type="image/jpeg",
+        headers={"Cache-Control": "no-store"},
     )
 
 
@@ -908,6 +932,7 @@ def main():
         cv2.destroyAllWindows()
 
 
+
 if __name__ == "__main__":
     import threading
     import uvicorn
@@ -915,7 +940,7 @@ if __name__ == "__main__":
     api_thread = threading.Thread(
         target=lambda: uvicorn.run(
             app,
-            host="127.0.0.1",
+            host="0.0.0.0",
             port=8000,
             log_level="warning",
         ),
@@ -924,3 +949,4 @@ if __name__ == "__main__":
     api_thread.start()
 
     main()
+

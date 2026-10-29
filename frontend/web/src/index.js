@@ -1,4 +1,3 @@
-
 import React, { useEffect, useRef, useState } from "react";
 import ReactDOM from "react-dom/client";
 
@@ -8,6 +7,7 @@ import TrayVerification from "./components/TrayVerification";
 import PatientMonitoring from "./components/PatientMonitoring";
 import PhysiologicalRecommendations from "./components/PhysiologicalRecommendations";
 import NotificationHistory from "./components/NotificationHistory";
+import PatientDashboard from "./components/PatientDashboard";
 
 import HomePage, {
   CARE_MODULES,
@@ -20,8 +20,9 @@ import "./Auth.css";
 
 const API_URL = "http://localhost:5000/api/auth";
 const TOKEN_KEY = "hypercare-auth-token";
+const ACTIVE_TAB_KEY = "hypercare-active-web-tab";
 
-const tabs = [
+const caregiverTabs = [
   {
     id: "home",
     navLabel: "Home",
@@ -43,21 +44,47 @@ const tabs = [
   },
 ];
 
+const patientTabs = [
+  {
+    id: "patient-profile",
+    navLabel: "My Health Profile",
+    title: "My Health Profile",
+    icon: "wellness",
+  },
+  {
+    id: "patient-assessment",
+    navLabel: "Latest Assessment",
+    title: "Latest Assessment",
+    icon: "monitoring",
+  },
+  {
+    id: "patient-xai",
+    navLabel: "AI & SHAP",
+    title: "AI Assessment Explanation",
+    icon: "wellness",
+  },
+  {
+    id: "patient-recommendations",
+    navLabel: "Recommendations",
+    title: "My Recommendations",
+    icon: "wellness",
+  },
+  {
+    id: "patient-history",
+    navLabel: "Assessment History",
+    title: "Assessment History",
+    icon: "monitoring",
+  },
+  {
+    id: "patient-falls",
+    navLabel: "My Fall History",
+    title: "My Fall History",
+    icon: "monitoring",
+  },
+];
+
 const App = () => {
-  const [activeTab, setActiveTab] = useState(() => {
-    try {
-      const remembered = window.sessionStorage.getItem(
-        "hypercare-active-web-tab"
-      );
-
-      return tabs.some((tab) => tab.id === remembered)
-        ? remembered
-        : "home";
-    } catch {
-      return "home";
-    }
-  });
-
+  const [activeTab, setActiveTab] = useState("home");
   const [user, setUser] = useState(null);
   const [authMode, setAuthMode] = useState("login");
   const [checkingSession, setCheckingSession] = useState(true);
@@ -65,6 +92,9 @@ const App = () => {
 
   const contentRef = useRef(null);
   const firstRender = useRef(true);
+
+  const isPatient = user?.role === "patient";
+  const tabs = isPatient ? patientTabs : caregiverTabs;
 
   // Restore and validate the current browser session.
   useEffect(() => {
@@ -80,7 +110,9 @@ const App = () => {
       }
 
       if (!token) {
-        if (!cancelled) setCheckingSession(false);
+        if (!cancelled) {
+          setCheckingSession(false);
+        }
         return;
       }
 
@@ -100,20 +132,25 @@ const App = () => {
 
         if (!cancelled) {
           setUser(data.user);
+          setActiveTab("patient-profile");
         }
       } catch {
         try {
           window.sessionStorage.removeItem(TOKEN_KEY);
+          window.sessionStorage.removeItem(ACTIVE_TAB_KEY);
         } catch {
-          // The browser may block session storage.
+          // Storage may be unavailable.
         }
 
         if (!cancelled) {
           setUser(null);
           setAuthMode("login");
+          setActiveTab("home");
         }
       } finally {
-        if (!cancelled) setCheckingSession(false);
+        if (!cancelled) {
+          setCheckingSession(false);
+        }
       }
     }
 
@@ -124,17 +161,30 @@ const App = () => {
     };
   }, []);
 
+  // Ensure the selected tab is allowed for the user's role.
+  useEffect(() => {
+    if (!user) return;
+
+    if (!tabs.some((tab) => tab.id === activeTab)) {
+      setActiveTab(isPatient ? "patient-profile" : "home");
+    }
+  }, [activeTab, user?.role]);
+
+  // Remember the active tab and update the page title.
   useEffect(() => {
     try {
       window.sessionStorage.setItem(
-        "hypercare-active-web-tab",
+        ACTIVE_TAB_KEY,
         activeTab
       );
     } catch {
-      // Navigation still works without session storage.
+      // Navigation works without session storage.
     }
 
-    const current = tabs.find((tab) => tab.id === activeTab);
+    const current = tabs.find(
+      (tab) => tab.id === activeTab
+    );
+
     document.title = `${current?.title || "Home"} | HyperCare`;
 
     if (firstRender.current) {
@@ -142,13 +192,27 @@ const App = () => {
       return;
     }
 
-    window.scrollTo({ top: 0, behavior: "auto" });
-    contentRef.current?.focus({ preventScroll: true });
-  }, [activeTab]);
+    window.scrollTo({
+      top: 0,
+      behavior: "auto",
+    });
+
+    contentRef.current?.focus({
+      preventScroll: true,
+    });
+  }, [activeTab, user?.role]);
 
   function handleAuthenticated(data) {
+    if (!data?.token || !data?.user) {
+      setLogoutError(
+        "The server returned an invalid authentication response."
+      );
+      return;
+    }
+
     try {
       window.sessionStorage.setItem(TOKEN_KEY, data.token);
+      window.sessionStorage.removeItem(ACTIVE_TAB_KEY);
     } catch {
       setLogoutError(
         "Browser session storage is unavailable. Enable it and try again."
@@ -158,7 +222,11 @@ const App = () => {
 
     setUser(data.user);
     setLogoutError("");
-    setActiveTab("home");
+    setActiveTab(
+      data.user.role === "patient"
+        ? "patient-profile"
+        : "home"
+    );
   }
 
   async function handleLogout() {
@@ -180,19 +248,21 @@ const App = () => {
         });
 
         if (!response.ok) {
-          throw new Error("Could not confirm logout with the server.");
+          throw new Error(
+            "Could not confirm logout with the server."
+          );
         }
       }
 
       setLogoutError("");
     } catch (error) {
-      // Clear this browser's token even if the server is unreachable.
       setLogoutError(
         `${error.message} This browser session will still be cleared.`
       );
     } finally {
       try {
         window.sessionStorage.removeItem(TOKEN_KEY);
+        window.sessionStorage.removeItem(ACTIVE_TAB_KEY);
       } catch {
         // Continue to the sign-in screen.
       }
@@ -215,7 +285,10 @@ const App = () => {
     return (
       <>
         {logoutError && (
-          <div className="auth-session-message" role="alert">
+          <div
+            className="auth-session-message"
+            role="alert"
+          >
             {logoutError}
           </div>
         )}
@@ -252,7 +325,11 @@ const App = () => {
           <button
             type="button"
             className="hc-brand"
-            onClick={() => setActiveTab("home")}
+            onClick={() =>
+              setActiveTab(
+                isPatient ? "patient-profile" : "home"
+              )
+            }
             aria-label="HyperCare Home"
           >
             <span className="hc-brand-mark">
@@ -261,11 +338,20 @@ const App = () => {
 
             <span>
               <strong>HyperCare</strong>
-              <small>Elderly-care management</small>
+              <small>
+                {isPatient
+                  ? "Patient Portal"
+                  : "Elderly-care management"}
+              </small>
             </span>
           </button>
 
-          <nav className="hc-nav" aria-label="Care workspaces">
+          <nav
+            className="hc-nav"
+            aria-label={
+              isPatient ? "Patient dashboard sections" : "Care workspaces"
+            }
+          >
             {tabs.map((tab) => (
               <button
                 key={tab.id}
@@ -287,11 +373,22 @@ const App = () => {
 
           <div className="hc-account-actions">
             <span className="hc-research-label">
-              Research prototype
+              {isPatient
+                ? "Patient Account"
+                : "Research prototype"}
             </span>
-            <span className="hc-account-name" title={user.email}>
+
+            <span
+              className="hc-account-name"
+              title={user.email}
+            >
               {user.name}
             </span>
+
+            <span className="hc-account-role">
+              {isPatient ? "Patient" : "Caregiver"}
+            </span>
+
             <button
               type="button"
               className="hc-logout-button"
@@ -309,24 +406,38 @@ const App = () => {
         tabIndex={-1}
         className="hc-content"
       >
-        {activeTab === "home" && (
-          <HomePage onNavigate={setActiveTab} />
-        )}
+        {isPatient ? (
+          <PatientDashboard activeSection={activeTab} />
+        ) : (
+          <>
+            {activeTab === "home" && (
+              <HomePage onNavigate={setActiveTab} />
+            )}
 
-        {activeTab === "mental" && <MentalWellness />}
+            {activeTab === "mental" && (
+              <MentalWellness />
+            )}
 
-        {activeTab === "nutrition" && (
-          <NutritionalIntelligence />
-        )}
+            {activeTab === "nutrition" && (
+              <NutritionalIntelligence />
+            )}
 
-        {activeTab === "medicine" && <TrayVerification />}
+            {activeTab === "medicine" && (
+              <TrayVerification />
+            )}
 
-        {activeTab === "monitoring" && <PatientMonitoring />}
+            {activeTab === "monitoring" && (
+              <PatientMonitoring />
+            )}
 
-        {activeTab === "notifications" && <NotificationHistory />}
+            {activeTab === "notifications" && (
+              <NotificationHistory />
+            )}
 
-        {activeTab === "physiological" && (
-          <PhysiologicalRecommendations />
+            {activeTab === "physiological" && (
+              <PhysiologicalRecommendations />
+            )}
+          </>
         )}
       </div>
     </div>

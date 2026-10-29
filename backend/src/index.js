@@ -1,10 +1,10 @@
-
 require("dotenv").config();
 
 const express = require("express");
 const cors = require("cors");
-const authRoutes = require("./routes/auth");
+const crypto = require("node:crypto");
 
+const authRoutes = require("./routes/auth");
 const pool = require("./db");
 
 const app = express();
@@ -26,12 +26,12 @@ const AI_SERVICE_URL = (
   process.env.COMPONENT1_AI_URL || "http://127.0.0.1:8000"
 ).replace(/\/+$/, "");
 
-// Existing backend health route
+// Backend health route
 app.get("/", (req, res) => {
   res.send("Hypertension Management Ecosystem backend running");
 });
 
-// Check PostgreSQL database connection
+// PostgreSQL health check
 app.get("/api/db/health", async (req, res) => {
   try {
     const result = await pool.query(
@@ -53,7 +53,7 @@ app.get("/api/db/health", async (req, res) => {
   }
 });
 
-// Check whether the Python AI service is available
+// Component 1: AI health check
 app.get("/api/component1/health", async (req, res) => {
   try {
     const response = await fetch(`${AI_SERVICE_URL}/health`, {
@@ -73,9 +73,7 @@ app.get("/api/component1/health", async (req, res) => {
   }
 });
 
-
-
-// Forward patient inputs to the Python prediction service
+// Component 1: Forward prediction requests
 app.post("/api/component1/predict", async (req, res) => {
   try {
     const response = await fetch(`${AI_SERVICE_URL}/predict`, {
@@ -116,8 +114,6 @@ app.post("/api/component1/predict", async (req, res) => {
   }
 });
 
-const PORT = process.env.PORT || 5000;
-
 // Component 2: Behavioral AI status
 app.get("/api/behavioral/status", async (req, res) => {
   try {
@@ -127,6 +123,7 @@ app.get("/api/behavioral/status", async (req, res) => {
     );
 
     const result = await response.json();
+
     return res.status(response.status).json(result);
   } catch (error) {
     console.error("Component 2 status check failed:", error.message);
@@ -139,7 +136,7 @@ app.get("/api/behavioral/status", async (req, res) => {
   }
 });
 
-
+// Component 2: Save fall events
 app.post("/api/behavioral/fall-events", async (req, res) => {
   try {
     const {
@@ -151,23 +148,30 @@ app.post("/api/behavioral/fall-events", async (req, res) => {
       videoTimeSeconds,
     } = req.body || {};
 
-    // Validate the event source
     if (!["uploaded_video", "live_camera"].includes(source)) {
       return res.status(400).json({
         error: "source must be uploaded_video or live_camera",
       });
     }
 
-    // Validate probability
     if (
-      probability !== undefined &&
-      probability !== null &&
+      probability != null &&
       (!Number.isFinite(Number(probability)) ||
         Number(probability) < 0 ||
         Number(probability) > 1)
     ) {
       return res.status(400).json({
         error: "probability must be between 0 and 1",
+      });
+    }
+
+    if (
+      videoTimeSeconds != null &&
+      (!Number.isFinite(Number(videoTimeSeconds)) ||
+        Number(videoTimeSeconds) < 0)
+    ) {
+      return res.status(400).json({
+        error: "videoTimeSeconds must be a non-negative number",
       });
     }
 
@@ -196,9 +200,7 @@ app.post("/api/behavioral/fall-events", async (req, res) => {
         trackId == null ? null : String(trackId),
         probability == null ? null : Number(probability),
         source,
-        videoTimeSeconds == null
-          ? null
-          : Number(videoTimeSeconds),
+        videoTimeSeconds == null ? null : Number(videoTimeSeconds),
       ]
     );
 
@@ -215,9 +217,7 @@ app.post("/api/behavioral/fall-events", async (req, res) => {
   }
 });
 
-
-
-/* Component 2: Fall notification history */
+// Component 2: Caregiver fall notification history
 app.get("/api/behavioral/fall-events", async (req, res) => {
   try {
     const { from, to, source } = req.query;
@@ -282,6 +282,96 @@ app.get("/api/behavioral/fall-events", async (req, res) => {
   }
 });
 
+// Patient: return only the authenticated patient's fall history
+app.get("/api/patient/fall-history", async (req, res) => {
+  const authHeader = req.headers.authorization || "";
+  const match = /^Bearer ([a-f0-9]{64})$/i.exec(authHeader);
+
+  if (!match) {
+    return res.status(401).json({
+      error: "Sign in to view your fall history.",
+    });
+  }
+
+  try {
+    const tokenHash = crypto
+      .createHash("sha256")
+      .update(match[1])
+      .digest("hex");
+
+    const sessionResult = await pool.query(
+      `SELECT u.id, u.role
+      FROM sessions s
+      JOIN users u ON u.id = s.user_id
+      WHERE s.token_hash = $1
+        AND s.expires_at > $2
+      LIMIT 1`,
+      [tokenHash, Date.now()]
+    );
+
+    if (sessionResult.rowCount === 0) {
+      return res.status(401).json({
+        error: "Your session expired. Sign in again.",
+      });
+    }
+
+    const user = sessionResult.rows[0];
+
+    if (user.role !== "patient") {
+      return res.status(403).json({
+        error: "This endpoint is for patient accounts only.",
+      });
+    }
+
+    // Resolve this patient account to its existing face-recognition ID.
+    const mappingResult = await pool.query(
+      `SELECT face_id
+       FROM patient_face_mappings
+       WHERE user_id = $1
+       LIMIT 1`,
+      [user.id]
+    );
+
+    if (mappingResult.rowCount === 0) {
+      return res.status(404).json({
+        error: "No Face Recognition ID is linked to this patient account.",
+      });
+    }
+
+    const faceId = mappingResult.rows[0].face_id;
+
+    // Return events for this face ID only.
+    const eventsResult = await pool.query(
+      `SELECT
+         id,
+         resident_id AS "residentId",
+         resident_name AS "residentName",
+         track_id AS "trackId",
+         probability,
+         source,
+         occurred_at AS "occurredAt",
+         video_time_seconds AS "videoTimeSeconds"
+       FROM fall_events
+       WHERE resident_id = $1
+       ORDER BY occurred_at DESC
+       LIMIT 500`,
+      [faceId]
+    );
+
+    return res.json({
+      events: eventsResult.rows,
+      count: eventsResult.rowCount,
+    });
+  } catch (error) {
+    console.error("Patient fall history failed:", error.message);
+
+    return res.status(500).json({
+      error: "Could not load patient fall history.",
+    });
+  }
+});
+
+const PORT = process.env.PORT || 5000;
 
 app.listen(PORT, () => {
   console.log(`Backend running on port ${PORT}`);
