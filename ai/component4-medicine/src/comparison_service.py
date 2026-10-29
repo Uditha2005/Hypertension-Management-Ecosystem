@@ -9,8 +9,17 @@ from pathlib import Path
 from uuid import uuid4
 
 
-MIN_CONFIDENCE = 0.65
+MIN_CONFIDENCE = 0.60
 
+
+def reference_assigned(detection):
+    return (
+        detection.get("referenceMode") is True
+        and detection.get("referenceAssigned") is True
+        and detection.get("labelSource") == "reference-rule"
+        and detection.get("referenceProfile") == "declared-five-samples-v1"
+        and not detection.get("identityUncertain")
+    )
 
 def now():
     return datetime.now(timezone.utc).isoformat()
@@ -229,7 +238,8 @@ def build_comparison(prescription, detections, products):
             label not in products or bool(detection.get("unmapped"))
         )
 
-        if unsupported_class or detection["confidence"] < MIN_CONFIDENCE:
+        if (unsupported_class or detection.get("identityUncertain")
+            or (detection["confidence"] < MIN_CONFIDENCE and not reference_assigned(detection))):
             uncertain.append({
                 **detection,
                 "reason": (
@@ -260,6 +270,7 @@ def build_comparison(prescription, detections, products):
             ),
         })
 
+    uses_reference = any(d.get("referenceMode") for d in detections)
     mismatch = any(row["difference"] != 0 for row in rows)
     status = (
         "Inconclusive — review required"
@@ -269,14 +280,30 @@ def build_comparison(prescription, detections, products):
         else "Counts match — review required"
     )
 
+    if uses_reference:
+        status = (
+            "Reference comparison inconclusive — review required" if uncertain
+            else "Reference count differences — review required" if mismatch
+            else "Reference counts match — identities NOT verified"
+        )
+
     return {
         **base_result(prescription, "product-count"),
+        "usesReferenceLabels": uses_reference,
+        "labelSource": "reference-assisted" if uses_reference else "model",
+        "referenceAssignedCount": sum(reference_assigned(d) for d in detections),
         "status": status,
         "rows": rows,
         "uncertain": uncertain,
         "identitiesConfirmed": False,
         "scope": "Predicted product labels and tray quantities",
         "notes": (
+            "Experimental reference comparison for the user's declared five samples. "
+            "Assigned labels use colour and relative box area, not confirmed medicine identities. "
+            "Model confidence thresholds do not validate reference labels. "
+            "Review the original prescription and packaging. Matching reference counts do not "
+            "confirm strength, timing, route or clinical suitability."
+            if uses_reference else
             "Compares predicted product labels and counted detections with "
             "the reviewed tray list. Uncertain detections are excluded. "
             "Strength, timing, route and clinical suitability are not verified. "

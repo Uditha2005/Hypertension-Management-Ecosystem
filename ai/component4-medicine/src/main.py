@@ -31,6 +31,7 @@ from detect import (
 )
 from prescription_draft import build_draft
 from prescription_llm import build_llm_draft
+from prescription_vision import read_prescription_image, vision_model
 from comparison_service import (
     save_prescription,
     get_prescription as get_reviewed_prescription,
@@ -250,6 +251,17 @@ def llm_configured():
     return bool(os.environ.get("GROQ_API_KEY", "").strip())
 
 
+def image_reader():
+    mode = os.environ.get("RX_IMAGE_READER", "").strip().lower()
+    if mode and mode not in {"groq-vision", "paddle"}:
+        raise HTTPException(status_code=503, detail="RX_IMAGE_READER must be groq-vision or paddle.")
+    return mode or ("groq-vision" if llm_configured() else "paddle")
+
+
+def image_reader_configured():
+    return llm_configured() if image_reader() == "groq-vision" else ocr_files_ready()
+
+
 @app.get("/")
 def home():
     return {
@@ -261,7 +273,10 @@ def home():
         "modelFile": MODEL_PATH.name,
         "modelFilePresent": MODEL_PATH.is_file(),
         "prescriptionReady": False,
-        "ocrConfigured": ocr_files_ready(),
+        "ocrConfigured": image_reader_configured(),
+        "imageReader": image_reader(),
+        "visionModel": vision_model() if image_reader() == "groq-vision" else None,
+        "prescriptionImageDestination": "groq" if image_reader() == "groq-vision" else "local",
         "llmConfigured": llm_configured(),
         "reviewedComparisonReady": True,
         "totalCountComparisonReady": True,
@@ -281,7 +296,10 @@ def bootstrap():
         "metadataVerified": False,
         "metadataSource": "local-training-labels",
         "prescriptionReady": False,
-        "ocrConfigured": ocr_files_ready(),
+        "ocrConfigured": image_reader_configured(),
+        "imageReader": image_reader(),
+        "visionModel": vision_model() if image_reader() == "groq-vision" else None,
+        "prescriptionImageDestination": "groq" if image_reader() == "groq-vision" else "local",
         "llmConfigured": llm_configured(),
         "reviewedComparisonReady": True,
         "totalCountComparisonReady": True,
@@ -356,6 +374,27 @@ def detect_photo(payload: PhotoRequest):
 
 @app.post("/api/medicine/prescription/ocr")
 def prescription_ocr(payload: PhotoRequest):
+    if image_reader() == "groq-vision":
+        if not llm_configured():
+            raise HTTPException(status_code=503, detail="Groq vision requires GROQ_API_KEY in the API process.")
+        image = decode_photo(payload.imageData)
+        acquired = False
+        try:
+            acquired = OCR_LOCK.acquire(blocking=False)
+            if not acquired:
+                raise HTTPException(status_code=503, detail="Prescription image reading is busy. Wait for the current request.")
+            logger.info("Prescription image reader: Groq vision, model %s", vision_model())
+            return read_prescription_image(image)
+        except ValueError as error:
+            raise HTTPException(status_code=422, detail=str(error)) from None
+        except RuntimeError as error:
+            # Do not hide a failed vision request behind the old local OCR.
+            raise HTTPException(status_code=503, detail=str(error)) from None
+        finally:
+            image.close()
+            if acquired:
+                OCR_LOCK.release()
+
     if not ocr_files_ready():
         raise HTTPException(
             status_code=503,

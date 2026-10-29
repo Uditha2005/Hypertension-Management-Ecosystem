@@ -31,6 +31,11 @@ except ModuleNotFoundError:
 
 
 logger = logging.getLogger("component3_nutrition")
+try:
+    from foodseg103_inference import FoodSeg103Inference
+except ModuleNotFoundError:
+    from .foodseg103_inference import FoodSeg103Inference
+_foodseg103 = FoodSeg103Inference()
 
 app = FastAPI(title="Component 3 — DASH-Informed Meal Assessment and Diet Optimization", version="4.0.0",
  description="Transparent nutrient-reference assessment, daily DASH optimization and separately evaluated ML research. Not a diagnostic service.")
@@ -156,8 +161,8 @@ class ImageFoodIdentificationResponse(BaseModel):
 def identify_foods_from_image(request: ImageFoodIdentificationRequest) -> ImageFoodIdentificationResponse:
     """Use a separate vision-capable service to suggest foods; user must confirm before nutrition lookup."""
     api_key = os.getenv("GEMINI_API_KEY")
-    if not api_key:
-        raise HTTPException(status_code=503, detail="Photo recognition is not configured. Add GEMINI_API_KEY to the API environment, or use manual food search below.")
+    if not api_key and not _foodseg103.available:
+        raise HTTPException(status_code=503, detail="Photo recognition is not configured. Train/deploy the local FoodSeg103 model or add GEMINI_API_KEY to the API environment, or use manual food search below.")
     image_data_url = request.image_data_url.strip()
     if not image_data_url.startswith(("data:image/jpeg;base64,", "data:image/png;base64,", "data:image/webp;base64,")):
         raise HTTPException(status_code=422, detail="Upload a JPG, PNG, or WEBP image.")
@@ -169,6 +174,26 @@ def identify_foods_from_image(request: ImageFoodIdentificationRequest) -> ImageF
         raise HTTPException(status_code=422, detail="The uploaded image could not be read.") from exc
     if len(raw) > 8 * 1024 * 1024:
         raise HTTPException(status_code=413, detail="Please upload an image smaller than 8 MB.")
+
+    # Prefer the locally trained FoodSeg103 model when its checkpoint is installed.
+    # This keeps photo recognition available without an external vision API key.
+    if _foodseg103.available:
+        try:
+            result = _foodseg103.predict_data_url(image_data_url)
+            return ImageFoodIdentificationResponse(
+                foods=[IdentifiedFood(**food) for food in result["foods"]],
+                message=result["message"],
+                limitation=result["limitation"],
+            )
+        except Exception as exc:
+            logger.exception("Local FoodSeg103 inference failed")
+            if not os.getenv("GEMINI_API_KEY"):
+                raise HTTPException(status_code=503, detail=(
+                    "The local FoodSeg103 checkpoint exists but inference failed. Check the model checkpoint and PyTorch installation. "
+                    f"Failure type: {type(exc).__name__}."
+                )) from exc
+            logger.warning("Falling back to configured Gemini vision service after local inference failure.")
+
     prompt = ("Identify visible foods in this dish photo. Return JSON only with a foods array. "
               "Each item must have food_name (plain recognizable food name), estimated_quantity_g (rough edible portion estimate in grams), "
               "confidence (high, medium, or low), and notes (uncertainty such as hidden ingredients). "
@@ -244,8 +269,12 @@ def log_recommendation_engine_status() -> None:
 
 @app.get("/health")
 def health()->dict[str,Any]:
+    local_food_model = _foodseg103.available
     return {"status":"ok","service":"component3-nutrition-api",
-            "photo_food_identification_available":bool(os.getenv("GEMINI_API_KEY")),
+            "photo_food_identification_available":bool(local_food_model or os.getenv("GEMINI_API_KEY")),
+            "photo_food_identification_method":("local_foodseg103" if local_food_model else "gemini" if os.getenv("GEMINI_API_KEY") else "unconfigured"),
+            "foodseg103_checkpoint_available":local_food_model,
+            "foodseg103_checkpoint_path":str(_foodseg103.checkpoint_path),
             "daily_dash_optimizer_available":recommendation_engine_status()["dash_optimizer_data_ready"],
             "recommendation_engine": recommendation_engine_status()}
 

@@ -14,6 +14,14 @@ app.use(express.json());
 
 app.use("/api/auth", authRoutes);
 
+app.use(
+  "/api/component1/resident-profile",
+  require("./residentProfileTemp")(authRoutes.authenticate)
+);
+app.use(
+  "/api/component1/assessment-history",
+  require("./assessmentHistoryTemp")(authRoutes.authenticate)
+);
 const AI_SERVICE_URL = (
   process.env.COMPONENT1_AI_URL || "http://127.0.0.1:8000"
 ).replace(/\/+$/, "");
